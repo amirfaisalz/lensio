@@ -13,7 +13,7 @@
 - [x] **Phase 3: OCR Engine Abstraction & Processing Pipeline (Day 3)**
 - [x] **Phase 4: API Platform – Rate Limiting, Quotas & Usage Metering (Day 4)**
 - [x] **Phase 5: Developer Dashboard & Portal (Days 1, 4 & 7)**
-- [ ] **Phase 6: Observability, Telemetry & Structured Logging (Day 5)**
+- [x] **Phase 6: Observability, Telemetry & Structured Logging (Day 5)**
 - [ ] **Phase 7: Infrastructure as Code & Multi-Environment Provisioning (Day 5)**
 - [ ] **Phase 8: CI/CD Delivery Pipeline & Automated Security Gates (Day 5 & 6)**
 - [ ] **Phase 9: Reliability Engineering, Failure Drills & E2E Testing (Day 6)**
@@ -252,26 +252,26 @@ Build a clean, responsive developer dashboard using React + TypeScript.
 
 Instrument the Go application with OpenTelemetry, Prometheus metrics, and Grafana dashboards.
 
-- [ ] **OpenTelemetry Tracing & Metrics (`PRD Section 16`)**
-  - [ ] Configure OpenTelemetry Go SDK (`go.opentelemetry.io/otel`).
-  - [ ] HTTP middleware for distributed tracing (trace context propagation, trace ID in logs).
-  - [ ] Database client tracing (Postgres query spans, connection pool stats).
-  - [ ] Custom spans for OCR processing pipeline stages (validation, OCR engine, field extraction).
-- [ ] **Core Telemetry Metrics (`PRD Section 16`)**
-  - [ ] **Availability**: Request counter partitioned by route, method, and HTTP status code.
-  - [ ] **Performance**: Latency histograms (P50, P95, P99) for HTTP handlers and OCR pipeline.
-  - [ ] **Errors**: 4xx, 5xx, provider timeout, and fallback error counters.
-  - [ ] **Rate Limiting**: 429 response counter per organization.
-  - [ ] **Business Metrics**: Total OCR requests, successful extractions, low-confidence extractions, average extraction latency.
-- [ ] **Structured Logging & PII Masking (`PRD Section 15`)**
-  - [ ] Implement structured JSON logging (`slog` or `zap`).
-  - [ ] Correlate all logs with `request_id`, `trace_id`, and `span_id`.
-  - [ ] PII Sanitizer filter: strictly strip NIK, names, addresses, and images from log outputs.
-- [ ] **Grafana Dashboards & Prometheus**
-  - [ ] Configure Prometheus / OTel Collector endpoints.
-  - [ ] Create pre-configured Grafana dashboard JSON (RED metrics: Rate, Errors, Duration).
-  - [ ] Create SLA/SLO tracking panels for P95 latency (< 2s) and error budget (> 99%).
-- [ ] **Acceptance Criteria**:
+- [x] **OpenTelemetry Tracing & Metrics (`PRD Section 16`)**
+  - [x] Configure OpenTelemetry Go SDK (`go.opentelemetry.io/otel`).
+  - [x] HTTP middleware for distributed tracing (trace context propagation, trace ID in logs).
+  - [x] Database client tracing (Postgres query spans, connection pool stats).
+  - [x] Custom spans for OCR processing pipeline stages (validation, OCR engine, field extraction).
+- [x] **Core Telemetry Metrics (`PRD Section 16`)**
+  - [x] **Availability**: Request counter partitioned by route, method, and HTTP status code.
+  - [x] **Performance**: Latency histograms (P50, P95, P99) for HTTP handlers and OCR pipeline.
+  - [x] **Errors**: 4xx, 5xx, provider timeout, and fallback error counters.
+  - [x] **Rate Limiting**: 429 response counter per organization.
+  - [x] **Business Metrics**: Total OCR requests, successful extractions, low-confidence extractions, average extraction latency.
+- [x] **Structured Logging & PII Masking (`PRD Section 15`)**
+  - [x] Implement structured JSON logging (`slog` or `zap`).
+  - [x] Correlate all logs with `request_id`, `trace_id`, and `span_id`.
+  - [x] PII Sanitizer filter: strictly strip NIK, names, addresses, and images from log outputs.
+- [x] **Grafana Dashboards & Prometheus**
+  - [x] Configure Prometheus / OTel Collector endpoints.
+  - [x] Create pre-configured Grafana dashboard JSON (RED metrics: Rate, Errors, Duration).
+  - [x] Create SLA/SLO tracking panels for P95 latency (< 2s) and error budget (> 99%).
+- [x] **Acceptance Criteria**:
   - Telemetry spans are emitted during an OCR request.
   - Grafana dashboard displays real-time request counts, latency percentiles, and error rates.
   - Verified that application logs contain no sensitive identity fields.

@@ -11,10 +11,12 @@ import (
 	"github.com/amirfaisalz/nusaid/apps/api/internal/http/response"
 	"github.com/amirfaisalz/nusaid/apps/api/internal/ratelimit"
 	"github.com/amirfaisalz/nusaid/apps/api/internal/store"
+	"github.com/amirfaisalz/nusaid/apps/api/internal/telemetry"
 )
 
 type planCacheEntry struct {
 	limit     int
+	planCode  string
 	expiresAt time.Time
 }
 
@@ -43,7 +45,7 @@ func NewRateLimitMiddleware(limiter *ratelimit.Limiter, accountStore store.Accou
 // Handler returns an http.Handler middleware enforcing rate limits and emitting standard RFC headers.
 func (m *RateLimitMiddleware) Handler(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/health" || r.URL.Path == "/ready" || strings.HasPrefix(r.URL.Path, "/docs") || strings.HasPrefix(r.URL.Path, "/openapi") {
+		if r.URL.Path == "/health" || r.URL.Path == "/ready" || strings.HasPrefix(r.URL.Path, "/docs") || strings.HasPrefix(r.URL.Path, "/openapi") || r.URL.Path == "/metrics" {
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -53,7 +55,7 @@ func (m *RateLimitMiddleware) Handler(next http.Handler) http.Handler {
 			orgID = key.OrgID
 		}
 
-		limit := m.getOrgRateLimit(r.Context(), orgID)
+		limit, planCode := m.getOrgRateLimit(r.Context(), orgID)
 		res := m.limiter.Allow(orgID, limit)
 
 		w.Header().Set("X-RateLimit-Limit", strconv.Itoa(res.Limit))
@@ -61,6 +63,7 @@ func (m *RateLimitMiddleware) Handler(next http.Handler) http.Handler {
 		w.Header().Set("X-RateLimit-Reset", strconv.FormatInt(res.ResetTime, 10))
 
 		if !res.Allowed {
+			telemetry.RecordRateLimitExceeded(r.Context(), orgID, planCode)
 			w.Header().Set("Retry-After", strconv.Itoa(res.RetryAfter))
 			response.ErrorWithRequest(
 				w,
@@ -77,7 +80,7 @@ func (m *RateLimitMiddleware) Handler(next http.Handler) http.Handler {
 }
 
 // getOrgRateLimit looks up organization rate limit with a 1-minute in-memory cache to guarantee O(1) hot paths.
-func (m *RateLimitMiddleware) getOrgRateLimit(ctx context.Context, orgID string) int {
+func (m *RateLimitMiddleware) getOrgRateLimit(ctx context.Context, orgID string) (int, string) {
 	now := time.Now()
 
 	m.mu.RLock()
@@ -85,23 +88,30 @@ func (m *RateLimitMiddleware) getOrgRateLimit(ctx context.Context, orgID string)
 	m.mu.RUnlock()
 
 	if exists && entry.expiresAt.After(now) {
-		return entry.limit
+		return entry.limit, entry.planCode
 	}
 
 	limit := 10 // default Free tier limit (10 req/min)
+	planCode := "free"
 	if m.accountStore != nil {
 		plan, err := m.accountStore.GetOrganizationPlan(ctx, orgID)
-		if err == nil && plan != nil && plan.RateLimitPerMinute > 0 {
-			limit = plan.RateLimitPerMinute
+		if err == nil && plan != nil {
+			if plan.RateLimitPerMinute > 0 {
+				limit = plan.RateLimitPerMinute
+			}
+			if plan.Code != "" {
+				planCode = plan.Code
+			}
 		}
 	}
 
 	m.mu.Lock()
 	m.cache[orgID] = planCacheEntry{
 		limit:     limit,
+		planCode:  planCode,
 		expiresAt: now.Add(1 * time.Minute),
 	}
 	m.mu.Unlock()
 
-	return limit
+	return limit, planCode
 }

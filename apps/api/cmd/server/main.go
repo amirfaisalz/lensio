@@ -14,19 +14,29 @@ import (
 	internalhttp "github.com/amirfaisalz/nusaid/apps/api/internal/http"
 	"github.com/amirfaisalz/nusaid/apps/api/internal/ratelimit"
 	"github.com/amirfaisalz/nusaid/apps/api/internal/store"
+	"github.com/amirfaisalz/nusaid/apps/api/internal/telemetry"
 	"github.com/amirfaisalz/nusaid/apps/api/internal/usage"
 	"github.com/amirfaisalz/nusaid/services/ocr"
 	"github.com/amirfaisalz/nusaid/services/ocr/providers"
 )
 
 func main() {
-	// Initialize structured JSON logging (Ponytail standard library log/slog)
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
-		Level: slog.LevelInfo,
-	}))
+	cfg := config.Load()
+
+	// Initialize OpenTelemetry Tracing, Metrics & Prometheus Exporter (PRD Section 16)
+	tel, err := telemetry.Init(context.Background(), telemetry.Config{
+		ServiceName:    "nusaid-api",
+		ServiceVersion: "1.0.0",
+		Environment:    cfg.Env,
+	})
+	if err != nil {
+		slog.Error("failed initializing OpenTelemetry", slog.String("error", err.Error()))
+	}
+
+	// Initialize structured JSON logging with strict PII sanitization and OpenTelemetry correlation
+	logger := telemetry.InitLogger(slog.LevelInfo, os.Stdout)
 	slog.SetDefault(logger)
 
-	cfg := config.Load()
 	logger.Info("starting nusaid api service",
 		slog.String("env", cfg.Env),
 		slog.String("port", cfg.Port),
@@ -54,6 +64,11 @@ func main() {
 				logger.Error("failed to run database migrations", slog.String("error", err.Error()))
 			} else {
 				logger.Info("database migrations applied successfully")
+			}
+
+			// Register database connection pool telemetry metrics (PRD Section 16)
+			if err := telemetry.RegisterDBStats(db.DB); err != nil {
+				logger.Warn("failed registering db pool metrics", slog.String("error", err.Error()))
 			}
 		}
 	} else {
@@ -129,6 +144,12 @@ func main() {
 	if db != nil {
 		if err := db.Close(); err != nil {
 			logger.Error("error closing database pool", slog.String("error", err.Error()))
+		}
+	}
+
+	if tel != nil {
+		if err := tel.Shutdown(shutdownCtx); err != nil {
+			logger.Error("error shutting down telemetry", slog.String("error", err.Error()))
 		}
 	}
 }

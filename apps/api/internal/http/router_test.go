@@ -507,4 +507,18 @@ func TestNewRouterWithDeps_Phase4(t *testing.T) {
 			t.Fatal("expected 429 rate limit exceeded after bursting requests")
 		}
 	})
+
+	// 9. Test GET /metrics and X-Trace-ID header emission
+	t.Run("GET /metrics returns 200 and Prometheus metrics", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/metrics", nil)
+		rec := httptest.NewRecorder()
+		router.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Fatalf("expected 200, got %d", rec.Code)
+		}
+		if rec.Header().Get("X-Trace-ID") == "" {
+			t.Error("expected X-Trace-ID header on /metrics response")
+		}
+	})
 }

@@ -9,6 +9,7 @@ import (
 	"github.com/amirfaisalz/nusaid/apps/api/internal/quota"
 	"github.com/amirfaisalz/nusaid/apps/api/internal/ratelimit"
 	"github.com/amirfaisalz/nusaid/apps/api/internal/store"
+	"github.com/amirfaisalz/nusaid/apps/api/internal/telemetry"
 	"github.com/amirfaisalz/nusaid/apps/api/internal/usage"
 	"github.com/amirfaisalz/nusaid/services/ocr"
 	"github.com/amirfaisalz/nusaid/services/ocr/providers"
@@ -42,9 +43,10 @@ func NewRouter(pinger store.Pinger, keyStore store.APIKeyStore, ocrEngine ocr.OC
 func NewRouterWithDeps(deps RouterDeps) http.Handler {
 	mux := http.NewServeMux()
 
-	// Probes (PRD Section 17)
+	// Probes (PRD Section 17 & 16)
 	mux.HandleFunc("GET /health", handlers.HealthHandler())
 	mux.HandleFunc("GET /ready", handlers.ReadyHandler(deps.Pinger))
+	mux.Handle("GET /metrics", telemetry.PrometheusHandler())
 
 	// Documentation & Contract (PRD Section 29)
 	mux.HandleFunc("GET /openapi", handlers.OpenAPIHandler())
@@ -116,12 +118,10 @@ func NewRouterWithDeps(deps RouterDeps) http.Handler {
 		rootHandler = rlMw.Handler(rootHandler)
 	}
 
-	// Usage Metering Middleware (PRD Section 11)
-	if deps.UsageRecorder != nil {
-		rootHandler = middleware.UsageMetering(deps.UsageRecorder, handlers.DefaultOrgID)(rootHandler)
-	}
+	// Usage Metering & Metrics Middleware (PRD Section 11 & 16)
+	rootHandler = middleware.UsageMetering(deps.UsageRecorder, handlers.DefaultOrgID)(rootHandler)
 
-	// Global Middleware: CORS and Request ID injection (PRD Section 20)
-	return middleware.CORS(middleware.RequestID(rootHandler))
+	// Global Middleware: Request ID injection, Distributed Tracing, and CORS (PRD Section 16 & 20)
+	return middleware.RequestID(middleware.Tracing(nil)(middleware.CORS(rootHandler)))
 }
 

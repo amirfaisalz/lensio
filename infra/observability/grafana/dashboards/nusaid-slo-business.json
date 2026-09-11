@@ -1,0 +1,241 @@
+{
+  "annotations": {
+    "list": []
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "liveNow": true,
+  "panels": [
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "id": 1,
+      "title": "SLA & SLO Performance Targets",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 1.5 },
+              { "color": "red", "value": 2.0 }
+            ]
+          },
+          "unit": "s",
+          "max": 3.0,
+          "min": 0.0
+        }
+      },
+      "gridPos": { "h": 6, "w": 8, "x": 0, "y": 1 },
+      "id": 2,
+      "options": {
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{route=\"/api/v1/ocr/ktp\"}[5m])) by (le))",
+          "legendFormat": "P95 Latency"
+        }
+      ],
+      "title": "SLO Target: P95 Latency (< 2.0s)",
+      "type": "gauge"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 98.0 },
+              { "color": "green", "value": 99.0 }
+            ]
+          },
+          "unit": "percent",
+          "max": 100.0,
+          "min": 90.0
+        }
+      },
+      "gridPos": { "h": 6, "w": 8, "x": 8, "y": 1 },
+      "id": 3,
+      "options": {
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true
+      },
+      "targets": [
+        {
+          "expr": "100 - ((sum(rate(http_errors_total{route=\"/api/v1/ocr/ktp\"}[5m])) / clamp_min(sum(rate(http_requests_total{route=\"/api/v1/ocr/ktp\"}[5m])), 0.001)) * 100)",
+          "legendFormat": "Availability %"
+        }
+      ],
+      "title": "SLO Target: Availability (> 99.0%)",
+      "type": "gauge"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 20.0 },
+              { "color": "green", "value": 50.0 }
+            ]
+          },
+          "unit": "percent",
+          "max": 100.0,
+          "min": 0.0
+        }
+      },
+      "gridPos": { "h": 6, "w": 8, "x": 16, "y": 1 },
+      "id": 4,
+      "options": {
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true
+      },
+      "targets": [
+        {
+          "expr": "clamp_max(clamp_min((1 - ((sum(rate(http_errors_total{route=\"/api/v1/ocr/ktp\"}[5m])) / clamp_min(sum(rate(http_requests_total{route=\"/api/v1/ocr/ktp\"}[5m])), 0.001)) / 0.01)) * 100, 0), 100)",
+          "legendFormat": "Error Budget Remaining"
+        }
+      ],
+      "title": "SLO: Error Budget Remaining (%)",
+      "type": "gauge"
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 7 },
+      "id": 5,
+      "title": "OCR Business Telemetry & Pipeline Stages",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 20
+          },
+          "unit": "reqps"
+        }
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "id": 6,
+      "targets": [
+        {
+          "expr": "sum(rate(ocr_requests_total[1m])) by (status)",
+          "legendFormat": "OCR Status: {{status}}"
+        }
+      ],
+      "title": "Business: OCR Requests Throughput by Status",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 80
+          },
+          "unit": "short"
+        }
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "id": 7,
+      "targets": [
+        {
+          "expr": "sum(rate(ocr_confidence_score_bucket[5m])) by (le)",
+          "legendFormat": "<= {{le}}"
+        }
+      ],
+      "title": "Business: KTP Extraction Confidence Distribution",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth"
+          },
+          "unit": "s"
+        }
+      },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 16 },
+      "id": 8,
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(ocr_duration_seconds_bucket{stage=\"validation\"}[5m])) by (le))",
+          "legendFormat": "Validation (P95)"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(ocr_duration_seconds_bucket{stage=\"ocr_engine\"}[5m])) by (le))",
+          "legendFormat": "OCR Engine (P95)"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(ocr_duration_seconds_bucket{stage=\"field_extraction\"}[5m])) by (le))",
+          "legendFormat": "Field Extraction & Normalization (P95)"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(ocr_duration_seconds_bucket{stage=\"overall\"}[5m])) by (le))",
+          "legendFormat": "Overall Pipeline (P95)"
+        }
+      ],
+      "title": "Pipeline Performance: Latency by Stage (P95)",
+      "type": "timeseries"
+    }
+  ],
+  "refresh": "5s",
+  "schemaVersion": 38,
+  "style": "dark",
+  "tags": ["nusaid", "slo", "sla", "business", "ocr"],
+  "time": {
+    "from": "now-15m",
+    "to": "now"
+  },
+  "timepicker": {
+    "refresh_intervals": ["5s", "10s", "30s", "1m"]
+  },
+  "timezone": "browser",
+  "title": "NusaID - SLA/SLO & OCR Business Telemetry",
+  "uid": "nusaid-slo-business",
+  "version": 1
+}

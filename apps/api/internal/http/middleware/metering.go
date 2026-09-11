@@ -6,6 +6,7 @@ import (
 
 	"github.com/amirfaisalz/nusaid/apps/api/internal/http/response"
 	"github.com/amirfaisalz/nusaid/apps/api/internal/store"
+	"github.com/amirfaisalz/nusaid/apps/api/internal/telemetry"
 	"github.com/amirfaisalz/nusaid/apps/api/internal/usage"
 )
 
@@ -28,11 +29,6 @@ func UsageMetering(recorder *usage.Recorder, defaultOrgID string) func(http.Hand
 
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if recorder == nil {
-				next.ServeHTTP(w, r)
-				return
-			}
-
 			start := time.Now()
 			sw := &statusResponseWriter{
 				ResponseWriter: w,
@@ -42,6 +38,17 @@ func UsageMetering(recorder *usage.Recorder, defaultOrgID string) func(http.Hand
 			next.ServeHTTP(sw, r)
 
 			latencyMS := int(time.Since(start).Milliseconds())
+			durationSec := float64(latencyMS) / 1000.0
+
+			// Record OpenTelemetry & Prometheus availability and latency metrics
+			telemetry.RecordHTTPRequest(r.Context(), r.URL.Path, r.Method, sw.statusCode, durationSec)
+			if sw.statusCode >= http.StatusBadRequest {
+				telemetry.RecordHTTPError(r.Context(), r.URL.Path, sw.statusCode, http.StatusText(sw.statusCode))
+			}
+
+			if recorder == nil {
+				return
+			}
 
 			orgID := defaultOrgID
 			var apiKeyID *string

@@ -13,7 +13,10 @@ import (
 	"github.com/amirfaisalz/nusaid/apps/api/internal/http/middleware"
 	"github.com/amirfaisalz/nusaid/apps/api/internal/http/response"
 	"github.com/amirfaisalz/nusaid/apps/api/internal/store"
+	"github.com/amirfaisalz/nusaid/apps/api/internal/telemetry"
 	"github.com/amirfaisalz/nusaid/services/ocr"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 )
 
 // GenerateUUIDv4 generates an RFC 4122 compliant UUID v4 string using crypto/rand.
@@ -142,8 +145,21 @@ func KTPOCRHandler(engine ocr.OCREngine, ocrStore store.OCRRequestStore, quotaCh
 			return
 		}
 
-		// Strictly validate magic bytes and dimensions
+		tracer := telemetry.Tracer()
+
+		// Stage 1: Validate Image
+		valStart := time.Now()
+		_, valSpan := tracer.Start(r.Context(), "ocr.validate_image")
 		if _, err := ocr.ValidateImage(imgBytes); err != nil {
+			valSpan.RecordError(err)
+			valSpan.SetStatus(codes.Error, err.Error())
+			valSpan.End()
+
+			valDuration := time.Since(valStart).Seconds()
+			telemetry.RecordOCRStageDuration(r.Context(), "validation", "error", valDuration)
+			telemetry.RecordOCRError(r.Context(), "validation", response.CodeInvalidDocument)
+			telemetry.RecordOCRRequest(r.Context(), "ktp", "failure", 0, time.Since(startTime).Seconds())
+
 			response.ErrorWithRequest(
 				w,
 				r,
@@ -153,8 +169,13 @@ func KTPOCRHandler(engine ocr.OCREngine, ocrStore store.OCRRequestStore, quotaCh
 			)
 			return
 		}
+		valSpan.SetStatus(codes.Ok, "valid")
+		valSpan.End()
+		telemetry.RecordOCRStageDuration(r.Context(), "validation", "success", time.Since(valStart).Seconds())
 
 		if engine == nil {
+			telemetry.RecordOCRError(r.Context(), "ocr_engine", response.CodeOCRFailed)
+			telemetry.RecordOCRRequest(r.Context(), "ktp", "failure", 0, time.Since(startTime).Seconds())
 			response.ErrorWithRequest(
 				w,
 				r,
@@ -165,12 +186,23 @@ func KTPOCRHandler(engine ocr.OCREngine, ocrStore store.OCRRequestStore, quotaCh
 			return
 		}
 
-		ocrResult, err := engine.Extract(r.Context(), imgBytes)
+		// Stage 2: OCR Engine Extraction
+		engStart := time.Now()
+		engCtx, engSpan := tracer.Start(r.Context(), "ocr.engine_extract")
+		ocrResult, err := engine.Extract(engCtx, imgBytes)
 		// Immediately release reference to image bytes
 		imgBytes = nil
+		engDuration := time.Since(engStart).Seconds()
 
 		if err != nil {
+			engSpan.RecordError(err)
+			engSpan.SetStatus(codes.Error, err.Error())
+			engSpan.End()
+			telemetry.RecordOCRStageDuration(r.Context(), "ocr_engine", "error", engDuration)
+
 			if errors.Is(err, ocr.ErrUnsupportedDocument) {
+				telemetry.RecordOCRError(r.Context(), "ocr_engine", response.CodeUnsupportedDocument)
+				telemetry.RecordOCRRequest(r.Context(), "ktp", "failure", 0, time.Since(startTime).Seconds())
 				response.ErrorWithRequest(
 					w,
 					r,
@@ -181,6 +213,8 @@ func KTPOCRHandler(engine ocr.OCREngine, ocrStore store.OCRRequestStore, quotaCh
 				return
 			}
 			if errors.Is(err, ocr.ErrOCRFailed) {
+				telemetry.RecordOCRError(r.Context(), "ocr_engine", response.CodeOCRFailed)
+				telemetry.RecordOCRRequest(r.Context(), "ktp", "failure", 0, time.Since(startTime).Seconds())
 				response.ErrorWithRequest(
 					w,
 					r,
@@ -191,6 +225,8 @@ func KTPOCRHandler(engine ocr.OCREngine, ocrStore store.OCRRequestStore, quotaCh
 				return
 			}
 
+			telemetry.RecordOCRError(r.Context(), "ocr_engine", response.CodeInternalError)
+			telemetry.RecordOCRRequest(r.Context(), "ktp", "failure", 0, time.Since(startTime).Seconds())
 			response.ErrorWithRequest(
 				w,
 				r,
@@ -200,8 +236,13 @@ func KTPOCRHandler(engine ocr.OCREngine, ocrStore store.OCRRequestStore, quotaCh
 			)
 			return
 		}
+		engSpan.SetStatus(codes.Ok, "extracted")
+		engSpan.End()
+		telemetry.RecordOCRStageDuration(r.Context(), "ocr_engine", "success", engDuration)
 
 		if ocrResult == nil || ocrResult.DocumentType != "ktp" {
+			telemetry.RecordOCRError(r.Context(), "classification", response.CodeUnsupportedDocument)
+			telemetry.RecordOCRRequest(r.Context(), "ktp", "failure", 0, time.Since(startTime).Seconds())
 			response.ErrorWithRequest(
 				w,
 				r,
@@ -212,13 +253,26 @@ func KTPOCRHandler(engine ocr.OCREngine, ocrStore store.OCRRequestStore, quotaCh
 			return
 		}
 
-		// Run deterministic validation & normalization
+		// Stage 3: Field Extraction & Normalization
+		normStart := time.Now()
+		_, normSpan := tracer.Start(r.Context(), "ocr.normalize_and_validate")
 		normalizedKTP, confidence, _ := ocr.ValidateKTP(ocrResult.Data)
+		normDuration := time.Since(normStart).Seconds()
+		normSpan.SetAttributes(
+			attribute.Float64("ocr.confidence", confidence),
+			attribute.String("ocr.doc_type", "ktp"),
+		)
+		normSpan.SetStatus(codes.Ok, "normalized")
+		normSpan.End()
+		telemetry.RecordOCRStageDuration(r.Context(), "field_extraction", "success", normDuration)
+
 		latencyMS := int(time.Since(startTime).Milliseconds())
+		totalDurationSec := float64(latencyMS) / 1000.0
 		recordID := GenerateUUIDv4()
 
-		// Persist non-PII execution metadata in PostgreSQL
+		// Stage 4: Persist non-PII execution metadata in PostgreSQL
 		if ocrStore != nil {
+			_, storeSpan := tracer.Start(r.Context(), "ocr.store_metadata")
 			var apiKeyID *string
 			if key.ID != "" {
 				apiKeyID = &key.ID
@@ -235,12 +289,24 @@ func KTPOCRHandler(engine ocr.OCREngine, ocrStore store.OCRRequestStore, quotaCh
 			}
 
 			if err := ocrStore.CreateOCRRequest(r.Context(), ocrReq); err != nil {
+				storeSpan.RecordError(err)
+				storeSpan.SetStatus(codes.Error, err.Error())
 				slog.ErrorContext(r.Context(), "failed saving ocr request metadata",
 					slog.String("error", err.Error()),
 					slog.String("record_id", recordID),
 				)
+			} else {
+				storeSpan.SetStatus(codes.Ok, "saved")
 			}
+			storeSpan.End()
 		}
+
+		// Record overall business metric
+		ocrStatus := "completed"
+		if confidence < 0.7 {
+			ocrStatus = "low_confidence"
+		}
+		telemetry.RecordOCRRequest(r.Context(), "ktp", ocrStatus, confidence, totalDurationSec)
 
 		// Zero PII structured log
 		slog.InfoContext(r.Context(), "ktp ocr request completed",
