@@ -16,7 +16,7 @@ fi
 
 if [ -f "apps/dashboard/package.json" ]; then
     echo "  • Verifying TypeScript types in apps/dashboard..."
-    (cd apps/dashboard && (npm run typecheck 2>/dev/null || npx --no-install tsc --noEmit)) || {
+    (cd apps/dashboard && (bun run typecheck 2>/dev/null || bunx tsc --noEmit)) || {
         echo "❌ [Layer 1 Failed]: Dashboard TypeScript type checking failed."
         exit 1
     }
@@ -37,7 +37,7 @@ if [ -f "go.mod" ]; then
 fi
 
 if [ -f "apps/dashboard/package.json" ]; then
-    if (cd apps/dashboard && npm run lint >/dev/null 2>&1); then
+    if (cd apps/dashboard && bun run lint >/dev/null 2>&1); then
         echo "  • Dashboard linter passed."
     fi
 fi

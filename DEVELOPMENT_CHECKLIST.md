@@ -8,7 +8,7 @@
 ## Progress Overview
 
 - [x] **Phase 0: Project Inception, Repository Setup & AI Agent Guardrails**
-- [ ] **Phase 1: Core Foundation & Scaffolding (Day 1)**
+- [x] **Phase 1: Core Foundation & Scaffolding (Day 1)**
 - [ ] **Phase 2: API Contract, Authentication & Security Core (Day 2)**
 - [ ] **Phase 3: OCR Engine Abstraction & Processing Pipeline (Day 3)**
 - [ ] **Phase 4: API Platform – Rate Limiting, Quotas & Usage Metering (Day 4)**
@@ -44,31 +44,31 @@ Establish repository conventions, toolchains, and AI agent guardrails before wri
 
 Establish the monorepo directory layout, database schema migrations, and baseline health checks.
 
-- [ ] **Monorepo Directory Structure (`PRD Section 31`)**
-  - [ ] Scaffold `apps/api/` (Go application layout: `cmd/server/main.go`, `internal/`, `migrations/`).
-  - [ ] Scaffold `apps/dashboard/` (React + TypeScript + Vite/Next.js setup).
-  - [ ] Scaffold `services/ocr/` (OCR engines and image preprocessing).
-  - [ ] Scaffold `openapi/` (API specification directory).
-  - [ ] Scaffold `tests/` (`tests/integration/`, `tests/e2e/`).
-  - [ ] Scaffold `infra/` (`infra/modules/`, `infra/live/staging/`, `infra/live/production/`).
-  - [ ] Scaffold `docs/` (`docs/decisions/`, `docs/incidents/`).
-- [ ] **Database & Migrations (`PRD Section 21`)**
-  - [ ] Set up PostgreSQL migration tool (e.g., `golang-migrate`).
-  - [ ] Migration: `organizations` table (ID, name, slug, created_at, updated_at).
-  - [ ] Migration: `users` table (ID, org_id, email, full_name, role, created_at).
-  - [ ] Migration: `plans` table (ID, code, name, monthly_quota, rate_limit_per_minute).
-  - [ ] Migration: `api_keys` table (ID, org_id, name, key_hash, prefix, scopes, environment, last_used_at, expires_at, revoked_at, created_at).
-  - [ ] Migration: `ocr_requests` table (ID, org_id, api_key_id, status, confidence, latency_ms, doc_type, created_at).
-  - [ ] Migration: `usage_records` table (ID, org_id, api_key_id, endpoint, status_code, latency_ms, timestamp).
-  - [ ] Migration: `audit_logs` table (ID, org_id, actor_id, action, target_resource, metadata, created_at).
-  - [ ] Add database seed scripts for default plans (`free`, `starter`, `pro`).
-- [ ] **Liveness & Readiness Probes (`PRD Section 17`)**
-  - [ ] Implement `GET /health` (process liveness probe).
-  - [ ] Implement `GET /ready` (readiness probe verifying PostgreSQL ping and dependency health).
-- [ ] **Local Developer Environment**
-  - [ ] Create `docker-compose.yml` (PostgreSQL 16, pgAdmin / db client, Go API live-reload, dashboard).
-  - [ ] Create `.env.example` with documented environment variables.
-- [ ] **Acceptance Criteria**:
+- [x] **Monorepo Directory Structure (`PRD Section 31`)**
+  - [x] Scaffold `apps/api/` (Go application layout: `cmd/server/main.go`, `internal/`, `migrations/`).
+  - [x] Scaffold `apps/dashboard/` (React + TypeScript + Vite setup).
+  - [x] Scaffold `services/ocr/` (OCR engines and image preprocessing).
+  - [x] Scaffold `openapi/` (API specification directory).
+  - [x] Scaffold `tests/` (`tests/integration/`, `tests/e2e/`).
+  - [x] Scaffold `infra/` (`infra/modules/`, `infra/live/staging/`, `infra/live/production/`).
+  - [x] Scaffold `docs/` (`docs/decisions/`, `docs/incidents/`).
+- [x] **Database & Migrations (`PRD Section 21`)**
+  - [x] Set up PostgreSQL migration tool (e.g., `golang-migrate`).
+  - [x] Migration: `organizations` table (ID, name, slug, created_at, updated_at).
+  - [x] Migration: `users` table (ID, org_id, email, full_name, role, created_at).
+  - [x] Migration: `plans` table (ID, code, name, monthly_quota, rate_limit_per_minute).
+  - [x] Migration: `api_keys` table (ID, org_id, name, key_hash, prefix, scopes, environment, last_used_at, expires_at, revoked_at, created_at).
+  - [x] Migration: `ocr_requests` table (ID, org_id, api_key_id, status, confidence, latency_ms, doc_type, created_at).
+  - [x] Migration: `usage_records` table (ID, org_id, api_key_id, endpoint, status_code, latency_ms, timestamp).
+  - [x] Migration: `audit_logs` table (ID, org_id, actor_id, action, target_resource, metadata, created_at).
+  - [x] Add database seed scripts for default plans (`free`, `starter`, `pro`).
+- [x] **Liveness & Readiness Probes (`PRD Section 17`)**
+  - [x] Implement `GET /health` (process liveness probe).
+  - [x] Implement `GET /ready` (readiness probe verifying PostgreSQL ping and dependency health).
+- [x] **Local Developer Environment**
+  - [x] Create `docker-compose.yml` (PostgreSQL 16, pgAdmin / db client, Go API live-reload, dashboard).
+  - [x] Create `.env.example` with documented environment variables.
+- [x] **Acceptance Criteria**:
   - `docker compose up` starts Postgres and API cleanly.
   - `curl /health` returns HTTP 200 OK.
   - `curl /ready` returns HTTP 200 when DB is connected, and HTTP 503 when DB is stopped.

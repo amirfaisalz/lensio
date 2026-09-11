@@ -1,0 +1,48 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: nusaid-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: nusaid
+      POSTGRES_PASSWORD: nusaid_dev_password
+      POSTGRES_DB: nusaid
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nusaid -d nusaid"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  adminer:
+    image: adminer:latest
+    container_name: nusaid-adminer
+    restart: unless-stopped
+    ports:
+      - "8081:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: nusaid-api
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      PORT: "8080"
+      ENV: "development"
+      DATABASE_URL: "postgres://nusaid:nusaid_dev_password@postgres:5432/nusaid?sslmode=disable"
+      LOG_LEVEL: "info"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
