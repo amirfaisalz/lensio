@@ -168,7 +168,78 @@ jobs:
           fi
 
   # ----------------------------------------------------------------------------
-  # 5. Master Quality Gate
+  # 5. End-to-End Playwright Tests & Failure Drills (Phase 9 - PRD Section 26 & 28)
+  # ----------------------------------------------------------------------------
+  e2e-test:
+    name: Playwright E2E & Production Failure Drills
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: nusaid
+          POSTGRES_PASSWORD: nusaid_ci_password
+          POSTGRES_DB: nusaid
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+          cache: true
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: |
+            apps/dashboard/package-lock.json
+            tests/e2e/package-lock.json
+
+      - name: Install Frontend Dependencies
+        working-directory: apps/dashboard
+        run: npm ci
+
+      - name: Install E2E Dependencies
+        working-directory: tests/e2e
+        run: npm ci
+
+      - name: Install Playwright Browsers & Dependencies
+        working-directory: tests/e2e
+        run: npx playwright install --with-deps chromium
+
+      - name: Execute Automated Production Failure Drills (PRD Section 26)
+        run: |
+          chmod +x scripts/run-failure-drills.sh
+          ./scripts/run-failure-drills.sh
+
+      - name: Execute Playwright End-to-End Suite (PRD Section 28)
+        env:
+          DATABASE_URL: "postgres://nusaid:nusaid_ci_password@localhost:5432/nusaid?sslmode=disable"
+        run: |
+          chmod +x scripts/run-e2e.sh
+          ./scripts/run-e2e.sh
+
+      - name: Upload Playwright Report on Failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: tests/e2e/playwright-report/
+          retention-days: 7
+
+  # ----------------------------------------------------------------------------
+  # 6. Master Quality Gate
   # ----------------------------------------------------------------------------
   ci-gate:
     name: CI Master Quality Gate
@@ -177,6 +248,7 @@ jobs:
       - frontend-ci
       - openapi-validation
       - integration-test
+      - e2e-test
     runs-on: ubuntu-latest
     if: always()
     steps:
@@ -185,7 +257,8 @@ jobs:
           if [ "${{ needs.go-ci.result }}" != "success" ] || \
              [ "${{ needs.frontend-ci.result }}" != "success" ] || \
              [ "${{ needs.openapi-validation.result }}" != "success" ] || \
-             [ "${{ needs.integration-test.result }}" != "success" ]; then
+             [ "${{ needs.integration-test.result }}" != "success" ] || \
+             [ "${{ needs.e2e-test.result }}" != "success" ]; then
             echo "❌ CI Quality Gate Failed: One or more required checks did not succeed." >&2
             exit 1
           fi

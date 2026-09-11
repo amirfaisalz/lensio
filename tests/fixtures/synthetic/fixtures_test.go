@@ -1,6 +1,7 @@
 package synthetic_test
 
 import (
+	"os"
 	"testing"
 
 	"github.com/amirfaisalz/nusaid/services/ocr"
@@ -50,4 +51,8 @@ func TestSyntheticFixtures(t *testing.T) {
 	if _, err := ocr.ValidateImage(oversized); err == nil {
 		t.Fatal("expected error validating oversized image, got nil")
 	}
+
+	// Write static fixtures for frontend / E2E test suites
+	_ = os.WriteFile("valid_ktp.jpg", jpegImg, 0644)
+	_ = os.WriteFile("valid_ktp.png", pngImg, 0644)
 }

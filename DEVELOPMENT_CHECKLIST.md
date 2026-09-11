@@ -346,32 +346,32 @@ Build GitHub Actions workflows with quality gates, automated scanning, and versi
 
 Verify end-to-end user journeys and validate resilience through simulated production failures.
 
-- [ ] **Playwright End-to-End Test Suite (`PRD Section 28`)**
-  - [ ] Test 1: User signs in to Developer Portal.
-  - [ ] Test 2: User generates an API key and copies the token.
-  - [ ] Test 3: API client submits synthetic KTP image to `/api/v1/ocr/ktp`.
-  - [ ] Test 4: Verify structured JSON output matches expected fields.
-  - [ ] Test 5: Verify usage count increments in dashboard UI.
-  - [ ] Test 6: User revokes API key; subsequent requests return 401 Unauthorized.
-- [ ] **Production Failure Simulations & Drills (`PRD Section 26`)**
-  - [ ] **Scenario A: OCR Provider Failure / Timeout**
-    - Inject artificial latency or 500 into OCR engine.
-    - Verify client receives controlled 504/502 with `ocr_failed` error code.
-    - Verify provider credentials are never leaked.
-  - [ ] **Scenario B: Database Outage**
-    - Stop PostgreSQL container.
-    - Verify `/ready` returns HTTP 503 while `/health` remains HTTP 200.
-    - Verify traffic is safely rejected with controlled error handling.
-  - [ ] **Scenario C: Broken Deployment Smoke Test**
-    - Deploy an image that fails health check.
-    - Verify staging smoke test halts and prevents promotion to production.
-  - [ ] **Scenario D: Production Regression Drill**
-    - Simulate error spike (> 2%).
-    - Trigger alert notification.
-    - Execute rollback to prior container image and verify recovery.
-- [ ] **Acceptance Criteria**:
-  - Playwright test passes reliably in headless CI mode.
-  - Documented post-mortem drill reports for all 4 failure scenarios.
+- [x] **Playwright End-to-End Test Suite (`PRD Section 28`)**
+  - [x] Test 1: User signs in to Developer Portal.
+  - [x] Test 2: User generates an API key and copies the token.
+  - [x] Test 3: API client submits synthetic KTP image to `/api/v1/ocr/ktp`.
+  - [x] Test 4: Verify structured JSON output matches expected fields.
+  - [x] Test 5: Verify usage count increments in dashboard UI.
+  - [x] Test 6: User revokes API key; subsequent requests return 401 Unauthorized.
+- [x] **Production Failure Simulations & Drills (`PRD Section 26`)**
+  - [x] **Scenario A: OCR Provider Failure / Timeout**
+    - [x] Inject artificial latency or 500 into OCR engine.
+    - [x] Verify client receives controlled 504/502 with `ocr_failed` error code.
+    - [x] Verify provider credentials are never leaked.
+  - [x] **Scenario B: Database Outage**
+    - [x] Stop PostgreSQL container.
+    - [x] Verify `/ready` returns HTTP 503 while `/health` remains HTTP 200.
+    - [x] Verify traffic is safely rejected with controlled error handling.
+  - [x] **Scenario C: Broken Deployment Smoke Test**
+    - [x] Deploy an image that fails health check.
+    - [x] Verify staging smoke test halts and prevents promotion to production.
+  - [x] **Scenario D: Production Regression Drill**
+    - [x] Simulate error spike (> 2%).
+    - [x] Trigger alert notification.
+    - [x] Execute rollback to prior container image and verify recovery.
+- [x] **Acceptance Criteria**:
+  - [x] Playwright test passes reliably in headless CI mode.
+  - [x] Documented post-mortem drill reports for all 4 failure scenarios.
 
 ---
 
@@ -417,22 +417,22 @@ Finalize architectural documentation, incident reports, external demo consumers,
 
 Before tagging `v1.0.0`, all items below must be verified:
 
-- [ ] A developer can create an account and obtain an API key.
-- [ ] Plaintext API keys are never stored in the database.
-- [ ] Developer can submit a synthetic KTP image to `POST /api/v1/ocr/ktp`.
-- [ ] API returns structured, normalized JSON data.
-- [ ] Invalid/unsupported documents return predictable, documented error codes.
-- [ ] Rate limits and monthly quotas are actively enforced with standard headers.
-- [ ] Usage metering records every API invocation accurately.
-- [ ] Application logs are strictly free of PII (NIK, names, addresses, raw images).
-- [ ] `/health` and `/ready` endpoints respond accurately to process and DB states.
-- [ ] OpenTelemetry emits traces and metrics to Grafana.
-- [ ] CI pipeline validates unit tests, linters, and security scanners.
-- [ ] Playwright E2E tests run and pass automatically in CI.
-- [ ] Infrastructure is fully codified using OpenTofu & Terragrunt.
-- [ ] Staging and Production deployments function via automated workflows.
-- [ ] Deployment rollback can be executed reliably in under 60 seconds.
-- [ ] Failure drills (OCR failure, DB outage, smoke test failure, error regression) are documented.
+- [x] A developer can create an account and obtain an API key.
+- [x] Plaintext API keys are never stored in the database.
+- [x] Developer can submit a synthetic KTP image to `POST /api/v1/ocr/ktp`.
+- [x] API returns structured, normalized JSON data.
+- [x] Invalid/unsupported documents return predictable, documented error codes.
+- [x] Rate limits and monthly quotas are actively enforced with standard headers.
+- [x] Usage metering records every API invocation accurately.
+- [x] Application logs are strictly free of PII (NIK, names, addresses, raw images).
+- [x] `/health` and `/ready` endpoints respond accurately to process and DB states.
+- [x] OpenTelemetry emits traces and metrics to Grafana.
+- [x] CI pipeline validates unit tests, linters, and security scanners.
+- [x] Playwright E2E tests run and pass automatically in CI.
+- [x] Infrastructure is fully codified using OpenTofu & Terragrunt.
+- [x] Staging and Production deployments function via automated workflows.
+- [x] Deployment rollback can be executed reliably in under 60 seconds.
+- [x] Failure drills (OCR failure, DB outage, smoke test failure, error regression) are documented.
 - [ ] At least one external demo consumer (`VeriForm` or `RentEase`) successfully interacts with the API.
 - [ ] All architectural documentation, ADRs, and README are complete.
 

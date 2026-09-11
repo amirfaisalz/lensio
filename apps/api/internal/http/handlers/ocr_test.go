@@ -192,6 +192,31 @@ func TestKTPOCRHandler(t *testing.T) {
 		}
 	})
 
+	t.Run("engine timeout returns 504 and leaks no credentials", func(t *testing.T) {
+		engine.SetCustomError(context.DeadlineExceeded)
+		defer engine.Reset()
+
+		req := createMultipartRequest(t, "document", "ktp.png", validImage)
+		req = withAuth(req, "org-1", "key-1")
+		rec := httptest.NewRecorder()
+
+		handler.ServeHTTP(rec, req)
+		if rec.Code != http.StatusGatewayTimeout {
+			t.Fatalf("expected 504 Gateway Timeout, got %d", rec.Code)
+		}
+
+		var errEnv response.ErrorEnvelope
+		if err := json.NewDecoder(rec.Body).Decode(&errEnv); err != nil {
+			t.Fatalf("failed decoding error envelope: %v", err)
+		}
+		if errEnv.Error.Code != response.CodeOCRFailed {
+			t.Errorf("expected code %s, got %s", response.CodeOCRFailed, errEnv.Error.Code)
+		}
+		if bytes.Contains(rec.Body.Bytes(), []byte("AIzaSy")) || bytes.Contains(rec.Body.Bytes(), []byte("googleapis.com")) {
+			t.Errorf("error body leaked provider details or credentials: %s", rec.Body.String())
+		}
+	})
+
 	t.Run("arbitrary engine internal error returns 500", func(t *testing.T) {
 		engine.SetCustomError(errors.New("unexpected crash"))
 		defer engine.Reset()
