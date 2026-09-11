@@ -1,62 +1,70 @@
 @import "tailwindcss";
 
 @theme {
-  --color-fb-blue: #1877F2;
-  --color-fb-hover: #166FE5;
-  --color-fb-active: #0E5EC8;
-  --color-fb-soft: #E7F3FF;
-  --color-fb-dark: #0F172A;
-  --color-fb-canvas: #F0F2F5;
-  --color-fb-border: #E4E6EB;
+	--color-fb-blue: #1877f2;
+	--color-fb-hover: #166fe5;
+	--color-fb-active: #0e5ec8;
+	--color-fb-soft: #e7f3ff;
+	--color-fb-dark: #0f172a;
+	--color-fb-canvas: #f0f2f5;
+	--color-fb-border: #e4e6eb;
 }
 
 :root {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
-  line-height: 1.5;
-  font-weight: 400;
-  color: #050505;
-  background-color: #F0F2F5;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+	font-family:
+		-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial,
+		sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+	line-height: 1.5;
+	font-weight: 400;
+	color: #050505;
+	background-color: #f0f2f5;
+	text-rendering: optimizeLegibility;
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
 }
 
 body {
-  margin: 0;
-  min-width: 320px;
-  min-height: 100vh;
-  background-color: #F0F2F5;
-  color: #050505;
+	margin: 0;
+	min-width: 320px;
+	min-height: 100vh;
+	background-color: #f0f2f5;
+	color: #050505;
 }
 
 /* Tabular figures for data tables, metrics, and timestamps */
 .tabular-nums {
-  font-variant-numeric: tabular-nums;
+	font-variant-numeric: tabular-nums;
 }
 
 /* Monospace font for tokens, IDs, code, and JSON */
-code, pre, .font-mono {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+code,
+pre,
+.font-mono {
+	font-family:
+		ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+		"Courier New", monospace;
 }
 
 /* Focus visible styles using Facebook Blue */
 *:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 2px #FFFFFF, 0 0 0 4px #1877F2;
+	outline: none;
+	box-shadow:
+		0 0 0 2px #ffffff,
+		0 0 0 4px #1877f2;
 }
 
 /* Accessible and clean scrollbar */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+	width: 6px;
+	height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: transparent;
+	background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #CBD5E1;
-  border-radius: 3px;
+	background: #cbd5e1;
+	border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #94A3B8;
+	background: #94a3b8;
 }

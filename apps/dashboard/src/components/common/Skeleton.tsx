@@ -1,29 +1,42 @@
-import React from 'react';
+import type React from "react";
 
 interface SkeletonProps {
-  className?: string;
+	className?: string;
 }
 
-export const Skeleton: React.FC<SkeletonProps> = ({ className = 'h-4 w-full' }) => {
-  return <div className={`animate-pulse bg-slate-200/80 rounded ${className}`} />;
+export const Skeleton: React.FC<SkeletonProps> = ({
+	className = "h-4 w-full",
+}) => {
+	return (
+		<div className={`animate-pulse bg-slate-200/80 rounded ${className}`} />
+	);
 };
 
 export const TableSkeleton: React.FC<{ rows?: number; cols?: number }> = ({
-  rows = 5,
-  cols = 4,
+	rows = 5,
+	cols = 4,
 }) => {
-  return (
-    <div className="space-y-3">
-      {Array.from({ length: rows }).map((_, rIdx) => (
-        <div key={rIdx} className="flex gap-4">
-          {Array.from({ length: cols }).map((_, cIdx) => (
-            <Skeleton
-              key={cIdx}
-              className={`h-6 ${cIdx === 0 ? 'w-1/4' : 'flex-1'}`}
-            />
-          ))}
-        </div>
-      ))}
-    </div>
-  );
+	const rowKeys = Array.from(
+		{ length: rows },
+		(_, i) => `skeleton-row-${i + 1}`,
+	);
+	const colKeys = Array.from(
+		{ length: cols },
+		(_, i) => `skeleton-col-${i + 1}`,
+	);
+
+	return (
+		<div className="space-y-3">
+			{rowKeys.map((rowKey) => (
+				<div key={rowKey} className="flex gap-4">
+					{colKeys.map((colKey, cIdx) => (
+						<Skeleton
+							key={colKey}
+							className={`h-6 ${cIdx === 0 ? "w-1/4" : "flex-1"}`}
+						/>
+					))}
+				</div>
+			))}
+		</div>
+	);
 };

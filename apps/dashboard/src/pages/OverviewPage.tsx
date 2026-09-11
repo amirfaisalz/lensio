@@ -1,400 +1,496 @@
-import React, { useState, useEffect } from 'react';
 import {
-  Activity,
-  CheckCircle2,
-  AlertTriangle,
-  Clock,
-  Zap,
-  Upload,
-  FileCheck,
-  RefreshCw,
-  Sparkles,
-} from 'lucide-react';
-import { api } from '../services/api';
-import type { KTPResponse, UsageSummary } from '../types/api';
-import { Badge } from '../components/common/Badge';
-import { Skeleton } from '../components/common/Skeleton';
+	Activity,
+	AlertTriangle,
+	CheckCircle2,
+	Clock,
+	FileCheck,
+	RefreshCw,
+	Sparkles,
+	Upload,
+	Zap,
+} from "lucide-react";
+import type React from "react";
+import { useCallback, useEffect, useState } from "react";
+import { Badge } from "../components/common/Badge";
+import { Skeleton } from "../components/common/Skeleton";
+import { api } from "../services/api";
+import type { KTPResponse, UsageSummary } from "../types/api";
 
 export const OverviewPage: React.FC = () => {
-  const [summary, setSummary] = useState<UsageSummary | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+	const [summary, setSummary] = useState<UsageSummary | null>(null);
+	const [isLoading, setIsLoading] = useState(true);
+	const [error, setError] = useState<string | null>(null);
 
-  // Quick Test Playground state
-  const [ocrLoading, setOcrLoading] = useState(false);
-  const [ocrResult, setOcrResult] = useState<KTPResponse | null>(null);
-  const [ocrError, setOcrError] = useState<string | null>(null);
-  const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
+	// Quick Test Playground state
+	const [ocrLoading, setOcrLoading] = useState(false);
+	const [ocrResult, setOcrResult] = useState<KTPResponse | null>(null);
+	const [ocrError, setOcrError] = useState<string | null>(null);
+	const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
 
-  const loadMetrics = async () => {
-    try {
-      setIsLoading(true);
-      setError(null);
-      const data = await api.fetchUsageSummary();
-      setSummary(data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load usage summary');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+	const loadMetrics = useCallback(async () => {
+		try {
+			setIsLoading(true);
+			setError(null);
+			const data = await api.fetchUsageSummary();
+			setSummary(data);
+		} catch (err) {
+			setError(
+				err instanceof Error ? err.message : "Failed to load usage summary",
+			);
+		} finally {
+			setIsLoading(false);
+		}
+	}, []);
 
-  useEffect(() => {
-    loadMetrics();
-  }, []);
+	useEffect(() => {
+		loadMetrics();
+	}, [loadMetrics]);
 
-  const handleFileUpload = async (file: File) => {
-    try {
-      setSelectedFileName(file.name);
-      setOcrLoading(true);
-      setOcrError(null);
-      const res = await api.executeKTPOCR(file);
-      setOcrResult(res);
-      // Refresh summary metrics after request
-      loadMetrics();
-    } catch (err) {
-      setOcrError(err instanceof Error ? err.message : 'OCR execution failed');
-      setOcrResult(null);
-    } finally {
-      setOcrLoading(false);
-    }
-  };
+	const handleFileUpload = async (file: File) => {
+		try {
+			setSelectedFileName(file.name || "ktp_document.jpg");
+			setOcrLoading(true);
+			setOcrError(null);
+			const res = await api.executeKTPOCR(file);
+			setOcrResult(res);
+			// Refresh summary metrics after request
+			loadMetrics();
+		} catch (err) {
+			setOcrError(err instanceof Error ? err.message : "OCR execution failed");
+			setOcrResult(null);
+		} finally {
+			setOcrLoading(false);
+		}
+	};
 
-  // Helper to load synthetic KTP sample image fixture
-  const handleLoadSyntheticSample = async () => {
-    try {
-      setSelectedFileName('synthetic_ktp_sample.jpg');
-      setOcrLoading(true);
-      setOcrError(null);
+	// Helper to load synthetic KTP sample image fixture
+	const handleLoadSyntheticSample = async () => {
+		try {
+			setSelectedFileName("synthetic_ktp_fixture.jpg");
+			setOcrLoading(true);
+			setOcrError(null);
 
-      // Create a clean dummy 1x1 synthetic image blob to invoke API
-      // Since MockOCREngine returns synthetic fixture data for any valid image input
-      const canvas = document.createElement('canvas');
-      canvas.width = 400;
-      canvas.height = 250;
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        ctx.fillStyle = '#1877F2';
-        ctx.fillRect(0, 0, 400, 250);
-        ctx.fillStyle = '#FFFFFF';
-        ctx.font = '16px monospace';
-        ctx.fillText('REPUBLIK INDONESIA - KTP', 30, 40);
-        ctx.fillText('NIK: 3171012345670001', 30, 80);
-      }
+			// Minimal valid JPEG binary header fixture
+			const dummyBytes = new Uint8Array([
+				0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00, 0x01,
+				0x01, 0x01, 0x00, 0x48, 0x00, 0x48, 0x00, 0x00, 0xff, 0xd9,
+			]);
+			const file = new File([dummyBytes], "synthetic_ktp_fixture.jpg", {
+				type: "image/jpeg",
+			});
+			await handleFileUpload(file);
+		} catch (err) {
+			setOcrError(
+				err instanceof Error
+					? err.message
+					: "Failed to generate synthetic sample",
+			);
+			setOcrLoading(false);
+		}
+	};
 
-      canvas.toBlob(async (blob) => {
-        if (!blob) return;
-        const file = new File([blob], 'synthetic_ktp_sample.jpg', { type: 'image/jpeg' });
-        await handleFileUpload(file);
-      }, 'image/jpeg');
-    } catch (err) {
-      setOcrError(err instanceof Error ? err.message : 'Failed to generate synthetic sample');
-      setOcrLoading(false);
-    }
-  };
+	const total = summary?.total_requests ?? 0;
+	const successCount = summary?.success_count ?? 0;
+	const errorCount = summary?.error_count ?? 0;
+	const successRate =
+		total > 0 ? ((successCount / total) * 100).toFixed(1) : "100.0";
+	const errorRate = total > 0 ? ((errorCount / total) * 100).toFixed(1) : "0.0";
+	const quotaLimit = summary?.quota_limit ?? 100;
+	const quotaRemaining = summary?.quota_remaining ?? 100;
+	const quotaUsed = quotaLimit - quotaRemaining;
+	const quotaPercent = Math.min(
+		100,
+		Math.round((quotaUsed / Math.max(quotaLimit, 1)) * 100),
+	);
 
-  const total = summary?.total_requests ?? 0;
-  const successCount = summary?.success_count ?? 0;
-  const errorCount = summary?.error_count ?? 0;
-  const successRate = total > 0 ? ((successCount / total) * 100).toFixed(1) : '100.0';
-  const errorRate = total > 0 ? ((errorCount / total) * 100).toFixed(1) : '0.0';
-  const quotaLimit = summary?.quota_limit ?? 100;
-  const quotaRemaining = summary?.quota_remaining ?? 100;
-  const quotaUsed = quotaLimit - quotaRemaining;
-  const quotaPercent = Math.min(100, Math.round((quotaUsed / Math.max(quotaLimit, 1)) * 100));
+	return (
+		<div className="space-y-8 animate-in fade-in duration-200">
+			{/* Top action row */}
+			<div className="flex items-center justify-between">
+				<div>
+					<h2 className="text-xl font-bold text-slate-900 tracking-tight">
+						System Overview
+					</h2>
+					<p className="text-xs text-slate-500">
+						Real-time metrics, quota monitoring, and live test harness.
+					</p>
+				</div>
+				<button
+					type="button"
+					onClick={loadMetrics}
+					disabled={isLoading}
+					className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
+				>
+					<RefreshCw
+						className={`w-3.5 h-3.5 ${isLoading ? "animate-spin" : ""}`}
+					/>
+					<span>Refresh</span>
+				</button>
+			</div>
 
-  return (
-    <div className="space-y-8 animate-in fade-in duration-200">
-      {/* Top action row */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-bold text-slate-900 tracking-tight">System Overview</h2>
-          <p className="text-xs text-slate-500">Real-time metrics, quota monitoring, and live test harness.</p>
-        </div>
-        <button
-          type="button"
-          onClick={loadMetrics}
-          disabled={isLoading}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
-        >
-          <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
-          <span>Refresh</span>
-        </button>
-      </div>
+			{error && (
+				<div className="p-4 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 flex items-center justify-between">
+					<span>{error}</span>
+					<button
+						type="button"
+						onClick={loadMetrics}
+						className="font-semibold underline"
+					>
+						Retry
+					</button>
+				</div>
+			)}
 
-      {error && (
-        <div className="p-4 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 flex items-center justify-between">
-          <span>{error}</span>
-          <button type="button" onClick={loadMetrics} className="font-semibold underline">Retry</button>
-        </div>
-      )}
+			{/* 4 Primary Metric Cards */}
+			<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+				{/* Total Requests */}
+				<div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
+					<div className="flex items-center justify-between text-slate-500 mb-2">
+						<span className="text-xs font-medium uppercase tracking-wider text-slate-500">
+							Total Requests
+						</span>
+						<Activity className="w-4 h-4 text-[#1877F2]" />
+					</div>
+					{isLoading ? (
+						<Skeleton className="h-8 w-24 my-1" />
+					) : (
+						<div className="text-2xl font-bold text-slate-900 tabular-nums">
+							{total.toLocaleString()}
+						</div>
+					)}
+					<p className="text-[11px] text-slate-400 mt-1">
+						Current billing period
+					</p>
+				</div>
 
-      {/* 4 Primary Metric Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Total Requests */}
-        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
-          <div className="flex items-center justify-between text-slate-500 mb-2">
-            <span className="text-xs font-medium uppercase tracking-wider text-slate-500">Total Requests</span>
-            <Activity className="w-4 h-4 text-[#1877F2]" />
-          </div>
-          {isLoading ? (
-            <Skeleton className="h-8 w-24 my-1" />
-          ) : (
-            <div className="text-2xl font-bold text-slate-900 tabular-nums">
-              {total.toLocaleString()}
-            </div>
-          )}
-          <p className="text-[11px] text-slate-400 mt-1">Current billing period</p>
-        </div>
+				{/* Success Rate */}
+				<div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
+					<div className="flex items-center justify-between text-slate-500 mb-2">
+						<span className="text-xs font-medium uppercase tracking-wider text-slate-500">
+							Success Rate
+						</span>
+						<CheckCircle2 className="w-4 h-4 text-emerald-600" />
+					</div>
+					{isLoading ? (
+						<Skeleton className="h-8 w-24 my-1" />
+					) : (
+						<div className="text-2xl font-bold text-slate-900 tabular-nums">
+							{successRate}%
+						</div>
+					)}
+					<p className="text-[11px] text-slate-400 mt-1">
+						{successCount.toLocaleString()} successful calls
+					</p>
+				</div>
 
-        {/* Success Rate */}
-        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
-          <div className="flex items-center justify-between text-slate-500 mb-2">
-            <span className="text-xs font-medium uppercase tracking-wider text-slate-500">Success Rate</span>
-            <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-          </div>
-          {isLoading ? (
-            <Skeleton className="h-8 w-24 my-1" />
-          ) : (
-            <div className="text-2xl font-bold text-slate-900 tabular-nums">
-              {successRate}%
-            </div>
-          )}
-          <p className="text-[11px] text-slate-400 mt-1">{successCount.toLocaleString()} successful calls</p>
-        </div>
+				{/* Error Rate */}
+				<div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
+					<div className="flex items-center justify-between text-slate-500 mb-2">
+						<span className="text-xs font-medium uppercase tracking-wider text-slate-500">
+							Error Rate
+						</span>
+						<AlertTriangle className="w-4 h-4 text-amber-500" />
+					</div>
+					{isLoading ? (
+						<Skeleton className="h-8 w-24 my-1" />
+					) : (
+						<div className="text-2xl font-bold text-slate-900 tabular-nums">
+							{errorRate}%
+						</div>
+					)}
+					<p className="text-[11px] text-slate-400 mt-1">
+						{errorCount.toLocaleString()} non-2xx responses
+					</p>
+				</div>
 
-        {/* Error Rate */}
-        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
-          <div className="flex items-center justify-between text-slate-500 mb-2">
-            <span className="text-xs font-medium uppercase tracking-wider text-slate-500">Error Rate</span>
-            <AlertTriangle className="w-4 h-4 text-amber-500" />
-          </div>
-          {isLoading ? (
-            <Skeleton className="h-8 w-24 my-1" />
-          ) : (
-            <div className="text-2xl font-bold text-slate-900 tabular-nums">
-              {errorRate}%
-            </div>
-          )}
-          <p className="text-[11px] text-slate-400 mt-1">{errorCount.toLocaleString()} non-2xx responses</p>
-        </div>
+				{/* P95 Latency */}
+				<div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
+					<div className="flex items-center justify-between text-slate-500 mb-2">
+						<span className="text-xs font-medium uppercase tracking-wider text-slate-500">
+							P95 Latency
+						</span>
+						<Clock className="w-4 h-4 text-[#1877F2]" />
+					</div>
+					{isLoading ? (
+						<Skeleton className="h-8 w-24 my-1" />
+					) : (
+						<div className="text-2xl font-bold text-slate-900 tabular-nums">
+							{summary?.p95_latency_ms
+								? `${summary.p95_latency_ms}ms`
+								: "180ms"}
+						</div>
+					)}
+					<p className="text-[11px] text-slate-400 mt-1">
+						SLA Target &lt; 2000ms
+					</p>
+				</div>
+			</div>
 
-        {/* P95 Latency */}
-        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
-          <div className="flex items-center justify-between text-slate-500 mb-2">
-            <span className="text-xs font-medium uppercase tracking-wider text-slate-500">P95 Latency</span>
-            <Clock className="w-4 h-4 text-[#1877F2]" />
-          </div>
-          {isLoading ? (
-            <Skeleton className="h-8 w-24 my-1" />
-          ) : (
-            <div className="text-2xl font-bold text-slate-900 tabular-nums">
-              {summary?.p95_latency_ms ? `${summary.p95_latency_ms}ms` : '180ms'}
-            </div>
-          )}
-          <p className="text-[11px] text-slate-400 mt-1">SLA Target &lt; 2000ms</p>
-        </div>
-      </div>
+			{/* Quota & Violations Section */}
+			<div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+				{/* Quota Progress */}
+				<div className="lg:col-span-2 bg-white p-6 rounded-xl border border-slate-200 shadow-xs flex flex-col justify-between">
+					<div>
+						<div className="flex items-center justify-between mb-4">
+							<div>
+								<h3 className="text-sm font-semibold text-slate-900">
+									Monthly Usage Quota
+								</h3>
+								<p className="text-xs text-slate-500">
+									Enforced according to your active subscription plan.
+								</p>
+							</div>
+							<Badge
+								variant={
+									quotaPercent > 90
+										? "danger"
+										: quotaPercent > 75
+											? "warning"
+											: "info"
+								}
+							>
+								{quotaPercent}% Used
+							</Badge>
+						</div>
 
-      {/* Quota & Violations Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Quota Progress */}
-        <div className="lg:col-span-2 bg-white p-6 rounded-xl border border-slate-200 shadow-xs flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h3 className="text-sm font-semibold text-slate-900">Monthly Usage Quota</h3>
-                <p className="text-xs text-slate-500">Enforced according to your active subscription plan.</p>
-              </div>
-              <Badge variant={quotaPercent > 90 ? 'danger' : quotaPercent > 75 ? 'warning' : 'info'}>
-                {quotaPercent}% Used
-              </Badge>
-            </div>
+						<div className="w-full bg-slate-100 h-3.5 rounded-full overflow-hidden mb-3">
+							<div
+								className="bg-[#1877F2] h-full transition-all duration-500 rounded-full"
+								style={{ width: `${quotaPercent}%` }}
+							/>
+						</div>
 
-            <div className="w-full bg-slate-100 h-3.5 rounded-full overflow-hidden mb-3">
-              <div
-                className="bg-[#1877F2] h-full transition-all duration-500 rounded-full"
-                style={{ width: `${quotaPercent}%` }}
-              />
-            </div>
+						<div className="flex items-center justify-between text-xs text-slate-600 tabular-nums">
+							<span>
+								<strong className="text-slate-900">
+									{quotaUsed.toLocaleString()}
+								</strong>{" "}
+								of {quotaLimit.toLocaleString()} requests used
+							</span>
+							<span>
+								<strong className="text-emerald-600">
+									{quotaRemaining.toLocaleString()}
+								</strong>{" "}
+								remaining
+							</span>
+						</div>
+					</div>
 
-            <div className="flex items-center justify-between text-xs text-slate-600 tabular-nums">
-              <span>
-                <strong className="text-slate-900">{quotaUsed.toLocaleString()}</strong> of {quotaLimit.toLocaleString()} requests used
-              </span>
-              <span>
-                <strong className="text-emerald-600">{quotaRemaining.toLocaleString()}</strong> remaining
-              </span>
-            </div>
-          </div>
+					<div className="pt-4 mt-4 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+						<span>Billing cycle renewal:</span>
+						<span className="font-mono text-[11px] text-slate-700">
+							{summary?.billing_cycle_reset
+								? new Date(summary.billing_cycle_reset).toLocaleDateString(
+										undefined,
+										{
+											month: "short",
+											day: "numeric",
+											year: "numeric",
+										},
+									)
+								: "End of Month"}
+						</span>
+					</div>
+				</div>
 
-          <div className="pt-4 mt-4 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
-            <span>Billing cycle renewal:</span>
-            <span className="font-mono text-[11px] text-slate-700">
-              {summary?.billing_cycle_reset
-                ? new Date(summary.billing_cycle_reset).toLocaleDateString(undefined, {
-                    month: 'short',
-                    day: 'numeric',
-                    year: 'numeric',
-                  })
-                : 'End of Month'}
-            </span>
-          </div>
-        </div>
+				{/* Violations Counter */}
+				<div className="bg-white p-6 rounded-xl border border-slate-200 shadow-xs flex flex-col justify-between">
+					<div>
+						<div className="flex items-center gap-2 text-slate-900 mb-1">
+							<Zap className="w-4 h-4 text-amber-500" />
+							<h3 className="text-sm font-semibold">Rate Limit Violations</h3>
+						</div>
+						<p className="text-xs text-slate-500">
+							Requests returning HTTP 429 Too Many Requests in this cycle.
+						</p>
+					</div>
 
-        {/* Violations Counter */}
-        <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-xs flex flex-col justify-between">
-          <div>
-            <div className="flex items-center gap-2 text-slate-900 mb-1">
-              <Zap className="w-4 h-4 text-amber-500" />
-              <h3 className="text-sm font-semibold">Rate Limit Violations</h3>
-            </div>
-            <p className="text-xs text-slate-500">Requests returning HTTP 429 Too Many Requests in this cycle.</p>
-          </div>
+					<div className="my-4">
+						<div className="text-3xl font-bold text-slate-900 tabular-nums">
+							{summary?.rate_limit_violations ?? 0}
+						</div>
+						<p className="text-xs text-slate-500 mt-1">
+							Controlled backoff active
+						</p>
+					</div>
 
-          <div className="my-4">
-            <div className="text-3xl font-bold text-slate-900 tabular-nums">
-              {summary?.rate_limit_violations ?? 0}
-            </div>
-            <p className="text-xs text-slate-500 mt-1">Controlled backoff active</p>
-          </div>
+					<div className="text-[11px] text-slate-400 border-t border-slate-100 pt-3">
+						Check the{" "}
+						<code className="font-mono bg-slate-100 px-1 py-0.5 rounded">
+							Retry-After
+						</code>{" "}
+						header on 429 errors.
+					</div>
+				</div>
+			</div>
 
-          <div className="text-[11px] text-slate-400 border-t border-slate-100 pt-3">
-            Check the <code className="font-mono bg-slate-100 px-1 py-0.5 rounded">Retry-After</code> header on 429 errors.
-          </div>
-        </div>
-      </div>
+			{/* Quick-Test Playground Widget */}
+			<div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
+				<div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+					<div>
+						<div className="flex items-center gap-2">
+							<Sparkles className="w-4 h-4 text-[#1877F2]" />
+							<h3 className="text-sm font-bold text-slate-900">
+								Live KTP OCR Playground
+							</h3>
+						</div>
+						<p className="text-xs text-slate-500">
+							Upload an Indonesian KTP image or test with synthetic fixtures.
+						</p>
+					</div>
+					<button
+						type="button"
+						onClick={handleLoadSyntheticSample}
+						disabled={ocrLoading}
+						className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-[#1877F2] bg-[#E7F3FF] hover:bg-[#d5eaff] rounded-lg transition-colors"
+					>
+						<FileCheck className="w-3.5 h-3.5" />
+						<span>Load Synthetic Fixture</span>
+					</button>
+				</div>
 
-      {/* Quick-Test Playground Widget */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
-        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-          <div>
-            <div className="flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-[#1877F2]" />
-              <h3 className="text-sm font-bold text-slate-900">Live KTP OCR Playground</h3>
-            </div>
-            <p className="text-xs text-slate-500">
-              Upload an Indonesian KTP image or test with synthetic fixtures.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={handleLoadSyntheticSample}
-            disabled={ocrLoading}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-[#1877F2] bg-[#E7F3FF] hover:bg-[#d5eaff] rounded-lg transition-colors"
-          >
-            <FileCheck className="w-3.5 h-3.5" />
-            <span>Load Synthetic Fixture</span>
-          </button>
-        </div>
+				<div className="p-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
+					{/* File drop zone */}
+					<div>
+						<label
+							htmlFor="ktp-file-input"
+							className="border-2 border-dashed border-slate-300 hover:border-[#1877F2] rounded-xl p-8 flex flex-col items-center justify-center text-center cursor-pointer transition-colors bg-slate-50/50 hover:bg-[#F0F2F5]/50"
+						>
+							<Upload className="w-8 h-8 text-slate-400 mb-3" />
+							<p className="text-sm font-semibold text-slate-700">
+								Click to upload or drag & drop
+							</p>
+							<p className="text-xs text-slate-500 mt-1">
+								JPEG, PNG, or WebP up to 5MB
+							</p>
+							<input
+								id="ktp-file-input"
+								type="file"
+								accept="image/jpeg,image/png,image/webp"
+								className="hidden"
+								onChange={(e) => {
+									if (e.target.files?.[0]) {
+										handleFileUpload(e.target.files[0]);
+									}
+								}}
+							/>
+						</label>
 
-        <div className="p-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* File drop zone */}
-          <div>
-            <label
-              htmlFor="ktp-file-input"
-              className="border-2 border-dashed border-slate-300 hover:border-[#1877F2] rounded-xl p-8 flex flex-col items-center justify-center text-center cursor-pointer transition-colors bg-slate-50/50 hover:bg-[#F0F2F5]/50"
-            >
-              <Upload className="w-8 h-8 text-slate-400 mb-3" />
-              <p className="text-sm font-semibold text-slate-700">Click to upload or drag & drop</p>
-              <p className="text-xs text-slate-500 mt-1">JPEG, PNG, or WebP up to 5MB</p>
-              <input
-                id="ktp-file-input"
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                className="hidden"
-                onChange={(e) => {
-                  if (e.target.files && e.target.files[0]) {
-                    handleFileUpload(e.target.files[0]);
-                  }
-                }}
-              />
-            </label>
+						{selectedFileName && (
+							<div className="mt-3 flex items-center justify-between px-3 py-2 bg-slate-50 rounded-lg border border-slate-200 text-xs text-slate-600">
+								<span className="truncate font-mono">{selectedFileName}</span>
+								{ocrLoading && (
+									<RefreshCw className="w-3.5 h-3.5 animate-spin text-[#1877F2]" />
+								)}
+							</div>
+						)}
 
-            {selectedFileName && (
-              <div className="mt-3 flex items-center justify-between px-3 py-2 bg-slate-50 rounded-lg border border-slate-200 text-xs text-slate-600">
-                <span className="truncate font-mono">{selectedFileName}</span>
-                {ocrLoading && <RefreshCw className="w-3.5 h-3.5 animate-spin text-[#1877F2]" />}
-              </div>
-            )}
+						{ocrError && (
+							<div className="mt-3 p-3 bg-rose-50 border border-rose-200 rounded-lg text-xs text-rose-700">
+								<strong>Error:</strong> {ocrError}
+							</div>
+						)}
+					</div>
 
-            {ocrError && (
-              <div className="mt-3 p-3 bg-rose-50 border border-rose-200 rounded-lg text-xs text-rose-700">
-                <strong>Error:</strong> {ocrError}
-              </div>
-            )}
-          </div>
+					{/* Results viewer */}
+					<div className="bg-slate-900 text-slate-100 rounded-xl p-4 flex flex-col font-mono text-xs overflow-hidden max-h-[380px]">
+						<div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-800 text-slate-400 text-[11px]">
+							<span>RESPONSE PAYLOAD</span>
+							{ocrResult && (
+								<span className="text-emerald-400">
+									{ocrResult.latency_ms}ms ·{" "}
+									{Math.round(ocrResult.confidence * 100)}% Confidence
+								</span>
+							)}
+						</div>
 
-          {/* Results viewer */}
-          <div className="bg-slate-900 text-slate-100 rounded-xl p-4 flex flex-col font-mono text-xs overflow-hidden max-h-[380px]">
-            <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-800 text-slate-400 text-[11px]">
-              <span>RESPONSE PAYLOAD</span>
-              {ocrResult && (
-                <span className="text-emerald-400">
-                  {ocrResult.latency_ms}ms · {Math.round(ocrResult.confidence * 100)}% Confidence
-                </span>
-              )}
-            </div>
+						<div className="flex-1 overflow-y-auto">
+							{ocrLoading ? (
+								<div className="h-full flex items-center justify-center text-slate-500 py-12">
+									<RefreshCw className="w-5 h-5 animate-spin mr-2 text-[#1877F2]" />
+									<span>Processing KTP OCR extraction...</span>
+								</div>
+							) : ocrResult ? (
+								<pre className="text-xs leading-relaxed text-slate-200 whitespace-pre-wrap">
+									{JSON.stringify(ocrResult, null, 2)}
+								</pre>
+							) : (
+								<div className="h-full flex flex-col items-center justify-center text-slate-500 py-12 text-center">
+									<p>No document submitted yet.</p>
+									<p className="text-[11px] text-slate-600 mt-1">
+										Upload a KTP image or click "Load Synthetic Fixture" above.
+									</p>
+								</div>
+							)}
+						</div>
+					</div>
+				</div>
 
-            <div className="flex-1 overflow-y-auto">
-              {ocrLoading ? (
-                <div className="h-full flex items-center justify-center text-slate-500 py-12">
-                  <RefreshCw className="w-5 h-5 animate-spin mr-2 text-[#1877F2]" />
-                  <span>Processing KTP OCR extraction...</span>
-                </div>
-              ) : ocrResult ? (
-                <pre className="text-xs leading-relaxed text-slate-200 whitespace-pre-wrap">
-                  {JSON.stringify(ocrResult, null, 2)}
-                </pre>
-              ) : (
-                <div className="h-full flex flex-col items-center justify-center text-slate-500 py-12 text-center">
-                  <p>No document submitted yet.</p>
-                  <p className="text-[11px] text-slate-600 mt-1">Upload a KTP image or click "Load Synthetic Fixture" above.</p>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Extracted Structured Field Inspector */}
-        {ocrResult && ocrResult.data && (
-          <div className="px-6 py-4 bg-slate-50/80 border-t border-slate-100">
-            <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-3">
-              Normalized Field Verification
-            </h4>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 text-xs">
-              <div className="bg-white p-2.5 rounded border border-slate-200">
-                <span className="text-slate-400 block text-[10px] uppercase font-semibold">NIK</span>
-                <span className="font-mono font-bold text-slate-900">{ocrResult.data.nik}</span>
-              </div>
-              <div className="bg-white p-2.5 rounded border border-slate-200">
-                <span className="text-slate-400 block text-[10px] uppercase font-semibold">Nama</span>
-                <span className="font-semibold text-slate-900 truncate block">{ocrResult.data.nama}</span>
-              </div>
-              <div className="bg-white p-2.5 rounded border border-slate-200">
-                <span className="text-slate-400 block text-[10px] uppercase font-semibold">Tanggal Lahir</span>
-                <span className="font-mono text-slate-900">{ocrResult.data.tanggal_lahir}</span>
-              </div>
-              <div className="bg-white p-2.5 rounded border border-slate-200">
-                <span className="text-slate-400 block text-[10px] uppercase font-semibold">Jenis Kelamin</span>
-                <span className="text-slate-900">{ocrResult.data.jenis_kelamin}</span>
-              </div>
-              <div className="bg-white p-2.5 rounded border border-slate-200 col-span-2">
-                <span className="text-slate-400 block text-[10px] uppercase font-semibold">Alamat</span>
-                <span className="text-slate-900 truncate block">{ocrResult.data.alamat}</span>
-              </div>
-              <div className="bg-white p-2.5 rounded border border-slate-200">
-                <span className="text-slate-400 block text-[10px] uppercase font-semibold">Agama</span>
-                <span className="text-slate-900">{ocrResult.data.agama}</span>
-              </div>
-              <div className="bg-white p-2.5 rounded border border-slate-200">
-                <span className="text-slate-400 block text-[10px] uppercase font-semibold">Status Perkawinan</span>
-                <span className="text-slate-900">{ocrResult.data.status_perkawinan}</span>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
+				{/* Extracted Structured Field Inspector */}
+				{ocrResult?.data && (
+					<div className="px-6 py-4 bg-slate-50/80 border-t border-slate-100">
+						<h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-3">
+							Normalized Field Verification
+						</h4>
+						<div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 text-xs">
+							<div className="bg-white p-2.5 rounded border border-slate-200">
+								<span className="text-slate-400 block text-[10px] uppercase font-semibold">
+									NIK
+								</span>
+								<span className="font-mono font-bold text-slate-900">
+									{ocrResult.data.nik}
+								</span>
+							</div>
+							<div className="bg-white p-2.5 rounded border border-slate-200">
+								<span className="text-slate-400 block text-[10px] uppercase font-semibold">
+									Nama
+								</span>
+								<span className="font-semibold text-slate-900 truncate block">
+									{ocrResult.data.nama}
+								</span>
+							</div>
+							<div className="bg-white p-2.5 rounded border border-slate-200">
+								<span className="text-slate-400 block text-[10px] uppercase font-semibold">
+									Tanggal Lahir
+								</span>
+								<span className="font-mono text-slate-900">
+									{ocrResult.data.tanggal_lahir}
+								</span>
+							</div>
+							<div className="bg-white p-2.5 rounded border border-slate-200">
+								<span className="text-slate-400 block text-[10px] uppercase font-semibold">
+									Jenis Kelamin
+								</span>
+								<span className="text-slate-900">
+									{ocrResult.data.jenis_kelamin}
+								</span>
+							</div>
+							<div className="bg-white p-2.5 rounded border border-slate-200 col-span-2">
+								<span className="text-slate-400 block text-[10px] uppercase font-semibold">
+									Alamat
+								</span>
+								<span className="text-slate-900 truncate block">
+									{ocrResult.data.alamat}
+								</span>
+							</div>
+							<div className="bg-white p-2.5 rounded border border-slate-200">
+								<span className="text-slate-400 block text-[10px] uppercase font-semibold">
+									Agama
+								</span>
+								<span className="text-slate-900">{ocrResult.data.agama}</span>
+							</div>
+							<div className="bg-white p-2.5 rounded border border-slate-200">
+								<span className="text-slate-400 block text-[10px] uppercase font-semibold">
+									Status Perkawinan
+								</span>
+								<span className="text-slate-900">
+									{ocrResult.data.status_perkawinan}
+								</span>
+							</div>
+						</div>
+					</div>
+				)}
+			</div>
+		</div>
+	);
 };
