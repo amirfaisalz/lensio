@@ -70,3 +70,13 @@ Post-deployment validation is executed via `scripts/smoke-test.sh`:
 - **Dashboard Probe**: Verifies frontend web asset serving.
 
 If the smoke test fails on production, the deployment pipeline halts and triggers automated revision rollback.
+
+---
+
+## 6. Related Runbooks & Documentation
+
+- **Emergency Rollback Runbook**: [`docs/rollback.md`](./rollback.md) (Under-60-second recovery procedures)
+- **System Architecture**: [`docs/architecture.md`](./architecture.md) (C4 diagrams and container topologies)
+- **Security & Privacy Architecture**: [`docs/security.md`](./security.md) (Scanning gates and secret controls)
+- **Observability Runbook**: [`docs/observability.md`](./observability.md) (Telemetry, metrics, and SLO definitions)
+

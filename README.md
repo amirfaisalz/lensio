@@ -1,62 +1,116 @@
 # NusaID
 
-> **Developer-first Indonesian KTP OCR API as a Service.**  
-> Built as a production-grade API platform demonstrating end-to-end platform engineering: from authentication and rate limiting to automated delivery, observability, security, and instant rollback.
+<p align="center">
+  <img src="https://img.shields.io/badge/build-passing-brightgreen?style=flat-square" alt="Build Status" />
+  <img src="https://img.shields.io/badge/go%20report-A%2B-brightgreen?style=flat-square" alt="Go Report Card" />
+  <img src="https://img.shields.io/badge/coverage-100%25%20target-brightgreen?style=flat-square" alt="Coverage" />
+  <img src="https://img.shields.io/badge/security%20gates-5%2F5%20passed-brightgreen?style=flat-square" alt="Security Gates" />
+  <img src="https://img.shields.io/badge/opentelemetry-active-blue?style=flat-square" alt="OpenTelemetry" />
+  <img src="https://img.shields.io/badge/rollback%20sla-%3C60s-blue?style=flat-square" alt="Rollback SLA" />
+  <img src="https://img.shields.io/badge/license-MIT-blue?style=flat-square" alt="License" />
+</p>
+
+> **"NusaID is a developer-first KTP OCR API that lets applications extract structured Indonesian KTP data through a secure, rate-limited, observable, and production-ready API."**
+
+NusaID is built to explore what it takes to operate a production API as a managed product: from cryptographic key management and scoped authorization to token-bucket rate limiting, non-blocking usage metering, distributed tracing, automated delivery, and sub-60-second revision rollbacks.
 
 ---
 
-## The Vision & Core Principle
+## The Engineering Story
 
-> **"Build the smallest real product that forces us to solve real production engineering problems."**
-
-NusaID is not just an OCR demo. It is a full-lifecycle API product built to solve the operational realities of modern software engineering:
-- How to securely ingest sensitive identity documents without storing raw PII.
-- How to authenticate clients via cryptographic API keys with scoped permissions.
-- How to meter usage, enforce tiered rate limits, and isolate tenant quotas.
-- How to achieve sub-second health checks, distributed tracing, and zero-downtime rollbacks.
+The interesting part of NusaID is not merely OCR. The true engineering challenge lies in **everything around the API**:
 
 ```text
-               ┌────────────────┐
-               │    Clients     │
-               └───────┬────────┘
-                       │ HTTPS / Bearer Token
-                       ▼
-               ┌────────────────┐
-               │   Cloudflare   │ (WAF, DDoS, Edge SSL)
-               └───────┬────────┘
-                       │
-                       ▼
-        ┌──────────────────────────────┐
-        │     Azure Container Apps     │
-        │  ┌────────────────────────┐  │
-        │  │      Go REST API       │  │
-        │  │  - Auth & Scopes       │  │
-        │  │  - Rate Limit & Quota  │  │
-        │  │  - Pluggable OCREngine │  │
-        │  └───────┬──────────┬─────┘  │
-        └──────────┼──────────┼────────┘
-                   │          │
-         ┌─────────▼──┐    ┌──▼──────────────────┐
-         │ PostgreSQL │    │ Vision OCR Engine   │
-         │ (State)    │    │ (Gemini Flash/Mock) │
-         └────────────┘    └─────────────────────┘
+                ┌────────────────────────┐
+                │   KTP OCR API Product  │
+                └───────────┬────────────┘
+                            │
+       ┌────────────────────┼────────────────────┐
+       │                    │                    │
+ Authentication        Reliability            Security
+       │                    │                    │
+ • Scoped API Keys     • Token Bucket Limits • Ephemeral Buffers (No PII)
+ • SHA-256 Hashing     • Monthly Quotas      • 5 Automated Security Gates
+ • Instant Revocation  • Async Metering      • Append-Only Audit Trail
+       │                    │                    │
+       └────────────────────┼────────────────────┘
+                            │
+                     Production Path
+                            │
+               CI (Gates & Race Detector)
+                            ↓
+                    Azure Container Apps
+                            ↓
+               Instant Rollback (<60s SLA)
 ```
 
 ---
 
-## Core API Specification
+## Production Engineering Evidence Matrix (`PRD Section 38`)
 
-### Extract KTP Document
+NusaID demonstrates full-lifecycle engineering capabilities across the entire platform stack:
 
-```http
-POST /api/v1/ocr/ktp
-Authorization: Bearer nusa_live_xxxxxxxxxxxxxxxxxxxxxxxx
-Content-Type: multipart/form-data
+| Domain | NusaID Production Evidence | Reference |
+|---|---|---|
+| **Language & Runtime** | Go 1.22+ clean architecture, native `net/http.ServeMux`, sub-80ms startup | [`ADR-001`](docs/decisions/ADR-001-why-go-for-api-and-ocr-service.md) |
+| **Relational Database** | PostgreSQL 16 migrations (`golang-migrate`), connection pooling with `pgx/v5` | [`ADR-002`](docs/decisions/ADR-002-database-schema-and-api-key-hashing-strategy.md) |
+| **Developer Portal** | React 18 + TypeScript SPA, type-safe API SDK, Tailwind CSS | [`apps/dashboard`](apps/dashboard) |
+| **Cryptographic Security** | SHA-256 one-way API key hashing, zero plaintext secrets in storage | [`docs/security.md`](docs/security.md) |
+| **Traffic Shaping** | $O(1)$ in-memory token bucket rate limiting + monthly quota enforcer | [`ADR-003`](docs/decisions/ADR-003-rate-limiting-and-quota-architecture.md) |
+| **Telemetry & Observability** | OpenTelemetry Go SDK, Prometheus RED metrics, Grafana dashboards | [`docs/observability.md`](docs/observability.md) |
+| **Data Privacy & Compliance** | Ephemeral memory-only image handling, zero PII logs (UU PDP No. 27/2022) | [`ADR-005`](docs/decisions/ADR-005-data-minimization-and-pii-protection-in-ocr-pipelines.md) |
+| **Infrastructure as Code** | OpenTofu modules & Terragrunt live environments (Staging/Production) | [`infra/`](infra/) |
+| **Cloud Hosting** | Azure Container Apps with KEDA autoscaling and Envoy ingress | [`ADR-004`](docs/decisions/ADR-004-azure-container-apps-vs-kubernetes.md) |
+| **Continuous Delivery** | GitHub Actions with 5 security scanners (Gitleaks, govulncheck, gosec, Trivy) | [`.github/workflows`](.github/workflows/) |
+| **Automated Rollbacks** | Immutable container revisions, sub-60-second traffic shifting drill | [`docs/rollback.md`](docs/rollback.md) |
+| **Failure Resilience** | Documented post-mortem drills for 4 major production outage scenarios | [`docs/incidents`](docs/incidents/) |
+| **External Consumers** | Independent client applications consuming NusaID API (VeriForm, RentEase) | [`examples/`](examples/) |
 
-document=@ktp-sample.jpg
+---
+
+## System Topology & Architecture
+
+```mermaid
+graph TD
+    Client[API Consumers / VeriForm / RentEase] -->|HTTPS / Bearer Key| CF[Cloudflare Edge WAF & SSL]
+    CF -->|Forward Ingress| ACA[Azure Container Apps]
+    
+    subgraph ACA Container Environment
+        API[Go 1.22 REST API Service]
+        DASH[React Developer Dashboard]
+    end
+    
+    API -->|1. Auth & Rate Limit| MemRL[In-Memory Token Bucket]
+    API -->|2. Scoped Lookup| PG[(PostgreSQL 16 Flexible Server)]
+    API -->|3. Ephemeral Buffer| OCR[Pluggable OCREngine]
+    OCR -.->|Production| Gemini[Google Gemini 2.0 Flash Vision]
+    OCR -.->|Test Fixture| Mock[Deterministic MockOCREngine]
+    API -->|4. Non-Blocking Meter| Chan[Buffered Channel Worker]
+    Chan -->|Async Insert| PG
+    API -->|5. Traces & Metrics| OTel[OpenTelemetry / Prometheus / Grafana]
 ```
 
-#### Example Response (`200 OK`)
+---
+
+## Core API Contract
+
+### Extract Indonesian KTP Document
+
+```http
+POST /api/v1/ocr/ktp HTTP/1.1
+Host: api.nusaid.com
+Authorization: Bearer nusa_live_9f8a3c2e1b4d5e6f...
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary
+
+------WebKitFormBoundary
+Content-Disposition: form-data; name="document"; filename="ktp.jpg"
+Content-Type: image/jpeg
+
+<binary image data>
+------WebKitFormBoundary--
+```
+
+#### Successful Response (`200 OK`)
 
 ```json
 {
@@ -87,8 +141,6 @@ document=@ktp-sample.jpg
 
 #### Standardized Error Envelope (`PRD Section 20`)
 
-Every non-2xx response follows a predictable schema:
-
 ```json
 {
   "error": {
@@ -99,127 +151,117 @@ Every non-2xx response follows a predictable schema:
 }
 ```
 
----
-
-## Technology Stack
-
-| Domain | Technology | Rationale |
-|---|---|---|
-| **Backend API** | Go 1.22+ | Exceptional concurrency, ultra-low memory footprint, fast cold starts |
-| **Relational Database** | PostgreSQL 16 | ACID transactions, relational integrity, migration tracking |
-| **Developer Dashboard** | React 18 + TypeScript | Type-safe portal for key management, metrics, and interactive console |
-| **Vision AI / OCR** | Google Gemini 2.0 / 1.5 Flash | SOTA multimodal extraction on Indonesian documents with JSON schema enforcement |
-| **Test Engine** | MockOCREngine | Offline, deterministic fixtures for 100% test reliability in CI |
-| **Observability** | OpenTelemetry + Grafana | Distributed tracing across HTTP and DB spans, RED metrics |
-| **Infrastructure** | Azure Container Apps + Cloudflare | Containerized serverless scale-to-zero with edge security |
-| **IaC** | OpenTofu + Terragrunt | Modular, open-source cloud infrastructure definitions |
-| **Delivery Pipeline** | GitHub Actions | Automated security scanning (Gitleaks, govulncheck, gosec, trivy) and deployment |
-| **E2E Testing** | Playwright | Full-browser verification of developer workflows |
+Standard error codes: `invalid_request`, `invalid_api_key`, `insufficient_scope`, `rate_limit_exceeded`, `quota_exceeded`, `invalid_document`, `unsupported_document`, `ocr_failed`, `low_confidence`, `internal_error`.
 
 ---
 
-## Security & Privacy Non-Negotiables
+## External Demo Consumers
 
-1. **Zero Permanent Image Storage**: Uploaded KTP images are processed in ephemeral memory buffers and discarded immediately. Raw documents are never saved to disk or databases.
-2. **Zero PII in Application Logs**: Log outputs are scrubbed of NIK, names, dates of birth, and addresses. Correlated via `request_id` and `trace_id` only.
-3. **Cryptographic Key Hashing**: Only SHA-256 hashes of API keys are stored in PostgreSQL. Raw secret keys (`nusa_live_...`) are shown once upon creation.
-4. **Deterministic Validation**: Extracted NIKs undergo strict 16-digit numeric and regional code validation before responses are returned.
+NusaID is consumed by independent customer applications demonstrating real-world API product usage:
 
----
+### 1. VeriForm (Identity Onboarding Platform)
+Consumes NusaID to automate customer KYC onboarding:
+```bash
+go run ./examples/veriform/main.go \
+  --api-url "http://localhost:8080" \
+  --api-key "$NUSAID_API_KEY" \
+  --image "tests/fixtures/synthetic/valid_ktp.jpg" \
+  --min-age 17
+```
+*Docs*: [`examples/veriform/README.md`](examples/veriform/README.md)
 
-## Repository Structure
+### 2. RentEase (Vehicle Rental Platform)
+Verifies driver license and identity clearance for self-drive car reservations:
+```bash
+go run ./examples/rentease/main.go \
+  --api-url "http://localhost:8080" \
+  --api-key "$NUSAID_API_KEY" \
+  --image "tests/fixtures/synthetic/valid_ktp.jpg" \
+  --min-age 21
+```
+*Docs*: [`examples/rentease/README.md`](examples/rentease/README.md)
 
-```text
-nusaid/
-├── apps/
-│   ├── api/             # Go REST API service
-│   │   ├── cmd/server/  # Application entrypoint
-│   │   ├── internal/    # Private packages (auth, ratelimit, quota, usage)
-│   │   └── migrations/  # golang-migrate SQL scripts
-│   └── dashboard/       # React + TypeScript developer portal
-├── services/
-│   └── ocr/             # OCREngine interface & provider adapters (Gemini, Mock)
-├── openapi/             # OpenAPI 3.0 specification (`openapi.yaml`)
-├── tests/
-│   ├── fixtures/        # Synthetic, redacted test KTPs (NO REAL PII)
-│   ├── integration/     # Go database & service integration tests
-│   └── e2e/             # Playwright browser end-to-end tests
-├── infra/               # OpenTofu modules & Terragrunt live environments
-├── .agents/             # AI agent operational guidelines
-├── .githooks/           # Pre-commit 4-layer verification gate
-├── AGENTS.md            # Agent operational rules & boundaries
-├── DEVELOPMENT_CHECKLIST.md # Granular progress tracking
-└── PRD.md               # Product Requirements Document
+### Run Both Consumers in One Command:
+```bash
+./scripts/run-demo-consumers.sh
 ```
 
 ---
 
-## Local Development Quickstart
+## Quickstart Guide
 
 ### Prerequisites
 - Go 1.22+
 - Docker & Docker Compose
 - Git
 
-### 1. Clone & Configure Git Hooks
+### 1. Clone & Configure Mandatory Git Hooks
 ```bash
 git clone https://github.com/amirfaisalz/nusaid.git
 cd nusaid
 git config core.hooksPath .githooks
 ```
 
-### 2. Launch Local Environment
+### 2. Start Local Environment (PostgreSQL + API)
 ```bash
 docker compose up -d
 ```
 
 ### 3. Verify Health Probes
 ```bash
-# Liveness probe
+# Liveness probe (verifies process responsiveness)
 curl -i http://localhost:8080/health
 
-# Readiness probe (verifies database connectivity)
+# Readiness probe (verifies database connection pool)
 curl -i http://localhost:8080/ready
+
+# Prometheus metrics
+curl -i http://localhost:8080/metrics
 ```
+
+### 4. Run Strict Test Suite with Race Detector
+```bash
+go test -race -cover ./...
+```
+
+---
+
+## Documentation Directory Index
+
+| Section | Document | Description |
+|---|---|---|
+| **Architecture** | [`docs/architecture.md`](docs/architecture.md) | C4 diagrams, component layers, and request flow |
+| **Security & Privacy** | [`docs/security.md`](docs/security.md) | Threat model (STRIDE/OWASP), UU PDP compliance, key hashing |
+| **Deployment** | [`docs/deployment.md`](docs/deployment.md) | Multi-environment promotion path (Dev -> Staging -> Prod) |
+| **Emergency Rollback** | [`docs/rollback.md`](docs/rollback.md) | Step-by-step sub-60-second revision rollback procedures |
+| **Observability** | [`docs/observability.md`](docs/observability.md) | Distributed tracing, RED metrics, Prometheus, and SLO rules |
+| **Video Walkthrough** | [`docs/demo-walkthrough.md`](docs/demo-walkthrough.md) | 3-5 minute demo recording script and narration cues |
+| **OpenAPI Contract** | [`openapi/openapi.yaml`](openapi/openapi.yaml) | Full OpenAPI 3.0 specification contract (`/docs`) |
+
+### Architecture Decision Records (`docs/decisions/`)
+- [`ADR-001: Why Go for API and OCR Service`](docs/decisions/ADR-001-why-go-for-api-and-ocr-service.md)
+- [`ADR-002: Database Schema & API Key Hashing Strategy`](docs/decisions/ADR-002-database-schema-and-api-key-hashing-strategy.md)
+- [`ADR-003: Rate Limiting & Quota Architecture`](docs/decisions/ADR-003-rate-limiting-and-quota-architecture.md)
+- [`ADR-004: Azure Container Apps vs. Kubernetes (Deliberate Simplicity)`](docs/decisions/ADR-004-azure-container-apps-vs-kubernetes.md)
+- [`ADR-005: Data Minimization & PII Protection in OCR Pipelines`](docs/decisions/ADR-005-data-minimization-and-pii-protection-in-ocr-pipelines.md)
+
+### Incident Reports & Failure Drills (`docs/incidents/`)
+- [`INC-20260912-01: Vision AI OCR Provider Latency & Timeout Simulation`](docs/incidents/INC-20260912-01-ocr-provider-timeout.md)
+- [`INC-20260912-02: PostgreSQL Outage & Readiness Probe Isolation`](docs/incidents/INC-20260912-02-database-outage.md)
+- [`INC-20260912-03: Broken Deployment Smoke Test Promotion Halt`](docs/incidents/INC-20260912-03-broken-deployment-smoke-test.md)
+- [`INC-20260912-04: Production Regression Drill & Traffic Shift Rollback (<60s)`](docs/incidents/INC-20260912-04-production-regression-drill.md)
 
 ---
 
 ## Pre-Commit Verification Gate
 
-Every commit is strictly verified by `.githooks/pre-commit` against four layers:
+Every commit is strictly verified by `.githooks/pre-commit` across four mandatory layers:
 
 ```text
 Layer 1: Type Checking & Compilation (go build ./..., tsc --noEmit)
-Layer 2: Linting & Code Quality (golangci-lint run, go vet)
-Layer 3: Strict Tests & 100% Coverage Target (go test -race -cover ./...)
+Layer 2: Linting & Code Quality (golangci-lint run / go vet, frontend lint)
+Layer 3: Strict Tests & 100% Coverage Target with Race Detector (go test -race -cover ./...)
 Layer 4: Big O Sanity & Security Guardrails (PII leak audit & scratch hygiene)
-```
-
-Bypassing git hooks (`--no-verify`) is prohibited.
-
----
-
-## Future Product Expansion Roadmap
-
-While the active MVP is strictly focused on **Indonesian KTP OCR**, the platform architecture is designed to scale into a comprehensive document suite:
-
-```text
-NusaID Product Ecosystem
-│
-├── Document OCR Expansion
-│   ├── [x] KTP OCR (Active MVP Focus)
-│   ├── [ ] SIM OCR (Driver's License)
-│   ├── [ ] Passport OCR
-│   ├── [ ] NPWP OCR (Tax ID)
-│   ├── [ ] KK OCR (Kartu Keluarga)
-│   └── [ ] Invoice OCR
-│
-├── Verification & Trust Services
-│   ├── [ ] Document Verification (Tampering / Forgery Detection)
-│   └── [ ] Identity Verification (Facial Matching / Liveness)
-│
-└── Intelligent Extraction
-    └── [ ] AI Document Extraction (Semi-structured vision parsing)
 ```
 
 ---

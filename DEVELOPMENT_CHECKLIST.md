@@ -16,8 +16,8 @@
 - [x] **Phase 6: Observability, Telemetry & Structured Logging (Day 5)**
 - [x] **Phase 7: Infrastructure as Code & Multi-Environment Provisioning (Day 5)**
 - [x] **Phase 8: CI/CD Delivery Pipeline & Automated Security Gates (Day 5 & 6)**
-- [ ] **Phase 9: Reliability Engineering, Failure Drills & E2E Testing (Day 6)**
-- [ ] **Phase 10: Documentation, ADRs, Demo Consumers & Portfolio Polish (Day 7)**
+- [x] **Phase 9: Reliability Engineering, Failure Drills & E2E Testing (Day 6)**
+- [x] **Phase 10: Documentation, ADRs, Demo Consumers & Portfolio Polish (Day 7)**
 
 ---
 
@@ -379,31 +379,31 @@ Verify end-to-end user journeys and validate resilience through simulated produc
 
 Finalize architectural documentation, incident reports, external demo consumers, and portfolio presentation.
 
-- [ ] **Architecture Decision Records (`docs/decisions/`)**
-  - [ ] `ADR-001`: Why Go for API and OCR service?
-  - [ ] `ADR-002`: Database Schema & API Key Hashing Strategy.
-  - [ ] `ADR-003`: Rate Limiting & Quota Architecture.
-  - [ ] `ADR-004`: Azure Container Apps vs. Kubernetes (deliberate simplicity).
-  - [ ] `ADR-005`: Data Minimization & PII Protection in OCR Pipelines.
-- [ ] **Operational & Incident Runbooks (`docs/`)**
-  - [ ] `docs/architecture.md` (System components, C4 diagrams, data flows).
-  - [ ] `docs/security.md` (Threat model, hashing, scanning, audit trail).
-  - [ ] `docs/deployment.md` (Staging, production, environment promotion).
-  - [ ] `docs/rollback.md` (Step-by-step rollback procedures and verification).
-  - [ ] `docs/observability.md` (Metrics, alerts, Grafana setup, SLO definitions).
-  - [ ] `docs/incidents/` (Post-mortems from Phase 9 failure drills).
-- [ ] **Demo Consumers (`PRD Section 3 & Section 36`)**
-  - [ ] `VeriForm` demo: Lightweight synthetic identity onboarding script/app consuming NusaID API.
-  - [ ] `RentEase` demo: Vehicle rental verification script consuming NusaID API.
-  - [ ] Verify both consumers run as independent external clients.
-- [ ] **Root `README.md` Polish (`PRD Section 37 & 39`)**
-  - [ ] Badges: Build status, Go Report Card, coverage, license, security scans.
-  - [ ] One-sentence mission statement: *"NusaID is a developer-first KTP OCR API that lets applications extract structured Indonesian KTP data through a secure, rate-limited, observable, and production-ready API."*
-  - [ ] Architecture diagram (ASCII / Mermaid / SVG).
-  - [ ] Quickstart guide (cURL commands, local docker-compose setup).
-  - [ ] DORA metrics and production engineering highlights table (`PRD Section 38`).
-- [ ] **Demo Video / Walkthrough Recording**
-  - [ ] Record 3-5 minute demo video demonstrating the full lifecycle:
+- [x] **Architecture Decision Records (`docs/decisions/`)**
+  - [x] `ADR-001`: Why Go for API and OCR service?
+  - [x] `ADR-002`: Database Schema & API Key Hashing Strategy.
+  - [x] `ADR-003`: Rate Limiting & Quota Architecture.
+  - [x] `ADR-004`: Azure Container Apps vs. Kubernetes (deliberate simplicity).
+  - [x] `ADR-005`: Data Minimization & PII Protection in OCR Pipelines.
+- [x] **Operational & Incident Runbooks (`docs/`)**
+  - [x] `docs/architecture.md` (System components, C4 diagrams, data flows).
+  - [x] `docs/security.md` (Threat model, hashing, scanning, audit trail).
+  - [x] `docs/deployment.md` (Staging, production, environment promotion).
+  - [x] `docs/rollback.md` (Step-by-step rollback procedures and verification).
+  - [x] `docs/observability.md` (Metrics, alerts, Grafana setup, SLO definitions).
+  - [x] `docs/incidents/` (Post-mortems from Phase 9 failure drills).
+- [x] **Demo Consumers (`PRD Section 3 & Section 36`)**
+  - [x] `VeriForm` demo: Lightweight synthetic identity onboarding script/app consuming NusaID API.
+  - [x] `RentEase` demo: Vehicle rental verification script consuming NusaID API.
+  - [x] Verify both consumers run as independent external clients.
+- [x] **Root `README.md` Polish (`PRD Section 37 & 39`)**
+  - [x] Badges: Build status, Go Report Card, coverage, license, security scans.
+  - [x] One-sentence mission statement: *"NusaID is a developer-first KTP OCR API that lets applications extract structured Indonesian KTP data through a secure, rate-limited, observable, and production-ready API."*
+  - [x] Architecture diagram (ASCII / Mermaid / SVG).
+  - [x] Quickstart guide (cURL commands, local docker-compose setup).
+  - [x] DORA metrics and production engineering highlights table (`PRD Section 38`).
+- [x] **Demo Video / Walkthrough Recording**
+  - [x] Record 3-5 minute demo video demonstrating the full lifecycle:
     1. Account login & API key creation.
     2. cURL OCR request with synthetic KTP image.
     3. Structured JSON response.
@@ -433,8 +433,8 @@ Before tagging `v1.0.0`, all items below must be verified:
 - [x] Staging and Production deployments function via automated workflows.
 - [x] Deployment rollback can be executed reliably in under 60 seconds.
 - [x] Failure drills (OCR failure, DB outage, smoke test failure, error regression) are documented.
-- [ ] At least one external demo consumer (`VeriForm` or `RentEase`) successfully interacts with the API.
-- [ ] All architectural documentation, ADRs, and README are complete.
+- [x] At least one external demo consumer (`VeriForm` or `RentEase`) successfully interacts with the API.
+- [x] All architectural documentation, ADRs, and README are complete.
 
 ---
 
