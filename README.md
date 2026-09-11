@@ -50,7 +50,7 @@ NusaID is not just an OCR demo. It is a full-lifecycle API product built to solv
 
 ```http
 POST /api/v1/ocr/ktp
-Authorization: Bearer fg_live_xxxxxxxxxxxxxxxxxxxxxxxx
+Authorization: Bearer nusa_live_xxxxxxxxxxxxxxxxxxxxxxxx
 Content-Type: multipart/form-data
 
 document=@ktp-sample.jpg
@@ -122,7 +122,7 @@ Every non-2xx response follows a predictable schema:
 
 1. **Zero Permanent Image Storage**: Uploaded KTP images are processed in ephemeral memory buffers and discarded immediately. Raw documents are never saved to disk or databases.
 2. **Zero PII in Application Logs**: Log outputs are scrubbed of NIK, names, dates of birth, and addresses. Correlated via `request_id` and `trace_id` only.
-3. **Cryptographic Key Hashing**: Only SHA-256 hashes of API keys are stored in PostgreSQL. Raw secret keys (`fg_live_...`) are shown once upon creation.
+3. **Cryptographic Key Hashing**: Only SHA-256 hashes of API keys are stored in PostgreSQL. Raw secret keys (`nusa_live_...`) are shown once upon creation.
 4. **Deterministic Validation**: Extracted NIKs undergo strict 16-digit numeric and regional code validation before responses are returned.
 
 ---

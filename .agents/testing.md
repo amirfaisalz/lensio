@@ -62,7 +62,7 @@ Every feature, service layer, algorithm, and validation logic must strive for **
 
 Located in `tests/e2e/`. Playwright tests verify the critical user journeys:
 1. Developer logs in to the developer portal.
-2. Developer generates a new API key (`fg_live_...`) with `ocr:write` scope and copies the key.
+2. Developer generates a new API key (`nusa_live_...`) with `ocr:write` scope and copies the key.
 3. API client submits a synthetic KTP image to `POST /api/v1/ocr/ktp`.
 4. API responds with structured JSON containing expected synthetic NIK and nama.
 5. Developer navigates to Overview/Usage in the portal and confirms request count and quota gauge increment.

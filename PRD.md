@@ -161,7 +161,7 @@ POST /api/v1/ocr/ktp
 Request:
 
 ```http
-Authorization: Bearer fg_live_xxxxx
+Authorization: Bearer nusa_live_xxxxx
 Content-Type: multipart/form-data
 ```
 
@@ -279,7 +279,7 @@ API Key
 Example:
 
 ```http
-Authorization: Bearer fg_live_xxxxxxxxx
+Authorization: Bearer nusa_live_xxxxxxxxx
 ```
 
 API keys must:
@@ -296,7 +296,7 @@ API keys must:
 Example:
 
 ```text
-fg_live_xxxxxxxxx
+nusa_live_xxxxxxxxx
 ```
 
 Only the hashed representation is stored in PostgreSQL.
@@ -745,7 +745,7 @@ Example:
 ```bash
 curl -X POST \
   https://api.NusaID.dev/api/v1/ocr/ktp \
-  -H "Authorization: Bearer fg_live_xxxxx" \
+  -H "Authorization: Bearer nusa_live_xxxxx" \
   -F "document=@ktp-test.jpg"
 ```
 

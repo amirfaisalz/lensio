@@ -96,7 +96,7 @@ Build the foundational HTTP middleware, API key lifecycle, and scoped authorizat
   - [ ] Implement `RequestID` middleware (generates `req_...` or reads `X-Request-ID`, attaches to context and response header).
   - [ ] Define standardized error codes: `invalid_request`, `invalid_api_key`, `insufficient_scope`, `rate_limit_exceeded`, `quota_exceeded`, `invalid_document`, `unsupported_document`, `ocr_failed`, `low_confidence`, `internal_error`.
 - [ ] **API Key Management (`PRD Section 7 & 8`)**
-  - [ ] Cryptographic key generator (e.g., prefix `fg_live_` or `fg_test_` + high-entropy token).
+  - [ ] Cryptographic key generator (e.g., prefix `nusa_live_` or `nusa_test_` + high-entropy token).
   - [ ] Key hashing logic using SHA-256 before persistence (never store plaintext API keys).
   - [ ] Endpoint `POST /api/v1/auth/api-keys` (create key, returns plaintext token once).
   - [ ] Endpoint `GET /api/v1/auth/api-keys` (list organization's keys with masked token, prefix, scopes, last used).
