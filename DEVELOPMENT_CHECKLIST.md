@@ -10,7 +10,7 @@
 - [x] **Phase 0: Project Inception, Repository Setup & AI Agent Guardrails**
 - [x] **Phase 1: Core Foundation & Scaffolding (Day 1)**
 - [x] **Phase 2: API Contract, Authentication & Security Core (Day 2)**
-- [ ] **Phase 3: OCR Engine Abstraction & Processing Pipeline (Day 3)**
+- [x] **Phase 3: OCR Engine Abstraction & Processing Pipeline (Day 3)**
 - [ ] **Phase 4: API Platform – Rate Limiting, Quotas & Usage Metering (Day 4)**
 - [ ] **Phase 5: Developer Dashboard & Portal (Days 1, 4 & 7)**
 - [ ] **Phase 6: Observability, Telemetry & Structured Logging (Day 5)**
@@ -118,24 +118,24 @@ Build the foundational HTTP middleware, API key lifecycle, and scoped authorizat
 
 Implement the pluggable OCR interface, image preprocessing, extraction, and validation pipeline.
 
-- [ ] **Pluggable OCR Architecture (`PRD Section 12`)**
-  - [ ] Define Go interface:
+- [x] **Pluggable OCR Architecture (`PRD Section 12`)**
+  - [x] Define Go interface:
     ```go
     type OCREngine interface {
         Extract(ctx context.Context, image []byte) (*OCRResult, error)
     }
     ```
-  - [ ] Implement `MockOCREngine` for unit/integration tests with deterministic fixture responses.
-  - [ ] Implement primary production engine adapter (e.g., Tesseract or Cloud Vision OCR).
-- [ ] **Image Preprocessing & Validation (`PRD Section 13`)**
-  - [ ] Multipart form parser for `document=<image>` (`POST /api/v1/ocr/ktp`).
-  - [ ] Image format validation (JPEG, PNG, WebP) via MIME type & magic byte inspection.
-  - [ ] File size enforcement (e.g., maximum 5MB).
-  - [ ] Image sanitation & optional orientation normalization.
-- [ ] **Document Classification & Extraction**
-  - [ ] Document classifier to verify the uploaded image is an Indonesian KTP.
-  - [ ] Raw OCR text extraction.
-  - [ ] KTP field parsing (Regex / heuristic extraction):
+  - [x] Implement `MockOCREngine` for unit/integration tests with deterministic fixture responses.
+  - [x] Implement primary production engine adapter (Google Gemini 2.0 Flash / 1.5 Flash Vision AI via standard `net/http`).
+- [x] **Image Preprocessing & Validation (`PRD Section 13`)**
+  - [x] Multipart form parser for `document=<image>` (`POST /api/v1/ocr/ktp`).
+  - [x] Image format validation (JPEG, PNG, WebP) via MIME type & magic byte inspection.
+  - [x] File size enforcement (e.g., maximum 5MB).
+  - [x] Image sanitation & optional orientation normalization.
+- [x] **Document Classification & Extraction**
+  - [x] Document classifier to verify the uploaded image is an Indonesian KTP.
+  - [x] Raw OCR text extraction.
+  - [x] KTP field parsing (Regex / heuristic extraction):
     - `nik`
     - `nama`
     - `tempat_lahir`
@@ -149,20 +149,20 @@ Implement the pluggable OCR interface, image preprocessing, extraction, and vali
     - `status_perkawinan`
     - `pekerjaan`
     - `kewarganegaraan` (`WNI` / `WNA`)
-- [ ] **Field Normalization & Deterministic Validation (`PRD Section 14`)**
-  - [ ] Strict NIK format validation (16 digits, numeric-only, valid province/regency code check).
-  - [ ] Date of birth format and calendar validation.
-  - [ ] Enum validation (religion, gender, marital status).
-  - [ ] Confidence calculation per field and overall document confidence score.
-  - [ ] Flag low-confidence results with `low_confidence` warning or status.
-- [ ] **API Endpoints Implementation**
-  - [ ] `POST /api/v1/ocr/ktp` (multipart image upload -> extraction -> structured JSON response).
-  - [ ] `GET /api/v1/ocr/:id` (retrieve previous OCR execution metadata by ID).
-- [ ] **Data Minimization & Privacy Rules (`PRD Section 15`)**
-  - [ ] Discard temporary image buffers/files immediately after processing.
-  - [ ] Never persist raw KTP images in default storage.
-  - [ ] Never log PII (NIK, names, addresses) in application logs.
-- [ ] **Acceptance Criteria**:
+- [x] **Field Normalization & Deterministic Validation (`PRD Section 14`)**
+  - [x] Strict NIK format validation (16 digits, numeric-only, valid province/regency code check).
+  - [x] Date of birth format and calendar validation.
+  - [x] Enum validation (religion, gender, marital status).
+  - [x] Confidence calculation per field and overall document confidence score.
+  - [x] Flag low-confidence results with `low_confidence` warning or status.
+- [x] **API Endpoints Implementation**
+  - [x] `POST /api/v1/ocr/ktp` (multipart image upload -> extraction -> structured JSON response).
+  - [x] `GET /api/v1/ocr/:id` (retrieve previous OCR execution metadata by ID).
+- [x] **Data Minimization & Privacy Rules (`PRD Section 15`)**
+  - [x] Discard temporary image buffers/files immediately after processing.
+  - [x] Never persist raw KTP images in default storage.
+  - [x] Never log PII (NIK, names, addresses) in application logs.
+- [x] **Acceptance Criteria**:
   - Test suite passes using synthetic/redacted KTP test images.
   - Invalid images return HTTP 400 with `invalid_document`.
   - Non-KTP documents return HTTP 422 with `unsupported_document`.

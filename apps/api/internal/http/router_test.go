@@ -54,6 +54,30 @@ func (d *dummyKeyStore) TouchAPIKeyLastUsed(ctx context.Context, keyID string, l
 	return nil
 }
 
+type dummyOCRStore struct {
+	records map[string]*store.OCRRequest
+}
+
+func newDummyOCRStore() *dummyOCRStore {
+	return &dummyOCRStore{
+		records: make(map[string]*store.OCRRequest),
+	}
+}
+
+func (d *dummyOCRStore) CreateOCRRequest(ctx context.Context, req *store.OCRRequest) error {
+	req.CreatedAt = time.Now()
+	d.records[req.ID] = req
+	return nil
+}
+
+func (d *dummyOCRStore) GetOCRRequestByID(ctx context.Context, orgID string, id string) (*store.OCRRequest, error) {
+	rec, ok := d.records[id]
+	if !ok || rec.OrgID != orgID {
+		return nil, store.ErrNotFound
+	}
+	return rec, nil
+}
+
 func TestNewRouter(t *testing.T) {
 	kStore := newDummyKeyStore()
 	gen, _ := apikey.Generate(apikey.EnvLive)
@@ -61,11 +85,21 @@ func TestNewRouter(t *testing.T) {
 		ID:          "dummy-id-1",
 		OrgID:       "org-1",
 		KeyHash:     gen.KeyHash,
-		Scopes:      []string{"ocr:write"},
+		Scopes:      []string{"ocr:write", "ocr:read"},
 		Environment: "live",
 	})
 
-	router := internalhttp.NewRouter(&dummyPinger{}, kStore)
+	dummyStore := newDummyOCRStore()
+	_ = dummyStore.CreateOCRRequest(context.Background(), &store.OCRRequest{
+		ID:         "test-ocr-id",
+		OrgID:      "org-1",
+		Status:     "completed",
+		Confidence: 0.98,
+		LatencyMS:  100,
+		DocType:    "ktp",
+	})
+
+	router := internalhttp.NewRouter(&dummyPinger{}, kStore, nil, dummyStore)
 
 	tests := []struct {
 		name           string
@@ -118,6 +152,25 @@ func TestNewRouter(t *testing.T) {
 			expectedStatus: http.StatusOK,
 		},
 		{
+			name:           "ocr post without key returns 401",
+			method:         http.MethodPost,
+			path:           "/api/v1/ocr/ktp",
+			expectedStatus: http.StatusUnauthorized,
+		},
+		{
+			name:           "ocr get without key returns 401",
+			method:         http.MethodGet,
+			path:           "/api/v1/ocr/test-ocr-id",
+			expectedStatus: http.StatusUnauthorized,
+		},
+		{
+			name:           "ocr get with valid key returns 200",
+			method:         http.MethodGet,
+			path:           "/api/v1/ocr/test-ocr-id",
+			authHeader:     "Bearer " + gen.Plaintext,
+			expectedStatus: http.StatusOK,
+		},
+		{
 			name:           "unknown endpoint returns 404",
 			method:         http.MethodGet,
 			path:           "/unknown",
@@ -148,7 +201,7 @@ func TestNewRouter(t *testing.T) {
 }
 
 func TestNewRouter_NilKeyStore(t *testing.T) {
-	router := internalhttp.NewRouter(&dummyPinger{}, nil)
+	router := internalhttp.NewRouter(&dummyPinger{}, nil, nil, nil)
 	req := httptest.NewRequest(http.MethodGet, "/health", nil)
 	rec := httptest.NewRecorder()
 

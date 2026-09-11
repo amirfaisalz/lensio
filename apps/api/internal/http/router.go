@@ -7,11 +7,13 @@ import (
 	"github.com/amirfaisalz/nusaid/apps/api/internal/http/middleware"
 	"github.com/amirfaisalz/nusaid/apps/api/internal/http/response"
 	"github.com/amirfaisalz/nusaid/apps/api/internal/store"
+	"github.com/amirfaisalz/nusaid/services/ocr"
+	"github.com/amirfaisalz/nusaid/services/ocr/providers"
 )
 
 // NewRouter constructs the root HTTP handler with standard probes, documentation,
 // and API v1 endpoints registered.
-func NewRouter(pinger store.Pinger, keyStore store.APIKeyStore) http.Handler {
+func NewRouter(pinger store.Pinger, keyStore store.APIKeyStore, ocrEngine ocr.OCREngine, ocrStore store.OCRRequestStore) http.Handler {
 	mux := http.NewServeMux()
 
 	// Probes (PRD Section 17)
@@ -30,10 +32,11 @@ func NewRouter(pinger store.Pinger, keyStore store.APIKeyStore) http.Handler {
 		mux.HandleFunc("GET /api/v1/auth/api-keys", handlers.ListAPIKeysHandler(keyStore, handlers.DefaultOrgID))
 		mux.HandleFunc("DELETE /api/v1/auth/api-keys/{id}", handlers.RevokeAPIKeyHandler(keyStore, handlers.DefaultOrgID))
 
-		// Protected verification probe for testing Auth & Scopes
 		authMiddleware := middleware.Authenticate(keyStore)
-		scopeMiddleware := middleware.RequireScope("ocr:write")
+		scopeWriteMiddleware := middleware.RequireScope("ocr:write")
+		scopeReadMiddleware := middleware.RequireScope("ocr:read")
 
+		// Protected verification probe for testing Auth & Scopes
 		verifyHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			key := middleware.GetAPIKey(r.Context())
 			response.JSON(w, http.StatusOK, map[string]any{
@@ -43,8 +46,20 @@ func NewRouter(pinger store.Pinger, keyStore store.APIKeyStore) http.Handler {
 				"scopes": key.Scopes,
 			})
 		})
+		mux.Handle("GET /api/v1/auth/verify", authMiddleware(scopeWriteMiddleware(verifyHandler)))
 
-		mux.Handle("GET /api/v1/auth/verify", authMiddleware(scopeMiddleware(verifyHandler)))
+		// OCR Pipeline Endpoints (PRD Section 12, 13 & 14)
+		if ocrEngine == nil {
+			ocrEngine = providers.NewMockEngine()
+		}
+
+		ktpHandler := handlers.KTPOCRHandler(ocrEngine, ocrStore)
+		mux.Handle("POST /api/v1/ocr/ktp", authMiddleware(scopeWriteMiddleware(ktpHandler)))
+
+		if ocrStore != nil {
+			getOcrHandler := handlers.GetOCRRequestHandler(ocrStore)
+			mux.Handle("GET /api/v1/ocr/{id}", authMiddleware(scopeReadMiddleware(getOcrHandler)))
+		}
 	}
 
 	// Global Middleware: Request ID injection & header emission (PRD Section 20)

@@ -13,6 +13,8 @@ import (
 	"github.com/amirfaisalz/nusaid/apps/api/internal/config"
 	internalhttp "github.com/amirfaisalz/nusaid/apps/api/internal/http"
 	"github.com/amirfaisalz/nusaid/apps/api/internal/store"
+	"github.com/amirfaisalz/nusaid/services/ocr"
+	"github.com/amirfaisalz/nusaid/services/ocr/providers"
 )
 
 func main() {
@@ -56,7 +58,16 @@ func main() {
 		logger.Warn("DATABASE_URL not configured, running in ephemeral mode")
 	}
 
-	router := internalhttp.NewRouter(pinger, db)
+	var ocrEngine ocr.OCREngine
+	if cfg.OCRProvider == "gemini_flash" && cfg.GeminiAPIKey != "" {
+		logger.Info("initializing Gemini Flash OCR provider", slog.String("model", cfg.GeminiModel))
+		ocrEngine = providers.NewGeminiEngine(cfg.GeminiAPIKey, cfg.GeminiModel)
+	} else {
+		logger.Info("initializing Mock OCR engine (deterministic fixtures)")
+		ocrEngine = providers.NewMockEngine()
+	}
+
+	router := internalhttp.NewRouter(pinger, db, ocrEngine, db)
 
 	srv := &http.Server{
 		Addr:         ":" + cfg.Port,

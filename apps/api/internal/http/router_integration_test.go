@@ -3,6 +3,7 @@ package http_test
 import (
 	"bytes"
 	"encoding/json"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -11,11 +12,22 @@ import (
 	internalhttp "github.com/amirfaisalz/nusaid/apps/api/internal/http"
 	"github.com/amirfaisalz/nusaid/apps/api/internal/http/handlers"
 	"github.com/amirfaisalz/nusaid/apps/api/internal/http/response"
+	"github.com/amirfaisalz/nusaid/services/ocr/providers"
+	"github.com/amirfaisalz/nusaid/tests/fixtures/synthetic"
 )
+
+func buildTestMultipart(fieldName, filename string, content []byte) (*bytes.Buffer, string) {
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
+	part, _ := writer.CreateFormFile(fieldName, filename)
+	_, _ = part.Write(content)
+	_ = writer.Close()
+	return body, writer.FormDataContentType()
+}
 
 func TestRouter_E2E_KeyLifecycleAndAuth(t *testing.T) {
 	kStore := newDummyKeyStore()
-	router := internalhttp.NewRouter(&dummyPinger{}, kStore)
+	router := internalhttp.NewRouter(&dummyPinger{}, kStore, nil, nil)
 	server := httptest.NewServer(router)
 	defer server.Close()
 
@@ -109,4 +121,186 @@ func TestRouter_E2E_KeyLifecycleAndAuth(t *testing.T) {
 	if errEnv.Error.Code != response.CodeInsufficientScope {
 		t.Errorf("expected code %q, got %q", response.CodeInsufficientScope, errEnv.Error.Code)
 	}
+}
+
+func TestRouter_E2E_OCRPipeline(t *testing.T) {
+	kStore := newDummyKeyStore()
+	ocrStore := newDummyOCRStore()
+	engine := providers.NewMockEngine()
+
+	router := internalhttp.NewRouter(&dummyPinger{}, kStore, engine, ocrStore)
+	server := httptest.NewServer(router)
+	defer server.Close()
+
+	client := server.Client()
+
+	// 1. Create full OCR key (write + read)
+	createPayload := map[string]any{
+		"name":   "OCR Full Key",
+		"scopes": []string{"ocr:write", "ocr:read"},
+	}
+	body, _ := json.Marshal(createPayload)
+
+	resp, err := client.Post(server.URL+"/api/v1/auth/api-keys", "application/json", bytes.NewReader(body))
+	if err != nil {
+		t.Fatalf("failed creating key: %v", err)
+	}
+	var fullKey handlers.CreateKeyResponse
+	_ = json.NewDecoder(resp.Body).Decode(&fullKey)
+	resp.Body.Close()
+
+	// 2. Create read-only key
+	readOnlyPayload := map[string]any{
+		"name":   "OCR Read Only Key",
+		"scopes": []string{"ocr:read"},
+	}
+	bodyRO, _ := json.Marshal(readOnlyPayload)
+	roResp, _ := client.Post(server.URL+"/api/v1/auth/api-keys", "application/json", bytes.NewReader(bodyRO))
+	var roKey handlers.CreateKeyResponse
+	_ = json.NewDecoder(roResp.Body).Decode(&roKey)
+	roResp.Body.Close()
+
+	t.Run("successful KTP upload and metadata query", func(t *testing.T) {
+		validImg := synthetic.GenerateValidKTPImage()
+		reqBody, contentType := buildTestMultipart("document", "ktp.png", validImg)
+
+		req, _ := http.NewRequest(http.MethodPost, server.URL+"/api/v1/ocr/ktp", reqBody)
+		req.Header.Set("Content-Type", contentType)
+		req.Header.Set("Authorization", "Bearer "+fullKey.Key)
+
+		ocrResp, err := client.Do(req)
+		if err != nil {
+			t.Fatalf("failed POST /api/v1/ocr/ktp: %v", err)
+		}
+		defer ocrResp.Body.Close()
+
+		if ocrResp.StatusCode != http.StatusOK {
+			t.Fatalf("expected 200, got %d", ocrResp.StatusCode)
+		}
+
+		var ktpResp handlers.KTPResponse
+		if err := json.NewDecoder(ocrResp.Body).Decode(&ktpResp); err != nil {
+			t.Fatalf("failed decoding KTP response: %v", err)
+		}
+
+		if ktpResp.ID == "" || ktpResp.DocumentType != "ktp" {
+			t.Errorf("unexpected KTP response: %+v", ktpResp)
+		}
+		if ktpResp.Data.NIK != "3171010101900001" {
+			t.Errorf("expected NIK 3171010101900001, got %s", ktpResp.Data.NIK)
+		}
+
+		// Query metadata via GET /api/v1/ocr/{id}
+		getReq, _ := http.NewRequest(http.MethodGet, server.URL+"/api/v1/ocr/"+ktpResp.ID, nil)
+		getReq.Header.Set("Authorization", "Bearer "+fullKey.Key)
+
+		getResp, err := client.Do(getReq)
+		if err != nil {
+			t.Fatalf("failed GET /api/v1/ocr/:id: %v", err)
+		}
+		defer getResp.Body.Close()
+
+		if getResp.StatusCode != http.StatusOK {
+			t.Fatalf("expected 200 from GET metadata, got %d", getResp.StatusCode)
+		}
+
+		var meta handlers.OCRRequestMetadata
+		if err := json.NewDecoder(getResp.Body).Decode(&meta); err != nil {
+			t.Fatalf("failed decoding metadata: %v", err)
+		}
+		if meta.ID != ktpResp.ID || meta.Status != "completed" {
+			t.Errorf("unexpected metadata: %+v", meta)
+		}
+	})
+
+	t.Run("unsupported document returns 422", func(t *testing.T) {
+		unsupportedImg := synthetic.GenerateUnsupportedDocImage()
+		reqBody, contentType := buildTestMultipart("document", "receipt.png", unsupportedImg)
+
+		req, _ := http.NewRequest(http.MethodPost, server.URL+"/api/v1/ocr/ktp", reqBody)
+		req.Header.Set("Content-Type", contentType)
+		req.Header.Set("Authorization", "Bearer "+fullKey.Key)
+
+		ocrResp, err := client.Do(req)
+		if err != nil {
+			t.Fatalf("failed request: %v", err)
+		}
+		defer ocrResp.Body.Close()
+
+		if ocrResp.StatusCode != http.StatusUnprocessableEntity {
+			t.Fatalf("expected 422, got %d", ocrResp.StatusCode)
+		}
+	})
+
+	t.Run("corrupt image returns 400", func(t *testing.T) {
+		corruptImg := synthetic.GenerateCorruptedImage()
+		reqBody, contentType := buildTestMultipart("document", "corrupt.jpg", corruptImg)
+
+		req, _ := http.NewRequest(http.MethodPost, server.URL+"/api/v1/ocr/ktp", reqBody)
+		req.Header.Set("Content-Type", contentType)
+		req.Header.Set("Authorization", "Bearer "+fullKey.Key)
+
+		ocrResp, err := client.Do(req)
+		if err != nil {
+			t.Fatalf("failed request: %v", err)
+		}
+		defer ocrResp.Body.Close()
+
+		if ocrResp.StatusCode != http.StatusBadRequest {
+			t.Fatalf("expected 400, got %d", ocrResp.StatusCode)
+		}
+	})
+
+	t.Run("read-only key receives 403 on post ktp", func(t *testing.T) {
+		validImg := synthetic.GenerateValidKTPImage()
+		reqBody, contentType := buildTestMultipart("document", "ktp.png", validImg)
+
+		req, _ := http.NewRequest(http.MethodPost, server.URL+"/api/v1/ocr/ktp", reqBody)
+		req.Header.Set("Content-Type", contentType)
+		req.Header.Set("Authorization", "Bearer "+roKey.Key)
+
+		ocrResp, err := client.Do(req)
+		if err != nil {
+			t.Fatalf("failed request: %v", err)
+		}
+		defer ocrResp.Body.Close()
+
+		if ocrResp.StatusCode != http.StatusForbidden {
+			t.Fatalf("expected 403, got %d", ocrResp.StatusCode)
+		}
+	})
+
+	t.Run("invalid key receives 401", func(t *testing.T) {
+		validImg := synthetic.GenerateValidKTPImage()
+		reqBody, contentType := buildTestMultipart("document", "ktp.png", validImg)
+
+		req, _ := http.NewRequest(http.MethodPost, server.URL+"/api/v1/ocr/ktp", reqBody)
+		req.Header.Set("Content-Type", contentType)
+		req.Header.Set("Authorization", "Bearer nusa_live_fakekeytoken12345678901234567890123456789012")
+
+		ocrResp, err := client.Do(req)
+		if err != nil {
+			t.Fatalf("failed request: %v", err)
+		}
+		defer ocrResp.Body.Close()
+
+		if ocrResp.StatusCode != http.StatusUnauthorized {
+			t.Fatalf("expected 401, got %d", ocrResp.StatusCode)
+		}
+	})
+
+	t.Run("metadata not found returns 404", func(t *testing.T) {
+		req, _ := http.NewRequest(http.MethodGet, server.URL+"/api/v1/ocr/non-existent-id", nil)
+		req.Header.Set("Authorization", "Bearer "+fullKey.Key)
+
+		getResp, err := client.Do(req)
+		if err != nil {
+			t.Fatalf("failed request: %v", err)
+		}
+		defer getResp.Body.Close()
+
+		if getResp.StatusCode != http.StatusNotFound {
+			t.Fatalf("expected 404, got %d", getResp.StatusCode)
+		}
+	})
 }

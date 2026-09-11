@@ -7,10 +7,13 @@ import (
 
 // Config represents the application runtime configuration.
 type Config struct {
-	Port        string
-	Env         string
-	DatabaseURL string
-	LogLevel    string
+	Port         string
+	Env          string
+	DatabaseURL  string
+	LogLevel     string
+	OCRProvider  string
+	GeminiAPIKey string
+	GeminiModel  string
 }
 
 // Load reads configuration from environment variables with sensible defaults.
@@ -32,10 +35,25 @@ func Load() *Config {
 		logLevel = "info"
 	}
 
+	ocrProvider := strings.TrimSpace(os.Getenv("OCR_PROVIDER"))
+	if ocrProvider == "" {
+		ocrProvider = "mock"
+	}
+
+	geminiAPIKey := strings.TrimSpace(os.Getenv("GEMINI_API_KEY"))
+
+	geminiModel := strings.TrimSpace(os.Getenv("GEMINI_MODEL"))
+	if geminiModel == "" {
+		geminiModel = "gemini-2.0-flash"
+	}
+
 	return &Config{
-		Port:        port,
-		Env:         env,
-		DatabaseURL: dbURL,
-		LogLevel:    logLevel,
+		Port:         port,
+		Env:          env,
+		DatabaseURL:  dbURL,
+		LogLevel:     logLevel,
+		OCRProvider:  ocrProvider,
+		GeminiAPIKey: geminiAPIKey,
+		GeminiModel:  geminiModel,
 	}
 }
