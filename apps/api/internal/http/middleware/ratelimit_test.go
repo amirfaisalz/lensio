@@ -6,9 +6,9 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/amirfaisalz/nusaid/apps/api/internal/http/middleware"
-	"github.com/amirfaisalz/nusaid/apps/api/internal/ratelimit"
-	"github.com/amirfaisalz/nusaid/apps/api/internal/store"
+	"github.com/amirfaisalz/lensio/apps/api/internal/http/middleware"
+	"github.com/amirfaisalz/lensio/apps/api/internal/ratelimit"
+	"github.com/amirfaisalz/lensio/apps/api/internal/store"
 )
 
 type mockAccountStoreForRateLimit struct {

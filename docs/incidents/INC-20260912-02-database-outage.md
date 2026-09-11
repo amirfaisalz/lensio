@@ -14,7 +14,7 @@
 
 ## 1. Executive Summary
 
-As part of NusaID Phase 9 Reliability Engineering (`PRD Section 26, Scenario B`), an infrastructure simulation was conducted to test the behavior of the NusaID API instance when its primary relational data store (Azure Database for PostgreSQL Flexible Server) becomes unreachable or crashes.
+As part of Lensio Phase 9 Reliability Engineering (`PRD Section 26, Scenario B`), an infrastructure simulation was conducted to test the behavior of the Lensio API instance when its primary relational data store (Azure Database for PostgreSQL Flexible Server) becomes unreachable or crashes.
 
 The drill verified that:
 1. Process liveness (`GET /health`) remained **HTTP 200 OK**, preventing Azure Container Apps / Kubernetes orchestrators from entering infinite, thrashing container restart loops while the database was recovering.

@@ -20,9 +20,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 	const [environment, setEnvironment] = useState<"live" | "test">("live");
 
 	useEffect(() => {
-		if (apiKey?.startsWith("nusa_test_")) {
+		if (apiKey?.startsWith("lensio_test_")) {
 			setEnvironment("test");
-		} else if (apiKey?.startsWith("nusa_live_")) {
+		} else if (apiKey?.startsWith("lensio_live_")) {
 			setEnvironment("live");
 		}
 	}, [apiKey]);

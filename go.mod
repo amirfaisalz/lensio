@@ -1,4 +1,4 @@
-module github.com/amirfaisalz/nusaid
+module github.com/amirfaisalz/lensio
 
 go 1.27.1
 

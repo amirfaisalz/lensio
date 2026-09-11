@@ -2,14 +2,14 @@
 
 - **Status**: Accepted
 - **Date**: 2026-09-12
-- **Deciders**: NusaID Engineering Team
+- **Deciders**: Lensio Engineering Team
 - **Technical Context**: `PRD Section 7`, `PRD Section 8`, `PRD Section 21`, `AGENTS.md` (Security Non-Negotiable #1)
 
 ---
 
 ## 1. Context and Problem Statement
 
-NusaID exposes a multi-tenant B2B REST API. Tenants (organizations) authenticate via bearer API keys passed in the `Authorization: Bearer <token>` header. These keys grant programmatic access to sensitive OCR operations and usage records.
+Lensio exposes a multi-tenant B2B REST API. Tenants (organizations) authenticate via bearer API keys passed in the `Authorization: Bearer <token>` header. These keys grant programmatic access to sensitive OCR operations and usage records.
 
 Storing API keys in plaintext or using reversible encryption creates severe security risks: if the database or backups are compromised, all client credentials would be immediately exposed. Furthermore, the database schema must balance tenant isolation, high-speed authorization lookups (O(1)), auditability of administrative actions, and non-blocking usage metering without race conditions or excessive table locking.
 
@@ -39,8 +39,8 @@ Storing API keys in plaintext or using reversible encryption creates severe secu
 - *Pros*:
   - High-entropy tokens (32 bytes / 256 bits of CSPRNG randomness) have sufficient entropy to make SHA-256 rainbow tables and brute-force attacks computationally impossible.
   - SHA-256 hashing executes in microseconds ($O(1)$ time complexity), keeping authentication latency under 1ms.
-  - Prefix routing (`nusa_live_` / `nusa_test_`) allows instant environment detection and credential leak scanning (via Gitleaks/TruffleHog regex).
-  - Storing a truncated prefix (e.g., `nusa_live_abc...`) allows developers to identify keys in the dashboard without exposing the secret.
+  - Prefix routing (`lensio_live_` / `lensio_test_`) allows instant environment detection and credential leak scanning (via Gitleaks/TruffleHog regex).
+  - Storing a truncated prefix (e.g., `lensio_live_abc...`) allows developers to identify keys in the dashboard without exposing the secret.
 - *Cons*: If a developer loses their plaintext key, it cannot be retrieved; they must generate a new one and revoke the old one. (This is standard industry practice).
 
 ---
@@ -53,14 +53,14 @@ Storing API keys in plaintext or using reversible encryption creates severe secu
 1. **Key Generation Format**:
    ```text
    prefix + environment + "_" + 32_random_bytes_hex
-   Example: nusa_live_9f8a3c2e1b4d5e6f7a8b9c0d1e2f3a4b...
+   Example: lensio_live_9f8a3c2e1b4d5e6f7a8b9c0d1e2f3a4b...
    ```
 2. **Persistence Schema (`api_keys` table)**:
    - `id`: UUID (Primary Key)
    - `org_id`: UUID (Foreign Key -> `organizations.id`)
    - `name`: Human-readable label (e.g., "Production Backend")
    - `key_hash`: `VARCHAR(64)` storing the hex-encoded SHA-256 digest (Indexed `UNIQUE`)
-   - `prefix`: `VARCHAR(16)` storing the identifiable prefix (e.g., `nusa_live_9f8a...`)
+   - `prefix`: `VARCHAR(16)` storing the identifiable prefix (e.g., `lensio_live_9f8a...`)
    - `scopes`: `TEXT[]` array containing permissions (`ocr:read`, `ocr:write`, `usage:read`)
    - `environment`: `VARCHAR(16)` (`production`, `staging`, `development`)
    - `last_used_at`: Timestamp updated asynchronously on access

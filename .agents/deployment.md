@@ -50,7 +50,7 @@ PostgreSQL (Flexible Server)   OpenTelemetry Collector
 [CI Gates] (Lint + Test -race + Security Scanners + OpenAPI Validation)
        │ (Merge to main)
        ▼
-[Build & Publish] (Tagged: nusaid-api:<git-sha> & nusaid-api:<semver>)
+[Build & Publish] (Tagged: lensio-api:<git-sha> & lensio-api:<semver>)
        │
        ▼
 [Staging Deployment] (Automated deployment to Azure Container Apps Staging)
@@ -67,7 +67,7 @@ PostgreSQL (Flexible Server)   OpenTelemetry Collector
 ## 4. Rollback Policy & Procedure
 
 Every deployment is immutable and uniquely versioned:
-- Target format: `nusaid-api:1.4.0` (SemVer) or `nusaid-api:sha-a1b2c3d`.
+- Target format: `lensio-api:1.4.0` (SemVer) or `lensio-api:sha-a1b2c3d`.
 
 ### Rollback Mandate
 If any of the following occur post-deployment:

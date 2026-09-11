@@ -6,7 +6,7 @@ import (
 	"net/http"
 )
 
-// Standard error codes defined by NusaID PRD Section 20.
+// Standard error codes defined by Lensio PRD Section 20.
 const (
 	CodeInvalidRequest      = "invalid_request"
 	CodeInvalidAPIKey       = "invalid_api_key"

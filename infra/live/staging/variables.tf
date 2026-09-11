@@ -1,7 +1,7 @@
 variable "project" {
   type        = string
   description = "Project name identifier"
-  default     = "nusaid"
+  default     = "lensio"
 }
 
 variable "environment" {
@@ -54,14 +54,14 @@ variable "postgres_backup_retention_days" {
 
 variable "api_image" {
   type        = string
-  description = "Docker image for NusaID API"
-  default     = "ghcr.io/amirfaisalz/nusaid-api:staging"
+  description = "Docker image for Lensio API"
+  default     = "ghcr.io/amirfaisalz/lensio-api:staging"
 }
 
 variable "dashboard_image" {
   type        = string
-  description = "Docker image for NusaID Dashboard"
-  default     = "ghcr.io/amirfaisalz/nusaid-dashboard:staging"
+  description = "Docker image for Lensio Dashboard"
+  default     = "ghcr.io/amirfaisalz/lensio-dashboard:staging"
 }
 
 variable "api_cpu" {

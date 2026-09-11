@@ -3,7 +3,7 @@ package handlers
 import (
 	"net/http"
 
-	"github.com/amirfaisalz/nusaid/apps/api/internal/http/response"
+	"github.com/amirfaisalz/lensio/apps/api/internal/http/response"
 )
 
 // HealthResponse represents the response payload for the liveness probe.

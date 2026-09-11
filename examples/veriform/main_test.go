@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/amirfaisalz/nusaid/tests/fixtures/synthetic"
+	"github.com/amirfaisalz/lensio/tests/fixtures/synthetic"
 )
 
 func TestCalculateAge(t *testing.T) {
@@ -67,7 +67,7 @@ func TestRunOnboarding_Success(t *testing.T) {
 			return
 		}
 
-		resp := NusaIDResponse{
+		resp := LensioResponse{
 			ID:           "ocr_test_01",
 			Status:       "completed",
 			DocumentType: "ktp",
@@ -112,7 +112,7 @@ func TestRunOnboarding_Success(t *testing.T) {
 
 func TestRunOnboarding_UnderageRejected(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		resp := NusaIDResponse{
+		resp := LensioResponse{
 			ID:           "ocr_test_02",
 			Status:       "completed",
 			DocumentType: "ktp",
@@ -152,7 +152,7 @@ func TestRunOnboarding_UnderageRejected(t *testing.T) {
 
 func TestRunOnboarding_LowConfidenceRejected(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		resp := NusaIDResponse{
+		resp := LensioResponse{
 			ID:           "ocr_test_03",
 			Status:       "completed",
 			DocumentType: "ktp",
@@ -209,7 +209,7 @@ func TestRunOnboarding_APIErrors(t *testing.T) {
 
 func TestRunOnboarding_InvalidDOB(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		resp := NusaIDResponse{
+		resp := LensioResponse{
 			ID:           "ocr_test_04",
 			Status:       "completed",
 			DocumentType: "ktp",

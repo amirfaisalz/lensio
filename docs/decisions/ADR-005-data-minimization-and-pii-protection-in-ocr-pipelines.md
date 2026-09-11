@@ -2,7 +2,7 @@
 
 - **Status**: Accepted
 - **Date**: 2026-09-12
-- **Deciders**: NusaID Engineering Team
+- **Deciders**: Lensio Engineering Team
 - **Technical Context**: `PRD Section 13`, `PRD Section 14`, `PRD Section 15`, `AGENTS.md` (Security Non-Negotiables #2, #3, #4)
 
 ---
@@ -25,8 +25,8 @@ We needed an explicit architecture that delivers OCR extraction while strictly e
 ## 2. Decision Drivers
 
 - **Compliance with UU PDP**: Adhere to legal principles of data minimization and confidentiality.
-- **Minimization of Blast Radius**: If the NusaID database or log aggregation systems (e.g. Grafana Loki, CloudWatch) are compromised, zero citizen PII or document scans must be retrievable.
-- **Zero Raw Image Storage**: NusaID is an extraction API, not a document archive.
+- **Minimization of Blast Radius**: If the Lensio database or log aggregation systems (e.g. Grafana Loki, CloudWatch) are compromised, zero citizen PII or document scans must be retrievable.
+- **Zero Raw Image Storage**: Lensio is an extraction API, not a document archive.
 - **Deterministic Validation**: Never trust raw LLM/vision text blindly; enforce deterministic validation on NIK and dates.
 - **Operational Debuggability**: Maintain the ability to debug failed requests using non-PII correlation identifiers (`request_id`, `trace_id`, `span_id`).
 
@@ -50,7 +50,7 @@ We needed an explicit architecture that delivers OCR extraction while strictly e
     1. Exactly 16 numeric digits.
     2. Valid Indonesian province code prefix (e.g., `31` for DKI Jakarta, `32` for West Java).
     3. Valid birth date encoding within the NIK (digits 7–12, factoring in the +40 offset for female citizens).
-  - **Stateless Extraction Contract**: The API caller is responsible for archiving their own customer documents. NusaID acts purely as a stateless processor.
+  - **Stateless Extraction Contract**: The API caller is responsible for archiving their own customer documents. Lensio acts purely as a stateless processor.
 - *Cons*: Cannot re-run extraction on failed images without the client re-uploading the image.
 
 ---
@@ -100,7 +100,7 @@ Application Logs:
 - **High Performance & Low Storage Costs**: Zero disk I/O and zero blob storage transfer costs; lower latency since no multi-part S3 upload step is needed.
 
 ### Negative / Trade-offs
-- If a client reports an inaccurate extraction, engineers cannot inspect the original image from NusaID backend storage. The client must submit their anonymized synthetic test image during support inquiries.
+- If a client reports an inaccurate extraction, engineers cannot inspect the original image from Lensio backend storage. The client must submit their anonymized synthetic test image during support inquiries.
 
 ---
 

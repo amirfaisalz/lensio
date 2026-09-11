@@ -1,7 +1,7 @@
 variable "project" {
   type        = string
   description = "Project name identifier"
-  default     = "nusaid"
+  default     = "lensio"
 }
 
 variable "environment" {

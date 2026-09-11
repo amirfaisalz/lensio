@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/amirfaisalz/nusaid/apps/api/internal/http/middleware"
+	"github.com/amirfaisalz/lensio/apps/api/internal/http/middleware"
 )
 
 func TestRequestID_GeneratesNew(t *testing.T) {

@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/amirfaisalz/nusaid/apps/api/internal/http/handlers"
+	"github.com/amirfaisalz/lensio/apps/api/internal/http/handlers"
 )
 
 func TestOpenAPIHandler(t *testing.T) {

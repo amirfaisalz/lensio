@@ -13,13 +13,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/amirfaisalz/nusaid/apps/api/internal/apikey"
-	internalhttp "github.com/amirfaisalz/nusaid/apps/api/internal/http"
-	"github.com/amirfaisalz/nusaid/apps/api/internal/http/response"
-	"github.com/amirfaisalz/nusaid/apps/api/internal/store"
-	"github.com/amirfaisalz/nusaid/services/ocr"
-	"github.com/amirfaisalz/nusaid/services/ocr/providers"
-	"github.com/amirfaisalz/nusaid/tests/fixtures/synthetic"
+	"github.com/amirfaisalz/lensio/apps/api/internal/apikey"
+	internalhttp "github.com/amirfaisalz/lensio/apps/api/internal/http"
+	"github.com/amirfaisalz/lensio/apps/api/internal/http/response"
+	"github.com/amirfaisalz/lensio/apps/api/internal/store"
+	"github.com/amirfaisalz/lensio/services/ocr"
+	"github.com/amirfaisalz/lensio/services/ocr/providers"
+	"github.com/amirfaisalz/lensio/tests/fixtures/synthetic"
 )
 
 // mockFailingPinger simulates a failing database pinger.
@@ -111,14 +111,14 @@ func createMultipartUpload(fieldName, filename string, content []byte) (*bytes.B
 // -----------------------------------------------------------------------------
 func TestDrill_ScenarioA_OCRProviderFailureAndTimeout(t *testing.T) {
 	validImage := synthetic.GenerateValidKTPImage()
-	rawKey := "nusa_live_testkey_scenario_a_12345678"
+	rawKey := "lensio_live_testkey_scenario_a_12345678"
 	testKeyHash := apikey.Hash(rawKey)
 	keyStore := &mockStaticKeyStore{
 		key: &store.APIKey{
 			ID:          "key-scenario-a",
 			OrgID:       "org-drill-a",
 			KeyHash:     testKeyHash,
-			Prefix:      "nusa_live_",
+			Prefix:      "lensio_live_",
 			Scopes:      []string{"ocr:write", "ocr:read", "usage:read"},
 			Environment: "live",
 			CreatedAt:   time.Now(),
@@ -296,7 +296,7 @@ func TestDrill_ScenarioB_DatabaseOutage(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed creating request: %v", err)
 		}
-		req.Header.Set("Authorization", "Bearer nusa_live_anyvalidlookingkey12345678")
+		req.Header.Set("Authorization", "Bearer lensio_live_anyvalidlookingkey12345678")
 		req.Header.Set("Content-Type", contentType)
 
 		resp, err := client.Do(req)
@@ -352,7 +352,7 @@ func TestDrill_ScenarioD_ProductionRegressionMetrics(t *testing.T) {
 	}
 
 	metricsStr := string(metricsBytes)
-	if !strings.Contains(metricsStr, "promhttp_metric_handler_requests_total") && !strings.Contains(metricsStr, "nusaid_") {
+	if !strings.Contains(metricsStr, "promhttp_metric_handler_requests_total") && !strings.Contains(metricsStr, "lensio_") {
 		t.Errorf("expected standard prometheus metrics in output, got: %s", metricsStr[:200])
 	}
 }

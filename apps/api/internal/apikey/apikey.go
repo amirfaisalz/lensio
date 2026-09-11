@@ -12,8 +12,8 @@ const (
 	EnvLive = "live"
 	EnvTest = "test"
 
-	PrefixLive = "nusa_live_"
-	PrefixTest = "nusa_test_"
+	PrefixLive = "lensio_live_"
+	PrefixTest = "lensio_test_"
 
 	tokenByteLen = 32
 )
@@ -28,9 +28,9 @@ type GeneratedKey struct {
 }
 
 // Generate creates a cryptographically secure API key.
-// Plaintext format: nusa_{live|test}_{64-hex-token}.
+// Plaintext format: lensio_{live|test}_{64-hex-token}.
 // KeyHash: SHA-256 hex of the plaintext key.
-// Prefix: nusa_{live|test}_{first 4 hex chars} for safe identification.
+// Prefix: lensio_{live|test}_{first 4 hex chars} for safe identification.
 func Generate(env string) (*GeneratedKey, error) {
 	cleanEnv := strings.ToLower(strings.TrimSpace(env))
 	if cleanEnv == "" {
@@ -46,9 +46,9 @@ func Generate(env string) (*GeneratedKey, error) {
 	}
 
 	tokenHex := hex.EncodeToString(tokenBytes)
-	plaintext := fmt.Sprintf("nusa_%s_%s", cleanEnv, tokenHex)
+	plaintext := fmt.Sprintf("lensio_%s_%s", cleanEnv, tokenHex)
 	keyHash := Hash(plaintext)
-	prefix := fmt.Sprintf("nusa_%s_%s", cleanEnv, tokenHex[:4])
+	prefix := fmt.Sprintf("lensio_%s_%s", cleanEnv, tokenHex[:4])
 
 	return &GeneratedKey{
 		Plaintext:   plaintext,
@@ -65,7 +65,7 @@ func Hash(plaintextKey string) string {
 }
 
 // Mask produces a safe masked representation of an API key for dashboard/listing display.
-// Example: "nusa_live_1234••••••••"
+// Example: "lensio_live_1234••••••••"
 func Mask(prefix string) string {
 	if prefix == "" {
 		return "••••••••"
@@ -73,7 +73,7 @@ func Mask(prefix string) string {
 	return prefix + "••••••••"
 }
 
-// ValidateFormat checks if a string has the valid structure of a NusaID API key.
+// ValidateFormat checks if a string has the valid structure of a Lensio API key.
 func ValidateFormat(key string) (env string, valid bool) {
 	if strings.HasPrefix(key, PrefixLive) {
 		token := strings.TrimPrefix(key, PrefixLive)

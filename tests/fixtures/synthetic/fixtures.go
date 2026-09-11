@@ -8,7 +8,7 @@ import (
 	"image/jpeg"
 	"image/png"
 
-	"github.com/amirfaisalz/nusaid/services/ocr/providers"
+	"github.com/amirfaisalz/lensio/services/ocr/providers"
 )
 
 // GenerateValidKTPImage returns a valid in-memory PNG image meeting dimensions and format requirements.

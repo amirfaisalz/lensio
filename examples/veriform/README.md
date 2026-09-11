@@ -1,12 +1,12 @@
 # VeriForm Identity Onboarding Demo Consumer
 
-> Fictional identity onboarding platform demonstrating external consumption of the NusaID KTP OCR API (`PRD Section 3`).
+> Fictional identity onboarding platform demonstrating external consumption of the Lensio KTP OCR API (`PRD Section 3`).
 
 ---
 
 ## 1. Overview
 
-**VeriForm** is an independent external client application. When a new user signs up, VeriForm collects the user's Indonesian KTP image, calls NusaID's `POST /api/v1/ocr/ktp` endpoint, and applies customer onboarding business rules:
+**VeriForm** is an independent external client application. When a new user signs up, VeriForm collects the user's Indonesian KTP image, calls Lensio's `POST /api/v1/ocr/ktp` endpoint, and applies customer onboarding business rules:
 - **OCR Confidence Check**: Requires confidence $\ge 0.75$.
 - **Minimum Age Verification**: Asserts the applicant is at least 17 years old.
 - **Identity Issuance**: Issues a digital applicant ID (`vf_usr_<id>`) on approval.
@@ -16,7 +16,7 @@ User uploads KTP
        ↓
 VeriForm Consumer
        ↓
-NusaID OCR API (POST /api/v1/ocr/ktp)
+Lensio OCR API (POST /api/v1/ocr/ktp)
        ↓
 Structured identity data (NIK, Name, DOB)
        ↓
@@ -31,14 +31,14 @@ Account Approved / Rejected
 
 ### Prerequisites
 - Go 1.22+
-- NusaID API running locally or on staging (e.g. `http://localhost:8080`)
-- A valid NusaID API Key with `ocr:write` scope
+- Lensio API running locally or on staging (e.g. `http://localhost:8080`)
+- A valid Lensio API Key with `ocr:write` scope
 
 ### Running the Demo
 
 ```bash
 # Set your API key
-export NUSAID_API_KEY="nusa_live_xxxxxxxxxxxxxxxxxxxxxxxx"
+export LENSIO_API_KEY="lensio_live_xxxxxxxxxxxxxxxxxxxxxxxx"
 
 # Run VeriForm client with default synthetic KTP fixture
 go run ./examples/veriform/main.go \
@@ -51,8 +51,8 @@ go run ./examples/veriform/main.go \
 
 | Flag | Default | Description |
 |---|---|---|
-| `--api-url` | `http://localhost:8080` | NusaID base API URL |
-| `--api-key` | `$NUSAID_API_KEY` | Bearer API token |
+| `--api-url` | `http://localhost:8080` | Lensio base API URL |
+| `--api-key` | `$LENSIO_API_KEY` | Bearer API token |
 | `--image` | `tests/fixtures/synthetic/valid_ktp.jpg` | Path to KTP image file |
 | `--min-age` | `17` | Minimum age required to onboard |
 

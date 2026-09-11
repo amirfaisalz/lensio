@@ -1,17 +1,17 @@
 mock_provider "azurerm" {
   mock_resource "azurerm_key_vault" {
     defaults = {
-      id        = "/subscriptions/12345678-1234-9876-4563-123456789012/resourceGroups/rg-nusaid-staging/providers/Microsoft.KeyVault/vaults/kv-nusaid-staging"
-      vault_uri = "https://kv-nusaid-staging.vault.azure.net/"
+      id        = "/subscriptions/12345678-1234-9876-4563-123456789012/resourceGroups/rg-lensio-staging/providers/Microsoft.KeyVault/vaults/kv-lensio-staging"
+      vault_uri = "https://kv-lensio-staging.vault.azure.net/"
     }
   }
 }
 
 variables {
-  project             = "nusaid"
+  project             = "lensio"
   environment         = "staging"
   location            = "southeastasia"
-  resource_group_name = "rg-nusaid-staging"
+  resource_group_name = "rg-lensio-staging"
   tenant_id           = "00000000-0000-0000-0000-000000000000"
 }
 

@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/amirfaisalz/nusaid/apps/api/internal/http/handlers"
-	"github.com/amirfaisalz/nusaid/apps/api/internal/store"
+	"github.com/amirfaisalz/lensio/apps/api/internal/http/handlers"
+	"github.com/amirfaisalz/lensio/apps/api/internal/store"
 )
 
 type mockAccountStoreForHandlers struct {
@@ -284,8 +284,8 @@ func TestAccountMembersHandler(t *testing.T) {
 				{
 					ID:        "user-1",
 					OrgID:     "org-1",
-					Email:     "dev@nusaid.dev",
-					FullName:  "NusaID Lead Developer",
+					Email:     "dev@lensio.dev",
+					FullName:  "Lensio Lead Developer",
 					Role:      "owner",
 					CreatedAt: time.Now(),
 				},

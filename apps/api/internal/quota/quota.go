@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/amirfaisalz/nusaid/apps/api/internal/store"
+	"github.com/amirfaisalz/lensio/apps/api/internal/store"
 )
 
 // CurrentBillingCycle returns the start of the current month and the reset timestamp (1st of next month) in UTC.

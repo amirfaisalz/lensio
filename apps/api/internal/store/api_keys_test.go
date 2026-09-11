@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/amirfaisalz/nusaid/apps/api/internal/apikey"
-	"github.com/amirfaisalz/nusaid/apps/api/internal/store"
+	"github.com/amirfaisalz/lensio/apps/api/internal/apikey"
+	"github.com/amirfaisalz/lensio/apps/api/internal/store"
 )
 
 func TestCreateAPIKey_NilKey(t *testing.T) {
@@ -22,7 +22,7 @@ func TestCreateAPIKey_NilKey(t *testing.T) {
 func TestAPIKeyStore_LiveDB(t *testing.T) {
 	dbURL := os.Getenv("DATABASE_URL")
 	if dbURL == "" {
-		dbURL = "postgres://nusaid:nusaid_dev_password@localhost:5432/nusaid?sslmode=disable"
+		dbURL = "postgres://lensio:lensio_dev_password@localhost:5432/lensio?sslmode=disable"
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)

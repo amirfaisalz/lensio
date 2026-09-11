@@ -16,7 +16,7 @@ func TestMetrics_RecordAndScrape(t *testing.T) {
 
 	// Initialize telemetry to ensure metric instruments are registered
 	tel, err := Init(ctx, Config{
-		ServiceName: "nusaid-metrics-test",
+		ServiceName: "lensio-metrics-test",
 		Environment: "test",
 	})
 	if err != nil {

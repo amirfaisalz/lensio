@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/amirfaisalz/nusaid/apps/api/internal/http/middleware"
-	"github.com/amirfaisalz/nusaid/apps/api/internal/store"
-	"github.com/amirfaisalz/nusaid/apps/api/internal/usage"
+	"github.com/amirfaisalz/lensio/apps/api/internal/http/middleware"
+	"github.com/amirfaisalz/lensio/apps/api/internal/store"
+	"github.com/amirfaisalz/lensio/apps/api/internal/usage"
 )
 
 type mockUsageStoreForMiddleware struct {

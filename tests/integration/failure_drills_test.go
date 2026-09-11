@@ -52,7 +52,7 @@ func TestIntegration_Drill_ScenarioD_ProductionRollbackExecution(t *testing.T) {
 	cmd := exec.Command("../../scripts/rollback.sh",
 		"--env", "staging",
 		"--app", "api",
-		"--target-revision", "ca-api-nusaid-staging--stable",
+		"--target-revision", "ca-api-lensio-staging--stable",
 		"--traffic", "100",
 		"--dry-run",
 		"--no-verify",

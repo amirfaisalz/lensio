@@ -11,14 +11,14 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/amirfaisalz/nusaid/apps/api/internal/config"
-	internalhttp "github.com/amirfaisalz/nusaid/apps/api/internal/http"
-	"github.com/amirfaisalz/nusaid/apps/api/internal/ratelimit"
-	"github.com/amirfaisalz/nusaid/apps/api/internal/store"
-	"github.com/amirfaisalz/nusaid/apps/api/internal/telemetry"
-	"github.com/amirfaisalz/nusaid/apps/api/internal/usage"
-	"github.com/amirfaisalz/nusaid/services/ocr"
-	"github.com/amirfaisalz/nusaid/services/ocr/providers"
+	"github.com/amirfaisalz/lensio/apps/api/internal/config"
+	internalhttp "github.com/amirfaisalz/lensio/apps/api/internal/http"
+	"github.com/amirfaisalz/lensio/apps/api/internal/ratelimit"
+	"github.com/amirfaisalz/lensio/apps/api/internal/store"
+	"github.com/amirfaisalz/lensio/apps/api/internal/telemetry"
+	"github.com/amirfaisalz/lensio/apps/api/internal/usage"
+	"github.com/amirfaisalz/lensio/services/ocr"
+	"github.com/amirfaisalz/lensio/services/ocr/providers"
 )
 
 func main() {
@@ -26,7 +26,7 @@ func main() {
 
 	// Initialize OpenTelemetry Tracing, Metrics & Prometheus Exporter (PRD Section 16)
 	tel, err := telemetry.Init(context.Background(), telemetry.Config{
-		ServiceName:    "nusaid-api",
+		ServiceName:    "lensio-api",
 		ServiceVersion: "1.0.0",
 		Environment:    cfg.Env,
 	})
@@ -38,7 +38,7 @@ func main() {
 	logger := telemetry.InitLogger(slog.LevelInfo, os.Stdout)
 	slog.SetDefault(logger)
 
-	logger.Info("starting nusaid api service",
+	logger.Info("starting lensio api service",
 		slog.String("env", cfg.Env),
 		slog.String("port", cfg.Port),
 	)

@@ -1,12 +1,12 @@
-# NusaID Deployment & Environment Promotion Runbook
+# Lensio Deployment & Environment Promotion Runbook
 
-> Operational guide for building, packaging, deploying, and promoting NusaID services across environments.
+> Operational guide for building, packaging, deploying, and promoting Lensio services across environments.
 
 ---
 
 ## 1. Pipeline Overview
 
-NusaID follows a trunk-based continuous delivery model with automated quality gates and containerized immutable artifacts:
+Lensio follows a trunk-based continuous delivery model with automated quality gates and containerized immutable artifacts:
 
 ```text
 [Feature Branch / PR]
@@ -16,7 +16,7 @@ NusaID follows a trunk-based continuous delivery model with automated quality ga
   .github/workflows/security.yml (Gitleaks, govulncheck, gosec, Trivy IaC & container)
        │
        ▼ Merge to main
-  .github/workflows/release-build.yml (Multi-platform Docker build -> ghcr.io/amirfaisalz/nusaid-api:<sha>)
+  .github/workflows/release-build.yml (Multi-platform Docker build -> ghcr.io/amirfaisalz/lensio-api:<sha>)
        │
        ▼ Automated
   .github/workflows/deploy.yml (Deploy to Staging -> scripts/smoke-test.sh)
@@ -29,22 +29,22 @@ NusaID follows a trunk-based continuous delivery model with automated quality ga
 
 ## 2. Environments
 
-NusaID maintains three isolated environments:
+Lensio maintains three isolated environments:
 
 | Environment | Purpose | Ingress URL | Database Tier | Scaling |
 |---|---|---|---|---|
 | **Development** | Local Docker Compose | `http://localhost:8080` | Local Postgres 16 container | 1 replica |
-| **Staging** | Pre-production validation | `https://api.staging.nusaid.com` | Flexible Server (Standard B1ms) | 1-2 replicas |
-| **Production** | Live consumer traffic | `https://api.nusaid.com` | Flexible Server (General Purpose HA) | 2-10 replicas |
+| **Staging** | Pre-production validation | `https://api.staging.lensio.dev` | Flexible Server (Standard B1ms) | 1-2 replicas |
+| **Production** | Live consumer traffic | `https://api.lensio.dev` | Flexible Server (General Purpose HA) | 2-10 replicas |
 
 ---
 
 ## 3. Container Image Tagging Strategy
 
 Every container image pushed to GitHub Container Registry (`ghcr.io`) is tagged immutably:
-1. **Commit SHA**: `nusaid-api:sha-a1b2c3d` (exact build provenance).
-2. **Semantic Version**: `nusaid-api:1.4.0` (production releases).
-3. **Latest / Branch**: `nusaid-api:latest` and `nusaid-api:main` (staging preview).
+1. **Commit SHA**: `lensio-api:sha-a1b2c3d` (exact build provenance).
+2. **Semantic Version**: `lensio-api:1.4.0` (production releases).
+3. **Latest / Branch**: `lensio-api:latest` and `lensio-api:main` (staging preview).
 
 ---
 

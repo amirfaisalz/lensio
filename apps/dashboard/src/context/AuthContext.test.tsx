@@ -12,10 +12,10 @@ const TestConsumer: React.FC = () => {
 			<span data-testid="status">
 				{isConnected ? "connected" : "disconnected"}
 			</span>
-			<button type="button" onClick={() => setApiKey("nusa_test_123")}>
+			<button type="button" onClick={() => setApiKey("lensio_test_123")}>
 				Set Test Key
 			</button>
-			<button type="button" onClick={() => setApiKey("nusa_live_456")}>
+			<button type="button" onClick={() => setApiKey("lensio_live_456")}>
 				Set Live Key
 			</button>
 			<button type="button" onClick={logout}>
@@ -44,7 +44,7 @@ describe("AuthContext", () => {
 		act(() => {
 			screen.getByText("Set Test Key").click();
 		});
-		expect(screen.getByTestId("key").textContent).toBe("nusa_test_123");
+		expect(screen.getByTestId("key").textContent).toBe("lensio_test_123");
 		expect(screen.getByTestId("env").textContent).toBe("test");
 		expect(screen.getByTestId("status").textContent).toBe("connected");
 
@@ -52,7 +52,7 @@ describe("AuthContext", () => {
 		act(() => {
 			screen.getByText("Set Live Key").click();
 		});
-		expect(screen.getByTestId("key").textContent).toBe("nusa_live_456");
+		expect(screen.getByTestId("key").textContent).toBe("lensio_live_456");
 		expect(screen.getByTestId("env").textContent).toBe("live");
 
 		// Logout

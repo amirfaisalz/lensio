@@ -13,7 +13,7 @@ fi
 
 API_PORT="${PORT:-8080}"
 DASHBOARD_PORT="${DASHBOARD_PORT:-3000}"
-DATABASE_URL="${DATABASE_URL:-postgres://nusaid:nusaid_dev_password@localhost:5432/nusaid?sslmode=disable}"
+DATABASE_URL="${DATABASE_URL:-postgres://lensio:lensio_dev_password@localhost:5432/lensio?sslmode=disable}"
 
 # Ensure PostgreSQL container is running if docker is available
 if command -v docker >/dev/null 2>&1; then
@@ -29,7 +29,7 @@ DASH_PID=""
 
 cleanup() {
     echo ""
-    echo "🛑 Shutting down NusaID development services..."
+    echo "🛑 Shutting down Lensio development services..."
     if [ -n "$API_PID" ] && kill -0 "$API_PID" 2>/dev/null; then
         kill "$API_PID" 2>/dev/null || true
     fi
@@ -57,7 +57,7 @@ sleep 1
 # Display prominent terminal banner with server and dashboard ports
 echo ""
 echo "========================================================"
-echo "  🚀 NusaID Local Development Environment Running"
+echo "  🚀 Lensio Local Development Environment Running"
 echo "========================================================"
 echo "  🌐 React Dashboard:  http://localhost:${DASHBOARD_PORT}"
 echo "  ⚡ Go API Server:    http://localhost:${API_PORT}"

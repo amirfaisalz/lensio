@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/amirfaisalz/nusaid/apps/api/internal/store"
+	"github.com/amirfaisalz/lensio/apps/api/internal/store"
 )
 
 func TestNew_EmptyURL(t *testing.T) {
@@ -25,7 +25,7 @@ func TestNew_UnreachableHost(t *testing.T) {
 	defer cancel()
 
 	// Use an unreachable port/host that will immediately fail ping
-	db, err := store.New(ctx, "postgres://invalid:user@127.0.0.1:54399/nusaid?sslmode=disable&connect_timeout=1")
+	db, err := store.New(ctx, "postgres://invalid:user@127.0.0.1:54399/lensio?sslmode=disable&connect_timeout=1")
 	if err == nil {
 		if db != nil {
 			_ = db.Close()
@@ -37,7 +37,7 @@ func TestNew_UnreachableHost(t *testing.T) {
 func TestNew_ValidConnection(t *testing.T) {
 	dbURL := os.Getenv("DATABASE_URL")
 	if dbURL == "" {
-		dbURL = "postgres://nusaid:nusaid_dev_password@localhost:5432/nusaid?sslmode=disable"
+		dbURL = "postgres://lensio:lensio_dev_password@localhost:5432/lensio?sslmode=disable"
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)

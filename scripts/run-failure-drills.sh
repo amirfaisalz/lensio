@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# NusaID Failure Simulation & Production Drill Harness (PRD Section 26)
+# Lensio Failure Simulation & Production Drill Harness (PRD Section 26)
 # ==============================================================================
 # Executes deterministic drills for 4 critical failure scenarios:
 #   Scenario A: OCR Provider Failure / Timeout (504/502 + Zero Credential Leakage)
@@ -44,7 +44,7 @@ DRILLS_PASSED=0
 DRILLS_TOTAL=4
 
 echo ""
-log_banner "NusaID Automated Production Failure Drills (Phase 9 - PRD Section 26)"
+log_banner "Lensio Automated Production Failure Drills (Phase 9 - PRD Section 26)"
 echo "Initiating failure simulations and resilience verification..."
 echo ""
 
@@ -52,7 +52,7 @@ echo ""
 # Scenario A: OCR Provider Failure / Timeout
 # ------------------------------------------------------------------------------
 log_step "Executing Scenario A: OCR Provider Failure & Timeout Drill..."
-if go test -race -v -run TestDrill_ScenarioA ./apps/api/internal/http > /tmp/nusaid_drill_a.log 2>&1; then
+if go test -race -v -run TestDrill_ScenarioA ./apps/api/internal/http > /tmp/lensio_drill_a.log 2>&1; then
     log_pass "Scenario A Verified:"
     echo "       - Injected timeout (context.DeadlineExceeded) triggered HTTP 504 with code: ocr_failed."
     echo "       - Injected engine crash triggered HTTP 502 with code: ocr_failed."
@@ -60,7 +60,7 @@ if go test -race -v -run TestDrill_ScenarioA ./apps/api/internal/http > /tmp/nus
     DRILLS_PASSED=$((DRILLS_PASSED + 1))
 else
     log_fail "Scenario A Drill Failed. Log output:"
-    cat /tmp/nusaid_drill_a.log
+    cat /tmp/lensio_drill_a.log
 fi
 echo ""
 
@@ -68,7 +68,7 @@ echo ""
 # Scenario B: Database Outage
 # ------------------------------------------------------------------------------
 log_step "Executing Scenario B: Database Outage & Readiness Isolation Drill..."
-if go test -race -v -run TestDrill_ScenarioB ./apps/api/internal/http > /tmp/nusaid_drill_b.log 2>&1; then
+if go test -race -v -run TestDrill_ScenarioB ./apps/api/internal/http > /tmp/lensio_drill_b.log 2>&1; then
     log_pass "Scenario B Verified:"
     echo "       - Liveness probe (/health) remained HTTP 200 OK (process alive)."
     echo "       - Readiness probe (/ready) responded HTTP 503 Service Unavailable (database: disconnected)."
@@ -76,7 +76,7 @@ if go test -race -v -run TestDrill_ScenarioB ./apps/api/internal/http > /tmp/nus
     DRILLS_PASSED=$((DRILLS_PASSED + 1))
 else
     log_fail "Scenario B Drill Failed. Log output:"
-    cat /tmp/nusaid_drill_b.log
+    cat /tmp/lensio_drill_b.log
 fi
 echo ""
 
@@ -84,7 +84,7 @@ echo ""
 # Scenario C: Broken Deployment Smoke Test
 # ------------------------------------------------------------------------------
 log_step "Executing Scenario C: Broken Deployment Smoke Test Gate..."
-if go test -race -v -run TestIntegration_Drill_ScenarioC ./tests/integration/... > /tmp/nusaid_drill_c.log 2>&1; then
+if go test -race -v -run TestIntegration_Drill_ScenarioC ./tests/integration/... > /tmp/lensio_drill_c.log 2>&1; then
     log_pass "Scenario C Verified:"
     echo "       - Smoke test detected failing liveness probe."
     echo "       - smoke-test.sh exited with code 1, halting CI/CD deployment pipeline."
@@ -92,7 +92,7 @@ if go test -race -v -run TestIntegration_Drill_ScenarioC ./tests/integration/...
     DRILLS_PASSED=$((DRILLS_PASSED + 1))
 else
     log_fail "Scenario C Drill Failed. Log output:"
-    cat /tmp/nusaid_drill_c.log
+    cat /tmp/lensio_drill_c.log
 fi
 echo ""
 
@@ -100,7 +100,7 @@ echo ""
 # Scenario D: Production Regression Drill & Rollback
 # ------------------------------------------------------------------------------
 log_step "Executing Scenario D: Production Regression Drill & Rollback Automation..."
-if go test -race -v -run "TestDrill_ScenarioD|TestIntegration_Drill_ScenarioD" ./apps/api/internal/http/... ./tests/integration/... > /tmp/nusaid_drill_d.log 2>&1; then
+if go test -race -v -run "TestDrill_ScenarioD|TestIntegration_Drill_ScenarioD" ./apps/api/internal/http/... ./tests/integration/... > /tmp/lensio_drill_d.log 2>&1; then
     log_pass "Scenario D Verified:"
     echo "       - Prometheus telemetry endpoint (/metrics) exposed anomaly detection indicators."
     echo "       - rollback.sh executed traffic shift to previous stable revision in dry-run mode."
@@ -108,7 +108,7 @@ if go test -race -v -run "TestDrill_ScenarioD|TestIntegration_Drill_ScenarioD" .
     DRILLS_PASSED=$((DRILLS_PASSED + 1))
 else
     log_fail "Scenario D Drill Failed. Log output:"
-    cat /tmp/nusaid_drill_d.log
+    cat /tmp/lensio_drill_d.log
 fi
 echo ""
 

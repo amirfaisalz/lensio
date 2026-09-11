@@ -5,7 +5,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/amirfaisalz/nusaid/apps/api/internal/http/middleware"
+	"github.com/amirfaisalz/lensio/apps/api/internal/http/middleware"
 )
 
 func TestDeprecation(t *testing.T) {

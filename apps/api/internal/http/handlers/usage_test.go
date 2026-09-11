@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/amirfaisalz/nusaid/apps/api/internal/http/handlers"
-	"github.com/amirfaisalz/nusaid/apps/api/internal/store"
+	"github.com/amirfaisalz/lensio/apps/api/internal/http/handlers"
+	"github.com/amirfaisalz/lensio/apps/api/internal/store"
 )
 
 type mockUsageStore struct {

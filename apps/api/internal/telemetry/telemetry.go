@@ -19,8 +19,8 @@ import (
 )
 
 const (
-	// DefaultServiceName is the default OpenTelemetry service name for NusaID API.
-	DefaultServiceName = "nusaid-api"
+	// DefaultServiceName is the default OpenTelemetry service name for Lensio API.
+	DefaultServiceName = "lensio-api"
 	// DefaultServiceVersion is the default application version.
 	DefaultServiceVersion = "1.0.0"
 )

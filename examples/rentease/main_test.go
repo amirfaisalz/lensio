@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/amirfaisalz/nusaid/tests/fixtures/synthetic"
+	"github.com/amirfaisalz/lensio/tests/fixtures/synthetic"
 )
 
 func TestCalculateDriverAge(t *testing.T) {
@@ -61,7 +61,7 @@ func TestVerifyDriverEligibility_Approved(t *testing.T) {
 			return
 		}
 
-		resp := NusaIDResponse{
+		resp := LensioResponse{
 			ID:           "ocr_test_re_01",
 			Status:       "completed",
 			DocumentType: "ktp",
@@ -108,7 +108,7 @@ func TestVerifyDriverEligibility_Approved(t *testing.T) {
 
 func TestVerifyDriverEligibility_Underage(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		resp := NusaIDResponse{
+		resp := LensioResponse{
 			ID:           "ocr_test_re_02",
 			Status:       "completed",
 			DocumentType: "ktp",
@@ -146,7 +146,7 @@ func TestVerifyDriverEligibility_Underage(t *testing.T) {
 
 func TestVerifyDriverEligibility_NonWNIRejected(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		resp := NusaIDResponse{
+		resp := LensioResponse{
 			ID:           "ocr_test_re_03",
 			Status:       "completed",
 			DocumentType: "ktp",
@@ -185,7 +185,7 @@ func TestVerifyDriverEligibility_NonWNIRejected(t *testing.T) {
 
 func TestVerifyDriverEligibility_LowConfidence(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		resp := NusaIDResponse{
+		resp := LensioResponse{
 			ID:           "ocr_test_re_04",
 			Status:       "completed",
 			DocumentType: "ktp",
@@ -235,7 +235,7 @@ func TestVerifyDriverEligibility_APIError(t *testing.T) {
 
 func TestVerifyDriverEligibility_InvalidDOB(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		resp := NusaIDResponse{
+		resp := LensioResponse{
 			ID:           "ocr_test_re_05",
 			Status:       "completed",
 			DocumentType: "ktp",

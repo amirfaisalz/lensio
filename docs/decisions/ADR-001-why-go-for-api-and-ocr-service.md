@@ -1,15 +1,15 @@
-# ADR-001: Why Go for the NusaID API and OCR Orchestration Service
+# ADR-001: Why Go for the Lensio API and OCR Orchestration Service
 
 - **Status**: Accepted
 - **Date**: 2026-09-12
-- **Deciders**: NusaID Engineering Team
+- **Deciders**: Lensio Engineering Team
 - **Technical Context**: `PRD Section 1`, `PRD Section 32`, `PRD Section 38`
 
 ---
 
 ## 1. Context and Problem Statement
 
-NusaID is designed as a production-grade Indonesian KTP OCR API as a service. The core service handles synchronous HTTP multipart image uploads (up to 5MB), performs deterministic header/magic-byte validation, orchestrates AI vision extraction calls (Google Gemini Flash / Mock), validates extracted fields (16-digit NIK, regional codes, dates), and provides non-blocking usage metering, tenant quota checks, and token bucket rate limiting.
+Lensio is designed as a production-grade Indonesian KTP OCR API as a service. The core service handles synchronous HTTP multipart image uploads (up to 5MB), performs deterministic header/magic-byte validation, orchestrates AI vision extraction calls (Google Gemini Flash / Mock), validates extracted fields (16-digit NIK, regional codes, dates), and provides non-blocking usage metering, tenant quota checks, and token bucket rate limiting.
 
 We evaluated three primary backend languages and runtimes for this workload:
 1. **Go (Golang)**
@@ -53,10 +53,10 @@ The service must maintain:
 
 **Chosen Option**: **Go 1.22+**
 
-We selected Go as the primary runtime for the NusaID API and OCR orchestration pipeline.
+We selected Go as the primary runtime for the Lensio API and OCR orchestration pipeline.
 
 ### Architectural Rationale:
-1. **The Gateway is an Orchestrator, Not a Model Trainer**: NusaID acts as an API gateway, rate limiter, security boundary, and post-processing engine. The heavy vision AI inference is handled remotely by Google Gemini 2.0 Flash or deterministic test fixtures (`MockOCREngine`). Go's asynchronous I/O and goroutines excel at orchestrating network-bound upstream calls without blocking.
+1. **The Gateway is an Orchestrator, Not a Model Trainer**: Lensio acts as an API gateway, rate limiter, security boundary, and post-processing engine. The heavy vision AI inference is handled remotely by Google Gemini 2.0 Flash or deterministic test fixtures (`MockOCREngine`). Go's asynchronous I/O and goroutines excel at orchestrating network-bound upstream calls without blocking.
 2. **Deterministic Concurrency for Metering**: Goroutines and buffered Go channels allow non-blocking asynchronous usage metering (`apps/api/internal/usage/recorder.go`) without requiring external message brokers (like Redis or Kafka) for MVP scale.
 3. **Container Hygiene & Security**: The resulting multi-stage Docker build yields a container image under 25MB with zero system dependencies, reducing CVE surface area to near-zero.
 

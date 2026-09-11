@@ -7,7 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/amirfaisalz/nusaid/apps/api/internal/http/response"
+	"github.com/amirfaisalz/lensio/apps/api/internal/http/response"
 )
 
 func TestJSON(t *testing.T) {

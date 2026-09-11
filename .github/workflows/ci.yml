@@ -1,4 +1,4 @@
-name: NusaID CI & Quality Gate
+name: Lensio CI & Quality Gate
 
 on:
   pull_request:
@@ -112,9 +112,9 @@ jobs:
       postgres:
         image: postgres:16-alpine
         env:
-          POSTGRES_USER: nusaid
-          POSTGRES_PASSWORD: nusaid_ci_password
-          POSTGRES_DB: nusaid
+          POSTGRES_USER: lensio
+          POSTGRES_PASSWORD: lensio_ci_password
+          POSTGRES_DB: lensio
         ports:
           - 5432:5432
         options: >-
@@ -132,11 +132,11 @@ jobs:
           go-version: '1.23'
           cache: true
 
-      - name: Start NusaID API against Containerized Postgres
+      - name: Start Lensio API against Containerized Postgres
         env:
           PORT: "8080"
           ENV: "test"
-          DATABASE_URL: "postgres://nusaid:nusaid_ci_password@localhost:5432/nusaid?sslmode=disable"
+          DATABASE_URL: "postgres://lensio:lensio_ci_password@localhost:5432/lensio?sslmode=disable"
           LOG_LEVEL: "info"
         run: |
           go run ./apps/api/cmd/server &
@@ -177,9 +177,9 @@ jobs:
       postgres:
         image: postgres:16-alpine
         env:
-          POSTGRES_USER: nusaid
-          POSTGRES_PASSWORD: nusaid_ci_password
-          POSTGRES_DB: nusaid
+          POSTGRES_USER: lensio
+          POSTGRES_PASSWORD: lensio_ci_password
+          POSTGRES_DB: lensio
         ports:
           - 5432:5432
         options: >-
@@ -225,7 +225,7 @@ jobs:
 
       - name: Execute Playwright End-to-End Suite (PRD Section 28)
         env:
-          DATABASE_URL: "postgres://nusaid:nusaid_ci_password@localhost:5432/nusaid?sslmode=disable"
+          DATABASE_URL: "postgres://lensio:lensio_ci_password@localhost:5432/lensio?sslmode=disable"
         run: |
           chmod +x scripts/run-e2e.sh
           ./scripts/run-e2e.sh

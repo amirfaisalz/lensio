@@ -36,8 +36,8 @@ describe("APIKeysPage", () => {
 				id: "key-1",
 				org_id: "org-1",
 				name: "Backend Server Key",
-				prefix: "nusa_live_ab12",
-				masked_key: "nusa_live_ab12••••••••",
+				prefix: "lensio_live_ab12",
+				masked_key: "lensio_live_ab12••••••••",
 				scopes: ["ocr:read", "ocr:write"],
 				environment: "live",
 				rate_limit_rpm: 60,
@@ -57,7 +57,7 @@ describe("APIKeysPage", () => {
 
 		await waitFor(() => {
 			expect(screen.getByText("Backend Server Key")).toBeDefined();
-			expect(screen.getByText("nusa_live_ab12••••••••")).toBeDefined();
+			expect(screen.getByText("lensio_live_ab12••••••••")).toBeDefined();
 			expect(screen.getByText("ocr:read")).toBeDefined();
 			expect(screen.getByText("ocr:write")).toBeDefined();
 			expect(screen.getByText("Active")).toBeDefined();
@@ -85,8 +85,8 @@ describe("APIKeysPage", () => {
 			id: "key-2",
 			org_id: "org-1",
 			name: "Client App Key",
-			key: "nusa_live_secret_plain_1234567890",
-			prefix: "nusa_live_secr",
+			key: "lensio_live_secret_plain_1234567890",
+			prefix: "lensio_live_secr",
 			scopes: ["ocr:write"],
 			environment: "test",
 			expires_at: null,
@@ -98,8 +98,8 @@ describe("APIKeysPage", () => {
 				id: "key-2",
 				org_id: "org-1",
 				name: "Client App Key",
-				prefix: "nusa_live_secr",
-				masked_key: "nusa_live_secr••••••••",
+				prefix: "lensio_live_secr",
+				masked_key: "lensio_live_secr••••••••",
 				scopes: ["ocr:write"],
 				environment: "test",
 				rate_limit_rpm: 60,
@@ -151,14 +151,14 @@ describe("APIKeysPage", () => {
 		await waitFor(() => {
 			expect(screen.getByText("Save Your API Key")).toBeDefined();
 			expect(
-				screen.getByDisplayValue("nusa_live_secret_plain_1234567890"),
+				screen.getByDisplayValue("lensio_live_secret_plain_1234567890"),
 			).toBeDefined();
 		});
 
 		// Connect in Dashboard saves to local storage and dismisses modal
 		fireEvent.click(screen.getByText("Connect in Dashboard"));
-		expect(localStorage.getItem("nusaid_api_key")).toBe(
-			"nusa_live_secret_plain_1234567890",
+		expect(localStorage.getItem("lensio_api_key")).toBe(
+			"lensio_live_secret_plain_1234567890",
 		);
 
 		await waitFor(() => {
@@ -172,8 +172,8 @@ describe("APIKeysPage", () => {
 				id: "key-to-delete",
 				org_id: "org-1",
 				name: "Temporary Key",
-				prefix: "nusa_live_temp",
-				masked_key: "nusa_live_temp••••••••",
+				prefix: "lensio_live_temp",
+				masked_key: "lensio_live_temp••••••••",
 				scopes: ["ocr:read"],
 				environment: "live",
 				rate_limit_rpm: 60,

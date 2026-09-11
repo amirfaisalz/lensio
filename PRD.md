@@ -1,8 +1,8 @@
-# NusaID KTP OCR API
+# Lensio KTP OCR API
 
 > Affordable Indonesian KTP OCR API for developers and businesses.
 
-NusaID is a production-oriented API platform that provides Indonesian KTP OCR as a service.
+Lensio is a production-oriented API platform that provides Indonesian KTP OCR as a service.
 
 Developers can integrate KTP document extraction into their applications through a simple REST API without having to build, operate, secure, monitor, and scale their own OCR infrastructure.
 
@@ -38,7 +38,7 @@ For many companies, this is unnecessary engineering overhead.
 
 ## Solution
 
-NusaID provides a simple API:
+Lensio provides a simple API:
 
 ```http
 POST /api/v1/ocr/ktp
@@ -46,7 +46,7 @@ POST /api/v1/ocr/ktp
 
 A client uploads a KTP image.
 
-NusaID processes the document and returns structured information.
+Lensio processes the document and returns structured information.
 
 Example:
 
@@ -83,7 +83,7 @@ The actual demo environment must use synthetic or redacted documents rather than
 
 # 2. Product Vision
 
-NusaID should feel like a small developer-first API company.
+Lensio should feel like a small developer-first API company.
 
 The developer experience should be:
 
@@ -111,7 +111,7 @@ The goal is to demonstrate how to build and operate a production-grade API produ
 
 # 3. Example Customers
 
-NusaID's API can be consumed by applications such as:
+Lensio's API can be consumed by applications such as:
 
 ## VeriForm
 
@@ -124,7 +124,7 @@ User uploads KTP
        ↓
 VeriForm
        ↓
-NusaID OCR API
+Lensio OCR API
        ↓
 Structured identity data
        ↓
@@ -140,7 +140,7 @@ Use case:
 ```text
 Customer submits KTP
        ↓
-RentEase sends image to NusaID
+RentEase sends image to Lensio
        ↓
 KTP fields extracted
        ↓
@@ -149,7 +149,7 @@ Rental verification workflow continues
 
 These applications are deliberately separate consumers.
 
-This demonstrates that NusaID is an API product rather than an application with an internal OCR endpoint.
+This demonstrates that Lensio is an API product rather than an application with an internal OCR endpoint.
 
 ---
 
@@ -164,7 +164,7 @@ POST /api/v1/ocr/ktp
 Request:
 
 ```http
-Authorization: Bearer nusa_live_xxxxx
+Authorization: Bearer lensio_live_xxxxx
 Content-Type: multipart/form-data
 ```
 
@@ -245,7 +245,7 @@ GET /ready
 
 # 6. API Versioning
 
-NusaID must support versioned APIs.
+Lensio must support versioned APIs.
 
 Example:
 
@@ -282,7 +282,7 @@ API Key
 Example:
 
 ```http
-Authorization: Bearer nusa_live_xxxxxxxxx
+Authorization: Bearer lensio_live_xxxxxxxxx
 ```
 
 API keys must:
@@ -299,7 +299,7 @@ API keys must:
 Example:
 
 ```text
-nusa_live_xxxxxxxxx
+lensio_live_xxxxxxxxx
 ```
 
 Only the hashed representation is stored in PostgreSQL.
@@ -308,7 +308,7 @@ Only the hashed representation is stored in PostgreSQL.
 
 # 8. Authorization
 
-NusaID should support scoped API keys.
+Lensio should support scoped API keys.
 
 Example scopes:
 
@@ -624,7 +624,7 @@ High or critical findings should fail the pipeline according to project policy.
 
 # 16. Observability
 
-NusaID must be observable in production.
+Lensio must be observable in production.
 
 Use:
 
@@ -697,7 +697,7 @@ Readiness should check required dependencies such as PostgreSQL.
 
 # 18. Dashboard
 
-NusaID provides a React + TypeScript dashboard.
+Lensio provides a React + TypeScript dashboard.
 
 Main navigation:
 
@@ -727,7 +727,7 @@ Rate Limit Violations
 Example:
 
 ```text
-NusaID
+Lensio
 
 Requests       12,842
 Success         98.7%
@@ -748,8 +748,8 @@ Example:
 
 ```bash
 curl -X POST \
-  https://api.NusaID.dev/api/v1/ocr/ktp \
-  -H "Authorization: Bearer nusa_live_xxxxx" \
+  https://api.Lensio.dev/api/v1/ocr/ktp \
+  -H "Authorization: Bearer lensio_live_xxxxx" \
   -F "document=@ktp-test.jpg"
 ```
 
@@ -976,8 +976,8 @@ Every deployment must produce a versioned artifact.
 Example:
 
 ```text
-NusaID-api:1.4.0
-NusaID-api:1.4.1
+Lensio-api:1.4.0
+Lensio-api:1.4.1
 ```
 
 If production deployment fails:
@@ -1003,7 +1003,7 @@ The project should intentionally simulate failures.
 ## Scenario A: OCR provider failure
 
 ```text
-NusaID
+Lensio
    ↓
 OCR provider
    X
@@ -1195,7 +1195,7 @@ OpenAPI should be validated in CI.
 
 # 30. Pricing Simulation
 
-NusaID can demonstrate API-as-a-product concepts.
+Lensio can demonstrate API-as-a-product concepts.
 
 Example plans:
 
@@ -1227,7 +1227,7 @@ API access
 # 31. Repository Structure
 
 ```text
-NusaID/
+Lensio/
 │
 ├── apps/
 │   ├── api/
@@ -1362,7 +1362,7 @@ IaC scanning
 
 # 33. Non-Goals
 
-To prevent overengineering, NusaID will NOT initially include:
+To prevent overengineering, Lensio will NOT initially include:
 
 - Kubernetes
 - Kafka
@@ -1435,7 +1435,7 @@ The minimum viable product must demonstrate:
 
 # 35. Definition of Done
 
-NusaID MVP is considered complete when:
+Lensio MVP is considered complete when:
 
 - A developer can create an account
 - A developer can create an API key
@@ -1607,7 +1607,7 @@ Rollback
 
 The project should be presented as:
 
-> **NusaID is an affordable KTP OCR API built to explore what it takes to operate a production API as a product.**
+> **Lensio is an affordable KTP OCR API built to explore what it takes to operate a production API as a product.**
 
 The interesting part is not only OCR.
 
@@ -1644,9 +1644,9 @@ This is the core engineering story.
 
 # 38. Portier Relevance
 
-NusaID intentionally demonstrates capabilities relevant to a modern platform/API engineering role.
+Lensio intentionally demonstrates capabilities relevant to a modern platform/API engineering role.
 
-| Requirement      | NusaID Evidence           |
+| Requirement      | Lensio Evidence           |
 | ---------------- | ------------------------- |
 | Go               | Go production API         |
 | PostgreSQL       | Persistent API/usage data |
@@ -1682,11 +1682,11 @@ It provides concrete evidence of the ability to understand and implement the eng
 
 If someone asks:
 
-**"What is NusaID?"**
+**"What is Lensio?"**
 
 Answer:
 
-> **NusaID is a developer-first KTP OCR API that lets applications extract structured Indonesian KTP data through a secure, rate-limited, observable and production-ready API.**
+> **Lensio is a developer-first KTP OCR API that lets applications extract structured Indonesian KTP data through a secure, rate-limited, observable and production-ready API.**
 
 If they ask:
 
@@ -1709,7 +1709,7 @@ Answer:
                                     │
                                     ▼
                          ┌──────────────────────┐
-                         │      NusaID       │
+                         │      Lensio       │
                          │   Developer Portal   │
                          └──────────┬───────────┘
                                     │
@@ -1781,7 +1781,7 @@ Production
 
 # 41. Project Principle
 
-The most important principle for NusaID is:
+The most important principle for Lensio is:
 
 > **Build the smallest real product that forces us to solve real production engineering problems.**
 
@@ -1813,7 +1813,7 @@ Needs automated deployment
 Needs rollback
 ```
 
-That is what turns NusaID from a portfolio CRUD project into a credible production engineering project.
+That is what turns Lensio from a portfolio CRUD project into a credible production engineering project.
 
 ---
 
@@ -1822,7 +1822,7 @@ That is what turns NusaID from a portfolio CRUD project into a credible producti
 While the MVP strictly focuses on **Indonesian KTP OCR** and establishing the core API product infrastructure, the platform is architected to expand into a comprehensive identity and document processing suite:
 
 ```text
-NusaID Product Ecosystem
+Lensio Product Ecosystem
 │
 ├── Document OCR Expansion
 │   ├── KTP OCR (Current MVP Focus)

@@ -10,13 +10,13 @@ describe("ApiClient", () => {
 
 	it("manages API key in memory and localStorage", () => {
 		expect(api.getApiKey()).toBeNull();
-		api.setApiKey("nusa_live_abc123");
-		expect(api.getApiKey()).toBe("nusa_live_abc123");
-		expect(localStorage.getItem("nusaid_api_key")).toBe("nusa_live_abc123");
+		api.setApiKey("lensio_live_abc123");
+		expect(api.getApiKey()).toBe("lensio_live_abc123");
+		expect(localStorage.getItem("lensio_api_key")).toBe("lensio_live_abc123");
 
 		api.setApiKey(null);
 		expect(api.getApiKey()).toBeNull();
-		expect(localStorage.getItem("nusaid_api_key")).toBeNull();
+		expect(localStorage.getItem("lensio_api_key")).toBeNull();
 	});
 
 	it("fetches usage summary successfully", async () => {
@@ -63,8 +63,8 @@ describe("ApiClient", () => {
 			id: "key-1",
 			org_id: "org-1",
 			name: "New Test Key",
-			key: "nusa_live_secret_key_token",
-			prefix: "nusa_live_secr",
+			key: "lensio_live_secret_key_token",
+			prefix: "lensio_live_secr",
 			scopes: ["ocr:write"],
 			environment: "live",
 			expires_at: null,
@@ -82,7 +82,7 @@ describe("ApiClient", () => {
 			scopes: ["ocr:write"],
 		});
 
-		expect(res.key).toBe("nusa_live_secret_key_token");
+		expect(res.key).toBe("lensio_live_secret_key_token");
 		expect(res.name).toBe("New Test Key");
 	});
 

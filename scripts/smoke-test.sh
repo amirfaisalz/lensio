@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# NusaID Production Smoke Test Suite
+# Lensio Production Smoke Test Suite
 # ==============================================================================
 # Verifies system health, readiness, and core KTP OCR API functionality.
 # Used by CI/CD pipelines (post-deployment) and automated failure drills.
@@ -38,7 +38,7 @@ log_fail() {
 }
 
 echo "========================================================"
-echo " 🩺 NusaID Automated Smoke Test Suite"
+echo " 🩺 Lensio Automated Smoke Test Suite"
 echo "========================================================"
 echo "  Target API URL:       ${API_URL}"
 echo "  Target Dashboard URL: ${DASHBOARD_URL}"
@@ -107,7 +107,7 @@ elif [ -f "${ROOT_DIR:-.}/tests/fixtures/synthetic/valid_ktp.jpg" ]; then
     TEST_IMG="${ROOT_DIR:-.}/tests/fixtures/synthetic/valid_ktp.jpg"
     TEST_TYPE="image/jpeg"
 else
-    TEMP_IMG=$(mktemp /tmp/nusaid_synthetic_XXXXXX.png)
+    TEMP_IMG=$(mktemp /tmp/lensio_synthetic_XXXXXX.png)
     echo "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==" | base64 -d > "${TEMP_IMG}"
     TEST_IMG="${TEMP_IMG}"
     TEST_TYPE="image/png"

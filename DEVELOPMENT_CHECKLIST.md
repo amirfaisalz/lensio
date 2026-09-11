@@ -1,6 +1,6 @@
-# NusaID Development Phase Checklist & Roadmap
+# Lensio Development Phase Checklist & Roadmap
 
-> Based on the NusaID KTP OCR API Product Requirements Document (PRD).  
+> Based on the Lensio KTP OCR API Product Requirements Document (PRD).  
 > Designed for end-to-end API product engineering: Go, PostgreSQL, React, OpenTelemetry, Azure Container Apps, OpenTofu, and GitHub Actions.
 
 ---
@@ -96,7 +96,7 @@ Build the foundational HTTP middleware, API key lifecycle, and scoped authorizat
   - [x] Implement `RequestID` middleware (generates `req_...` or reads `X-Request-ID`, attaches to context and response header).
   - [x] Define standardized error codes: `invalid_request`, `invalid_api_key`, `insufficient_scope`, `rate_limit_exceeded`, `quota_exceeded`, `invalid_document`, `unsupported_document`, `ocr_failed`, `low_confidence`, `internal_error`.
 - [x] **API Key Management (`PRD Section 7 & 8`)**
-  - [x] Cryptographic key generator (e.g., prefix `nusa_live_` or `nusa_test_` + high-entropy token).
+  - [x] Cryptographic key generator (e.g., prefix `lensio_live_` or `lensio_test_` + high-entropy token).
   - [x] Key hashing logic using SHA-256 before persistence (never store plaintext API keys).
   - [x] Endpoint `POST /api/v1/auth/api-keys` (create key, returns plaintext token once).
   - [x] Endpoint `GET /api/v1/auth/api-keys` (list organization's keys with masked token, prefix, scopes, last used).
@@ -326,7 +326,7 @@ Build GitHub Actions workflows with quality gates, automated scanning, and versi
   - [x] Quality gate: Fail pipeline if high or critical vulnerabilities are discovered.
 - [x] **Build & Image Packaging Workflow**
   - [x] Build multi-platform Docker images.
-  - [x] Tag images with Git commit SHA and semantic version (e.g., `nusaid-api:1.4.0`).
+  - [x] Tag images with Git commit SHA and semantic version (e.g., `lensio-api:1.4.0`).
   - [x] Push images to GitHub Packages (GHCR) or Azure Container Registry (ACR).
 - [x] **Deployment & Promotion Workflows (`PRD Section 23`)**
   - [x] Automated deployment to `staging` upon merge to `main`.
@@ -393,12 +393,12 @@ Finalize architectural documentation, incident reports, external demo consumers,
   - [x] `docs/observability.md` (Metrics, alerts, Grafana setup, SLO definitions).
   - [x] `docs/incidents/` (Post-mortems from Phase 9 failure drills).
 - [x] **Demo Consumers (`PRD Section 3 & Section 36`)**
-  - [x] `VeriForm` demo: Lightweight synthetic identity onboarding script/app consuming NusaID API.
-  - [x] `RentEase` demo: Vehicle rental verification script consuming NusaID API.
+  - [x] `VeriForm` demo: Lightweight synthetic identity onboarding script/app consuming Lensio API.
+  - [x] `RentEase` demo: Vehicle rental verification script consuming Lensio API.
   - [x] Verify both consumers run as independent external clients.
 - [x] **Root `README.md` Polish (`PRD Section 37 & 39`)**
   - [x] Badges: Build status, Go Report Card, coverage, license, security scans.
-  - [x] One-sentence mission statement: *"NusaID is a developer-first KTP OCR API that lets applications extract structured Indonesian KTP data through a secure, rate-limited, observable, and production-ready API."*
+  - [x] One-sentence mission statement: *"Lensio is a developer-first KTP OCR API that lets applications extract structured Indonesian KTP data through a secure, rate-limited, observable, and production-ready API."*
   - [x] Architecture diagram (ASCII / Mermaid / SVG).
   - [x] Quickstart guide (cURL commands, local docker-compose setup).
   - [x] DORA metrics and production engineering highlights table (`PRD Section 38`).
@@ -445,7 +445,7 @@ Before tagging `v1.0.0`, all items below must be verified:
 > The product lines below are captured for subsequent development phases after the KTP OCR platform is in production.
 
 ```text
-NusaID Product Ecosystem
+Lensio Product Ecosystem
 │
 ├── Document OCR Expansion
 │   ├── [x] KTP OCR (Current Focus - Active MVP)

@@ -8,10 +8,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/amirfaisalz/nusaid/apps/api/internal/apikey"
-	"github.com/amirfaisalz/nusaid/apps/api/internal/http/middleware"
-	"github.com/amirfaisalz/nusaid/apps/api/internal/http/response"
-	"github.com/amirfaisalz/nusaid/apps/api/internal/store"
+	"github.com/amirfaisalz/lensio/apps/api/internal/apikey"
+	"github.com/amirfaisalz/lensio/apps/api/internal/http/middleware"
+	"github.com/amirfaisalz/lensio/apps/api/internal/http/response"
+	"github.com/amirfaisalz/lensio/apps/api/internal/store"
 )
 
 // DefaultOrgID is the seeded fallback organization identifier.

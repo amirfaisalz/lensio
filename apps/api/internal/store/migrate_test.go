@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/amirfaisalz/nusaid/apps/api/internal/store"
-	"github.com/amirfaisalz/nusaid/apps/api/migrations"
+	"github.com/amirfaisalz/lensio/apps/api/internal/store"
+	"github.com/amirfaisalz/lensio/apps/api/migrations"
 	"github.com/golang-migrate/migrate/v4/source/iofs"
 )
 
@@ -83,7 +83,7 @@ func TestMigrationsFS(t *testing.T) {
 func TestRunMigrations_LiveDB(t *testing.T) {
 	dbURL := os.Getenv("DATABASE_URL")
 	if dbURL == "" {
-		dbURL = "postgres://nusaid:nusaid_dev_password@localhost:5432/nusaid?sslmode=disable"
+		dbURL = "postgres://lensio:lensio_dev_password@localhost:5432/lensio?sslmode=disable"
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -148,7 +148,7 @@ func TestRunMigrations_LiveDB(t *testing.T) {
 }
 
 func TestRunMigrations_ErrorBranches(t *testing.T) {
-	closedDB, err := store.New(context.Background(), "postgres://invalid:user@127.0.0.1:54399/nusaid?sslmode=disable")
+	closedDB, err := store.New(context.Background(), "postgres://invalid:user@127.0.0.1:54399/lensio?sslmode=disable")
 	if err == nil && closedDB != nil {
 		_ = closedDB.Close()
 	}

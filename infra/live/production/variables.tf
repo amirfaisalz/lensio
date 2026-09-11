@@ -1,7 +1,7 @@
 variable "project" {
   type        = string
   description = "Project name identifier"
-  default     = "nusaid"
+  default     = "lensio"
 }
 
 variable "environment" {
@@ -60,14 +60,14 @@ variable "postgres_geo_redundant_backups" {
 
 variable "api_image" {
   type        = string
-  description = "Docker image for NusaID API"
-  default     = "ghcr.io/amirfaisalz/nusaid-api:1.0.0"
+  description = "Docker image for Lensio API"
+  default     = "ghcr.io/amirfaisalz/lensio-api:1.0.0"
 }
 
 variable "dashboard_image" {
   type        = string
-  description = "Docker image for NusaID Dashboard"
-  default     = "ghcr.io/amirfaisalz/nusaid-dashboard:1.0.0"
+  description = "Docker image for Lensio Dashboard"
+  default     = "ghcr.io/amirfaisalz/lensio-dashboard:1.0.0"
 }
 
 variable "api_cpu" {

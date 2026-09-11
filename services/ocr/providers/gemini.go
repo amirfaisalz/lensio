@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/amirfaisalz/nusaid/services/ocr"
+	"github.com/amirfaisalz/lensio/services/ocr"
 )
 
 const (

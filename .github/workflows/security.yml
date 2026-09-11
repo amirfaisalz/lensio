@@ -1,4 +1,4 @@
-name: NusaID Automated Security Gates
+name: Lensio Automated Security Gates
 
 on:
   pull_request:
@@ -114,12 +114,12 @@ jobs:
           context: .
           file: apps/api/Dockerfile
           load: true
-          tags: nusaid-api:security-scan
+          tags: lensio-api:security-scan
 
       - name: Scan API Image with Trivy
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: 'nusaid-api:security-scan'
+          image-ref: 'lensio-api:security-scan'
           format: 'table'
           exit-code: '1'
           ignore-unfixed: true
@@ -131,12 +131,12 @@ jobs:
           context: apps/dashboard
           file: apps/dashboard/Dockerfile
           load: true
-          tags: nusaid-dashboard:security-scan
+          tags: lensio-dashboard:security-scan
 
       - name: Scan Dashboard Image with Trivy
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: 'nusaid-dashboard:security-scan'
+          image-ref: 'lensio-dashboard:security-scan'
           format: 'table'
           exit-code: '1'
           ignore-unfixed: true

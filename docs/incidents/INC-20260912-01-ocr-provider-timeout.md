@@ -14,10 +14,10 @@
 
 ## 1. Executive Summary
 
-As part of NusaID Phase 9 Reliability Engineering (`PRD Section 26, Scenario A`), an intentional failure injection drill was conducted to test the system's behavior when the upstream OCR vision provider (e.g., Google Gemini 2.0 Flash / Vision AI) experiences high latency or timeout conditions (`context.DeadlineExceeded`), as well as upstream provider 500 crashes.
+As part of Lensio Phase 9 Reliability Engineering (`PRD Section 26, Scenario A`), an intentional failure injection drill was conducted to test the system's behavior when the upstream OCR vision provider (e.g., Google Gemini 2.0 Flash / Vision AI) experiences high latency or timeout conditions (`context.DeadlineExceeded`), as well as upstream provider 500 crashes.
 
 The drill verified that:
-1. NusaID immediately halts upstream processing when context deadlines expire and returns an explicit **HTTP 504 Gateway Timeout** with standard envelope error code `ocr_failed`.
+1. Lensio immediately halts upstream processing when context deadlines expire and returns an explicit **HTTP 504 Gateway Timeout** with standard envelope error code `ocr_failed`.
 2. Provider crashes (HTTP 500 / unparseable responses) are gracefully translated to **HTTP 502 Bad Gateway** with `ocr_failed`.
 3. Upstream API tokens, credentials, and sensitive provider endpoint query parameters are **strictly stripped and never leaked** into the client response payload or application logs.
 
@@ -37,7 +37,7 @@ The drill verified that:
 |---|---|
 | `01:27:01` | Failure drill script injected `context.DeadlineExceeded` into the OCR engine adapter. |
 | `01:27:02` | Client request dispatched to `POST /api/v1/ocr/ktp` with synthetic KTP image fixture. |
-| `01:27:02` | NusaID OCR handler detected context deadline expiration, aborted processing, and generated OpenTelemetry error span `ocr.engine_extract`. |
+| `01:27:02` | Lensio OCR handler detected context deadline expiration, aborted processing, and generated OpenTelemetry error span `ocr.engine_extract`. |
 | `01:27:02` | Client received **HTTP 504 Gateway Timeout** (`code: ocr_failed`, message: `"OCR engine processing timeout"`). |
 | `01:27:03` | Injected upstream provider 500 error (`ocr.ErrOCRFailed`). |
 | `01:27:03` | Client received **HTTP 502 Bad Gateway** (`code: ocr_failed`). |

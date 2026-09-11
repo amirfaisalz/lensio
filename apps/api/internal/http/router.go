@@ -3,16 +3,16 @@ package http
 import (
 	"net/http"
 
-	"github.com/amirfaisalz/nusaid/apps/api/internal/http/handlers"
-	"github.com/amirfaisalz/nusaid/apps/api/internal/http/middleware"
-	"github.com/amirfaisalz/nusaid/apps/api/internal/http/response"
-	"github.com/amirfaisalz/nusaid/apps/api/internal/quota"
-	"github.com/amirfaisalz/nusaid/apps/api/internal/ratelimit"
-	"github.com/amirfaisalz/nusaid/apps/api/internal/store"
-	"github.com/amirfaisalz/nusaid/apps/api/internal/telemetry"
-	"github.com/amirfaisalz/nusaid/apps/api/internal/usage"
-	"github.com/amirfaisalz/nusaid/services/ocr"
-	"github.com/amirfaisalz/nusaid/services/ocr/providers"
+	"github.com/amirfaisalz/lensio/apps/api/internal/http/handlers"
+	"github.com/amirfaisalz/lensio/apps/api/internal/http/middleware"
+	"github.com/amirfaisalz/lensio/apps/api/internal/http/response"
+	"github.com/amirfaisalz/lensio/apps/api/internal/quota"
+	"github.com/amirfaisalz/lensio/apps/api/internal/ratelimit"
+	"github.com/amirfaisalz/lensio/apps/api/internal/store"
+	"github.com/amirfaisalz/lensio/apps/api/internal/telemetry"
+	"github.com/amirfaisalz/lensio/apps/api/internal/usage"
+	"github.com/amirfaisalz/lensio/services/ocr"
+	"github.com/amirfaisalz/lensio/services/ocr/providers"
 )
 
 // RouterDeps encapsulates optional and required dependencies for the HTTP API router.

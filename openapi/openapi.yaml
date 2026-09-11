@@ -1,20 +1,20 @@
 openapi: 3.0.3
 info:
-  title: NusaID API
+  title: Lensio API
   version: 1.0.0
   description: |
     Indonesian KTP OCR API as a Service.
     Affordable, privacy-conscious, and production-grade identity data extraction.
   contact:
-    name: NusaID Engineering Team
-    url: https://nusaid.com
-    email: api@nusaid.com
+    name: Lensio Engineering Team
+    url: https://lensio.dev
+    email: api@lensio.dev
 servers:
   - url: http://localhost:8080
     description: Local development server
-  - url: https://api.staging.nusaid.com
+  - url: https://api.staging.lensio.dev
     description: Staging environment
-  - url: https://api.nusaid.com
+  - url: https://api.lensio.dev
     description: Production environment
 
 tags:
@@ -157,10 +157,10 @@ paths:
                   key:
                     type: string
                     description: Plaintext API key token (returned only once)
-                    example: nusa_live_a1b2c3d4e5f6...
+                    example: lensio_live_a1b2c3d4e5f6...
                   prefix:
                     type: string
-                    example: nusa_live_a1b2
+                    example: lensio_live_a1b2
                   scopes:
                     type: array
                     items:
@@ -578,7 +578,7 @@ components:
     BearerAuth:
       type: http
       scheme: bearer
-      bearerFormat: NusaID API Key (nusa_live_... or nusa_test_...)
+      bearerFormat: Lensio API Key (lensio_live_... or lensio_test_...)
 
   headers:
     X-RateLimit-Limit:
@@ -641,10 +641,10 @@ components:
           type: string
         prefix:
           type: string
-          example: nusa_live_a1b2
+          example: lensio_live_a1b2
         masked_key:
           type: string
-          example: nusa_live_a1b2••••••••
+          example: lensio_live_a1b2••••••••
         scopes:
           type: array
           items:

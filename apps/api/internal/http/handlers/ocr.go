@@ -10,11 +10,11 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/amirfaisalz/nusaid/apps/api/internal/http/middleware"
-	"github.com/amirfaisalz/nusaid/apps/api/internal/http/response"
-	"github.com/amirfaisalz/nusaid/apps/api/internal/store"
-	"github.com/amirfaisalz/nusaid/apps/api/internal/telemetry"
-	"github.com/amirfaisalz/nusaid/services/ocr"
+	"github.com/amirfaisalz/lensio/apps/api/internal/http/middleware"
+	"github.com/amirfaisalz/lensio/apps/api/internal/http/response"
+	"github.com/amirfaisalz/lensio/apps/api/internal/store"
+	"github.com/amirfaisalz/lensio/apps/api/internal/telemetry"
+	"github.com/amirfaisalz/lensio/services/ocr"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 )

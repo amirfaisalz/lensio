@@ -55,7 +55,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 				<div>
 					<div className="flex items-center gap-1.5">
 						<span className="font-bold tracking-tight text-slate-900 text-base">
-							NusaID
+							Lensio
 						</span>
 						<span className="text-[10px] font-semibold uppercase px-1.5 py-0.2 bg-[#E7F3FF] text-[#1877F2] rounded border border-[#C3DCFC]">
 							Portal

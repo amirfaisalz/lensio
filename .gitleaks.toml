@@ -1,7 +1,7 @@
-# NusaID Gitleaks Configuration
+# Lensio Gitleaks Configuration
 # Enforces zero secrets committed while allowlisting deterministic synthetic fixtures and test mocks.
 
-title = "NusaID Gitleaks Secret Detection Policy"
+title = "Lensio Gitleaks Secret Detection Policy"
 
 [extend]
 useDefault = true
@@ -21,9 +21,9 @@ paths = [
   '''AGENTS\.md'''
 ]
 regexes = [
-  '''nusa_(live|test)_[a-zA-Z0-9]{32,}''',
-  '''nusaid_dev_password''',
-  '''nusaid_test_password''',
+  '''lensio_(live|test)_[a-zA-Z0-9]{32,}''',
+  '''lensio_dev_password''',
+  '''lensio_test_password''',
   '''req_[0-9A-Z]{10,}''',
   '''AIzaSy[A-Za-z0-9_-]{33}'''
 ]

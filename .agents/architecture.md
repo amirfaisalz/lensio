@@ -1,6 +1,6 @@
 # Architecture Guidelines
 
-> Canonical rules for system design, service boundaries, and module architecture in NusaID.
+> Canonical rules for system design, service boundaries, and module architecture in Lensio.
 
 ---
 
@@ -9,7 +9,7 @@
 The repository follows a clean, decoupled monorepo structure:
 
 ```text
-NusaID/
+Lensio/
 ├── apps/
 │   ├── api/             # Go REST API service
 │   │   ├── cmd/server/  # main.go entrypoint

@@ -10,7 +10,7 @@ import (
 	"image/png"
 	"testing"
 
-	"github.com/amirfaisalz/nusaid/services/ocr"
+	"github.com/amirfaisalz/lensio/services/ocr"
 )
 
 func makeTestPNG(width, height int) []byte {

@@ -1,4 +1,4 @@
-# NusaID Demo Video & Presentation Walkthrough Guide
+# Lensio Demo Video & Presentation Walkthrough Guide
 
 > Production walkthrough script and narration cues for recording a 3–5 minute video demo (`PRD Section 36 & 37`).  
 > Demonstrates the complete lifecycle: Authentication, OCR Extraction, Telemetry, Rate Limiting, and Automated Rollback.
@@ -7,11 +7,11 @@
 
 ## 1. Demo Metadata
 
-- **Title**: NusaID – Production-Grade Indonesian KTP OCR Platform Engineering Demo
+- **Title**: Lensio – Production-Grade Indonesian KTP OCR Platform Engineering Demo
 - **Target Duration**: 3 to 5 minutes
 - **Required Windows / Layout**:
   - **Left Window**: Terminal (Split: Client requests on top, live server logs on bottom).
-  - **Right Window**: NusaID Developer Dashboard (`http://localhost:5173` or staging URL).
+  - **Right Window**: Lensio Developer Dashboard (`http://localhost:5173` or staging URL).
 
 ---
 
@@ -40,7 +40,7 @@
 ### Scene 1: Introduction & Developer Portal (0:00 – 0:45)
 - **Visual**: Show Developer Dashboard Overview page (`http://localhost:5173`).
 - **Narration**:
-  > *"NusaID is not just an OCR script—it is an end-to-end API product. Our mission is to provide an affordable, developer-first Indonesian KTP OCR service built with production platform engineering rigor. In this demo, we'll walk through the complete lifecycle: authenticating with cryptographic API keys, extracting structured KTP data from synthetic fixtures, monitoring non-blocking usage metrics, enforcing rate limits, and performing a live sub-60-second revision rollback."*
+  > *"Lensio is not just an OCR script—it is an end-to-end API product. Our mission is to provide an affordable, developer-first Indonesian KTP OCR service built with production platform engineering rigor. In this demo, we'll walk through the complete lifecycle: authenticating with cryptographic API keys, extracting structured KTP data from synthetic fixtures, monitoring non-blocking usage metrics, enforcing rate limits, and performing a live sub-60-second revision rollback."*
 
 ---
 
@@ -62,8 +62,8 @@
   {
     "id": "key_01JABC12345",
     "name": "VeriForm Production Client",
-    "token": "nusa_live_9f8a3c2e1b4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d",
-    "prefix": "nusa_live_9f8a",
+    "token": "lensio_live_9f8a3c2e1b4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d",
+    "prefix": "lensio_live_9f8a",
     "scopes": ["ocr:write", "ocr:read", "usage:read"]
   }
   ```
@@ -71,7 +71,7 @@
   > *"We issue a scoped API key. Notice that the plaintext token is displayed exactly once. In our PostgreSQL database, only the SHA-256 hash is persisted. The prefix allows developers to recognize the key in the dashboard while keeping secret data strictly unrecoverable if storage is breached."*
 - **Set Variable**:
   ```bash
-  export API_KEY="nusa_live_9f8a3c2e1b4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d"
+  export API_KEY="lensio_live_9f8a3c2e1b4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d"
   ```
 
 ---
@@ -194,9 +194,9 @@
 - **Show Azure CLI Rollback Command**:
   ```bash
   az containerapp revision set-traffic \
-    --name ca-api-nusaid-production \
-    --resource-group rg-nusaid-production \
-    --revision-weight ca-api-nusaid-prod--1-4-0=100
+    --name ca-api-lensio-production \
+    --resource-group rg-lensio-production \
+    --revision-weight ca-api-lensio-prod--1-4-0=100
   ```
 - **Narration**:
   > *"In production, revisions are immutable. If an error spike exceeds our 1.0% error budget, our automated rollback workflow shifts 100% of ingress traffic back to the prior stable container revision. Because ACA switches traffic at the Envoy proxy level without re-pulling images, recovery is achieved in under 30 seconds."*
@@ -210,7 +210,7 @@
   ./scripts/run-demo-consumers.sh
   ```
 - **Narration**:
-  > *"To prove NusaID is a true API product rather than a monolithic demo, independent external consumers like VeriForm and RentEase consume the API for identity verification. NusaID demonstrates complete platform engineering ownership: Go, PostgreSQL, React, OpenTelemetry, Azure Container Apps, OpenTofu, and automated security gates."*
+  > *"To prove Lensio is a true API product rather than a monolithic demo, independent external consumers like VeriForm and RentEase consume the API for identity verification. Lensio demonstrates complete platform engineering ownership: Go, PostgreSQL, React, OpenTelemetry, Azure Container Apps, OpenTofu, and automated security gates."*
 
 ---
 

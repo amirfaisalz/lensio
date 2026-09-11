@@ -2,7 +2,7 @@
 set -euo pipefail
 
 echo "========================================"
-echo " 🛡️ NusaID Pre-Commit Verification Gate"
+echo " 🛡️ Lensio Pre-Commit Verification Gate"
 echo "========================================"
 
 # -----------------------------------------------------------------------------

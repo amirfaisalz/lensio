@@ -196,7 +196,7 @@ export const APIKeysPage: React.FC = () => {
 										</p>
 										<p className="text-xs text-slate-400 mt-1">
 											Create an API key to start authenticating requests to
-											NusaID.
+											Lensio.
 										</p>
 									</td>
 								</tr>

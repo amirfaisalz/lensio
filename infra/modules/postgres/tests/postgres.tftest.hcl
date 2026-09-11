@@ -1,25 +1,25 @@
 mock_provider "azurerm" {
   mock_resource "azurerm_private_dns_zone" {
     defaults = {
-      id = "/subscriptions/12345678-1234-9876-4563-123456789012/resourceGroups/rg-nusaid-staging/providers/Microsoft.Network/privateDnsZones/nusaid-staging.postgres.database.azure.com"
+      id = "/subscriptions/12345678-1234-9876-4563-123456789012/resourceGroups/rg-lensio-staging/providers/Microsoft.Network/privateDnsZones/lensio-staging.postgres.database.azure.com"
     }
   }
   mock_resource "azurerm_postgresql_flexible_server" {
     defaults = {
-      id   = "/subscriptions/12345678-1234-9876-4563-123456789012/resourceGroups/rg-nusaid-staging/providers/Microsoft.DBforPostgreSQL/flexibleServers/psql-test"
+      id   = "/subscriptions/12345678-1234-9876-4563-123456789012/resourceGroups/rg-lensio-staging/providers/Microsoft.DBforPostgreSQL/flexibleServers/psql-test"
       fqdn = "psql-test.postgres.database.azure.com"
     }
   }
 }
 
 variables {
-  project             = "nusaid"
+  project             = "lensio"
   environment         = "staging"
   location            = "southeastasia"
-  resource_group_name = "rg-nusaid-staging"
-  vnet_id             = "/subscriptions/12345678-1234-9876-4563-123456789012/resourceGroups/rg-nusaid-staging/providers/Microsoft.Network/virtualNetworks/vnet-nusaid-staging"
-  delegated_subnet_id = "/subscriptions/12345678-1234-9876-4563-123456789012/resourceGroups/rg-nusaid-staging/providers/Microsoft.Network/virtualNetworks/vnet-nusaid-staging/subnets/snet-psql"
-  admin_username      = "nusaidadmin"
+  resource_group_name = "rg-lensio-staging"
+  vnet_id             = "/subscriptions/12345678-1234-9876-4563-123456789012/resourceGroups/rg-lensio-staging/providers/Microsoft.Network/virtualNetworks/vnet-lensio-staging"
+  delegated_subnet_id = "/subscriptions/12345678-1234-9876-4563-123456789012/resourceGroups/rg-lensio-staging/providers/Microsoft.Network/virtualNetworks/vnet-lensio-staging/subnets/snet-psql"
+  admin_username      = "lensioadmin"
   admin_password      = "StrongPassw0rd!123456"
 }
 
@@ -32,13 +32,13 @@ run "validate_postgres_configuration" {
   }
 
   assert {
-    condition     = azurerm_postgresql_flexible_server.postgres.administrator_login == "nusaidadmin"
+    condition     = azurerm_postgresql_flexible_server.postgres.administrator_login == "lensioadmin"
     error_message = "Administrator login must match input"
   }
 
   assert {
-    condition     = azurerm_postgresql_flexible_server_database.app_db.name == "nusaid"
-    error_message = "Database name must be nusaid"
+    condition     = azurerm_postgresql_flexible_server_database.app_db.name == "lensio"
+    error_message = "Database name must be lensio"
   }
 
   assert {

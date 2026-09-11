@@ -95,13 +95,13 @@ export const Header: React.FC<HeaderProps> = ({
 			>
 				<form onSubmit={handleSaveKey} className="space-y-4">
 					<p className="text-xs text-slate-600">
-						Paste your active NusaID API key (
+						Paste your active Lensio API key (
 						<code className="font-mono text-[11px] bg-slate-100 px-1 py-0.5 rounded">
-							nusa_live_...
+							lensio_live_...
 						</code>{" "}
 						or{" "}
 						<code className="font-mono text-[11px] bg-slate-100 px-1 py-0.5 rounded">
-							nusa_test_...
+							lensio_test_...
 						</code>
 						). It will be stored locally in your browser session.
 					</p>
@@ -115,7 +115,7 @@ export const Header: React.FC<HeaderProps> = ({
 						<input
 							id="api-key-input"
 							type="password"
-							placeholder="nusa_live_..."
+							placeholder="lensio_live_..."
 							value={inputKey}
 							onChange={(e) => setInputKey(e.target.value)}
 							className="w-full px-3 py-2 text-sm font-mono border border-slate-300 rounded-lg focus:outline-hidden focus:border-[#1877F2] focus:ring-2 focus:ring-[#1877F2]/20"

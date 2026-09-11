@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/amirfaisalz/nusaid/tests/fixtures/synthetic"
+	"github.com/amirfaisalz/lensio/tests/fixtures/synthetic"
 )
 
 type liveKeyResponse struct {

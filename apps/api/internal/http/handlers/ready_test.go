@@ -8,7 +8,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/amirfaisalz/nusaid/apps/api/internal/http/handlers"
+	"github.com/amirfaisalz/lensio/apps/api/internal/http/handlers"
 )
 
 type mockPinger struct {

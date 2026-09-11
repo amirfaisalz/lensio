@@ -1,4 +1,4 @@
-# NusaID Observability, Telemetry & Operations Runbook
+# Lensio Observability, Telemetry & Operations Runbook
 
 > Production guide for OpenTelemetry tracing, Prometheus RED metrics, Grafana dashboards, and structured logging.  
 > Governed by `PRD Section 16` and `AGENTS.md` (Mandatory Rule 4).
@@ -7,7 +7,7 @@
 
 ## 1. Observability Architecture Overview
 
-NusaID implements unified observability across three pillars: **Traces**, **Metrics**, and **Logs**, correlating telemetry through universal request and trace identifiers:
+Lensio implements unified observability across three pillars: **Traces**, **Metrics**, and **Logs**, correlating telemetry through universal request and trace identifiers:
 
 ```text
 HTTP Request (Inbound)
@@ -64,32 +64,32 @@ root: http.request (route: POST /api/v1/ocr/ktp, method: POST)
 
 ## 3. RED Metrics & Prometheus Endpoint
 
-NusaID exposes a standard Prometheus metrics scraper route at `GET /metrics`.
+Lensio exposes a standard Prometheus metrics scraper route at `GET /metrics`.
 
 ### Core RED Metrics (Rate, Errors, Duration)
 
 | Metric Name | Type | Labels | Description |
 |---|---|---|---|
-| `nusaid_http_requests_total` | Counter | `route`, `method`, `status` | Total incoming HTTP requests partitioned by status code. |
-| `nusaid_http_request_duration_seconds` | Histogram | `route`, `method` | End-to-end HTTP request latency distribution (P50, P90, P95, P99). |
-| `nusaid_http_errors_total` | Counter | `route`, `error_code` | Count of application errors (`rate_limit_exceeded`, `ocr_failed`, `invalid_document`). |
+| `lensio_http_requests_total` | Counter | `route`, `method`, `status` | Total incoming HTTP requests partitioned by status code. |
+| `lensio_http_request_duration_seconds` | Histogram | `route`, `method` | End-to-end HTTP request latency distribution (P50, P90, P95, P99). |
+| `lensio_http_errors_total` | Counter | `route`, `error_code` | Count of application errors (`rate_limit_exceeded`, `ocr_failed`, `invalid_document`). |
 
 ### Business & Operational Metrics
 
 | Metric Name | Type | Labels | Description |
 |---|---|---|---|
-| `nusaid_ocr_requests_total` | Counter | `provider`, `status`, `doc_type` | Total OCR requests handled. |
-| `nusaid_ocr_confidence` | Histogram | `doc_type` | Document confidence score distribution (0.0 to 1.0). |
-| `nusaid_ocr_duration_seconds` | Histogram | `provider` | Pure OCR vision provider inference latency. |
-| `nusaid_rate_limit_hits_total` | Counter | `org_id`, `plan` | Count of rate limit violations (HTTP 429). |
-| `nusaid_quota_exceeded_total` | Counter | `org_id`, `plan` | Count of monthly quota blocks. |
-| `nusaid_db_connections` | Gauge | `state` | PostgreSQL connection pool status (`idle`, `active`, `total`). |
+| `lensio_ocr_requests_total` | Counter | `provider`, `status`, `doc_type` | Total OCR requests handled. |
+| `lensio_ocr_confidence` | Histogram | `doc_type` | Document confidence score distribution (0.0 to 1.0). |
+| `lensio_ocr_duration_seconds` | Histogram | `provider` | Pure OCR vision provider inference latency. |
+| `lensio_rate_limit_hits_total` | Counter | `org_id`, `plan` | Count of rate limit violations (HTTP 429). |
+| `lensio_quota_exceeded_total` | Counter | `org_id`, `plan` | Count of monthly quota blocks. |
+| `lensio_db_connections` | Gauge | `state` | PostgreSQL connection pool status (`idle`, `active`, `total`). |
 
 ---
 
 ## 4. Service Level Objectives (SLO) & Alerts
 
-NusaID measures performance against two strict production SLOs:
+Lensio measures performance against two strict production SLOs:
 
 ```text
 ┌─────────────────────────────────────────────────────────────┐
@@ -106,28 +106,28 @@ NusaID measures performance against two strict production SLOs:
 
 ```yaml
 groups:
-  - name: nusaid_alerts
+  - name: lensio_alerts
     rules:
-      - alert: NusaIDHigh5xxErrorRate
-        expr: (sum(rate(nusaid_http_requests_total{status=~"5.."}[5m])) / sum(rate(nusaid_http_requests_total[5m]))) * 100 > 1.0
+      - alert: LensioHigh5xxErrorRate
+        expr: (sum(rate(lensio_http_requests_total{status=~"5.."}[5m])) / sum(rate(lensio_http_requests_total[5m]))) * 100 > 1.0
         for: 2m
         labels:
           severity: critical
         annotations:
-          summary: "NusaID API 5xx error rate exceeds 1% error budget"
+          summary: "Lensio API 5xx error rate exceeds 1% error budget"
           runbook: "docs/rollback.md"
 
-      - alert: NusaIDHighP95Latency
-        expr: histogram_quantile(0.95, sum(rate(nusaid_http_request_duration_seconds_bucket[5m])) by (le)) > 2.0
+      - alert: LensioHighP95Latency
+        expr: histogram_quantile(0.95, sum(rate(lensio_http_request_duration_seconds_bucket[5m])) by (le)) > 2.0
         for: 5m
         labels:
           severity: warning
         annotations:
-          summary: "NusaID P95 latency degraded beyond 2.0s threshold"
+          summary: "Lensio P95 latency degraded beyond 2.0s threshold"
           runbook: "docs/incidents/INC-20260912-01-ocr-provider-timeout.md"
 
-      - alert: NusaIDDatabaseDown
-        expr: nusaid_db_connections{state="active"} == 0
+      - alert: LensioDatabaseDown
+        expr: lensio_db_connections{state="active"} == 0
         for: 1m
         labels:
           severity: critical
@@ -167,13 +167,13 @@ Every logger invocation must pass the PII audit rule:
 
 ## 6. Accessing Observability in Production
 
-- **Prometheus Metrics**: `curl -s https://api.nusaid.com/metrics`
+- **Prometheus Metrics**: `curl -s https://api.lensio.dev/metrics`
 - **Health & Readiness Check**:
   ```bash
-  curl -i https://api.nusaid.com/health
-  curl -i https://api.nusaid.com/ready
+  curl -i https://api.lensio.dev/health
+  curl -i https://api.lensio.dev/ready
   ```
-- **Grafana Dashboard**: Accessible at `https://grafana.nusaid.com` with pre-built panels:
+- **Grafana Dashboard**: Accessible at `https://grafana.lensio.dev` with pre-built panels:
   - Panel 1: Ingestion Rate (RPS by route)
   - Panel 2: HTTP Latency Heatmap & P95 Line
   - Panel 3: 4xx / 5xx Error Distribution

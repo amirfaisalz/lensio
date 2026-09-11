@@ -1,13 +1,13 @@
-# NusaID System Architecture & Technical Design
+# Lensio System Architecture & Technical Design
 
-> Production architecture specification for NusaID, an Indonesian KTP OCR API platform.  
+> Production architecture specification for Lensio, an Indonesian KTP OCR API platform.  
 > Details system components, C4 architectural diagrams, request lifecycles, and fault isolation domains.
 
 ---
 
 ## 1. System Overview & Core Purpose
 
-NusaID is architected as an API-first B2B software platform. It ingests identity documents (specifically Indonesian KTP cards), classifies and validates document integrity, orchestrates multimodal vision AI inference (Google Gemini 2.0 Flash or deterministic mock engines), extracts structured identity fields (16-digit NIK, full legal name, date/place of birth, address, marital status, religion), and returns deterministic, validated JSON payloads.
+Lensio is architected as an API-first B2B software platform. It ingests identity documents (specifically Indonesian KTP cards), classifies and validates document integrity, orchestrates multimodal vision AI inference (Google Gemini 2.0 Flash or deterministic mock engines), extracts structured identity fields (16-digit NIK, full legal name, date/place of birth, address, marital status, religion), and returns deterministic, validated JSON payloads.
 
 Surrounding the core OCR engine is a complete platform engineering lifecycle:
 - **Tenant Management & Authentication**: Bearer API keys with SHA-256 one-way hashing and scoped access control.
@@ -21,18 +21,18 @@ Surrounding the core OCR engine is a complete platform engineering lifecycle:
 
 ### Level 1: System Context Diagram
 
-Visualizes how external developers, dashboard administrators, and downstream AI services interact with the NusaID boundary:
+Visualizes how external developers, dashboard administrators, and downstream AI services interact with the Lensio boundary:
 
 ```mermaid
 C4Context
-    title System Context Diagram for NusaID Platform
+    title System Context Diagram for Lensio Platform
 
     Person(developer, "API Consumer / Developer", "Integrates identity verification into applications (e.g. VeriForm, RentEase).")
     Person(admin, "Platform Admin", "Monitors API usage, rotates API keys, and tracks quotas via Developer Dashboard.")
 
-    Enterprise_Boundary(b0, "NusaID Boundary") {
-        System(nusaid_api, "NusaID API Service", "Go REST API handling authentication, rate limiting, and KTP OCR pipeline.")
-        System(nusaid_dash, "Developer Dashboard", "React + TypeScript SPA for key management and telemetry charts.")
+    Enterprise_Boundary(b0, "Lensio Boundary") {
+        System(lensio_api, "Lensio API Service", "Go REST API handling authentication, rate limiting, and KTP OCR pipeline.")
+        System(lensio_dash, "Developer Dashboard", "React + TypeScript SPA for key management and telemetry charts.")
     }
 
     System_Ext(gemini, "Google AI Studio / Gemini Vision", "Multimodal LLM extracting raw text and JSON fields from images.")
@@ -41,10 +41,10 @@ C4Context
 
     Rel(developer, cloudflare, "Submits KTP OCR requests (HTTPS)", "JSON / Multipart")
     Rel(admin, cloudflare, "Manages keys & views analytics", "HTTPS / Web")
-    Rel(cloudflare, nusaid_api, "Proxies API traffic to ACA", "HTTP / Bearer")
-    Rel(cloudflare, nusaid_dash, "Serves static assets", "HTTPS")
-    Rel(nusaid_api, gemini, "Sends image buffer for inference", "REST / TLS 1.3")
-    Rel(nusaid_api, grafana, "Pushes traces & Prometheus metrics", "OTLP / gRPC")
+    Rel(cloudflare, lensio_api, "Proxies API traffic to ACA", "HTTP / Bearer")
+    Rel(cloudflare, lensio_dash, "Serves static assets", "HTTPS")
+    Rel(lensio_api, gemini, "Sends image buffer for inference", "REST / TLS 1.3")
+    Rel(lensio_api, grafana, "Pushes traces & Prometheus metrics", "OTLP / gRPC")
 ```
 
 ---
@@ -55,7 +55,7 @@ Breaks down the operational containers running within the Azure Container Apps e
 
 ```mermaid
 C4Container
-    title Container Diagram for NusaID Platform
+    title Container Diagram for Lensio Platform
 
     Person(client, "Client Applications", "VeriForm, RentEase, or third-party mobile/web backends")
 
@@ -123,7 +123,7 @@ sequenceDiagram
     participant Meter as Async Usage Channel
     participant DB as PostgreSQL
 
-    Client->>Edge: POST /api/v1/ocr/ktp (Bearer nusa_live_xxx, document=<image>)
+    Client->>Edge: POST /api/v1/ocr/ktp (Bearer lensio_live_xxx, document=<image>)
     Edge->>GW: Forward request with X-Request-ID
     GW->>Auth: Compute SHA-256(token) & Check Token Bucket
     Auth->>DB: SELECT api_key WHERE hash=$1 (Cached/Indexed)
@@ -145,7 +145,7 @@ sequenceDiagram
 
 ## 4. Fault Isolation & Health Check Architecture
 
-NusaID enforces strict decoupling between **Process Liveness** and **Dependency Readiness**:
+Lensio enforces strict decoupling between **Process Liveness** and **Dependency Readiness**:
 
 ```text
                Kubernetes / Azure Container Apps Probes

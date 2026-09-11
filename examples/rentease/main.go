@@ -27,8 +27,8 @@ type Config struct {
 	Timeout       time.Duration
 }
 
-// NusaIDResponse matches NusaID OCR response structure.
-type NusaIDResponse struct {
+// LensioResponse matches Lensio OCR response structure.
+type LensioResponse struct {
 	ID           string `json:"id"`
 	Status       string `json:"status"`
 	DocumentType string `json:"document_type"`
@@ -72,8 +72,8 @@ type RentalVerificationResult struct {
 	ExpiresAt       time.Time `json:"expires_at,omitempty"`
 }
 
-// SubmitKTP sends an image to NusaID OCR API.
-func SubmitKTP(ctx context.Context, client *http.Client, apiURL, apiKey, filename string, imageBytes []byte) (*NusaIDResponse, error) {
+// SubmitKTP sends an image to Lensio OCR API.
+func SubmitKTP(ctx context.Context, client *http.Client, apiURL, apiKey, filename string, imageBytes []byte) (*LensioResponse, error) {
 	var body bytes.Buffer
 	writer := multipart.NewWriter(&body)
 
@@ -102,7 +102,7 @@ func SubmitKTP(ctx context.Context, client *http.Client, apiURL, apiKey, filenam
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("nusaid api request failed: %w", err)
+		return nil, fmt.Errorf("lensio api request failed: %w", err)
 	}
 	defer resp.Body.Close()
 
@@ -111,19 +111,19 @@ func SubmitKTP(ctx context.Context, client *http.Client, apiURL, apiKey, filenam
 		return nil, fmt.Errorf("failed to read response body: %w", err)
 	}
 
-	var nusaResp NusaIDResponse
-	if err := json.Unmarshal(respBody, &nusaResp); err != nil {
+	var lensioResp LensioResponse
+	if err := json.Unmarshal(respBody, &lensioResp); err != nil {
 		return nil, fmt.Errorf("failed to parse json response (status %d): %w", resp.StatusCode, err)
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		if nusaResp.Error != nil {
-			return nil, fmt.Errorf("nusaid error (%s): %s", nusaResp.Error.Code, nusaResp.Error.Message)
+		if lensioResp.Error != nil {
+			return nil, fmt.Errorf("lensio error (%s): %s", lensioResp.Error.Code, lensioResp.Error.Message)
 		}
-		return nil, fmt.Errorf("nusaid returned non-200 status: %d", resp.StatusCode)
+		return nil, fmt.Errorf("lensio returned non-200 status: %d", resp.StatusCode)
 	}
 
-	return &nusaResp, nil
+	return &lensioResp, nil
 }
 
 // CalculateDriverAge calculates driver's age in full years from DOB.
@@ -215,8 +215,8 @@ func VerifyDriverEligibility(ctx context.Context, cfg Config, imageBytes []byte,
 }
 
 func main() {
-	apiURL := flag.String("api-url", "http://localhost:8080", "NusaID base API URL")
-	apiKey := flag.String("api-key", os.Getenv("NUSAID_API_KEY"), "NusaID API key (Bearer token)")
+	apiURL := flag.String("api-url", "http://localhost:8080", "Lensio base API URL")
+	apiKey := flag.String("api-key", os.Getenv("LENSIO_API_KEY"), "Lensio API key (Bearer token)")
 	imagePath := flag.String("image", "tests/fixtures/synthetic/valid_ktp.jpg", "Path to synthetic KTP image file")
 	minAge := flag.Int("min-age", 21, "Minimum driver age for vehicle rental")
 	requireWNI := flag.Bool("require-wni", false, "Require Indonesian citizenship")
@@ -224,7 +224,7 @@ func main() {
 	flag.Parse()
 
 	if *apiKey == "" {
-		fmt.Fprintf(os.Stderr, "Error: --api-key or NUSAID_API_KEY environment variable is required\n")
+		fmt.Fprintf(os.Stderr, "Error: --api-key or LENSIO_API_KEY environment variable is required\n")
 		os.Exit(1)
 	}
 
@@ -245,7 +245,7 @@ func main() {
 	}
 
 	fmt.Printf("🚗 RentEase Vehicle Rental Verification Client\n")
-	fmt.Printf("Verifying driver credentials against NusaID API at %s...\n", cfg.APIURL)
+	fmt.Printf("Verifying driver credentials against Lensio API at %s...\n", cfg.APIURL)
 
 	res, err := VerifyDriverEligibility(context.Background(), cfg, data, time.Now().UTC())
 	if err != nil {

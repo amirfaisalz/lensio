@@ -16,7 +16,7 @@ resource "cloudflare_record" "api" {
   type    = "CNAME"
   proxied = true
   ttl     = 1 # Automatic when proxied
-  comment = "Managed by OpenTofu - NusaID API (${var.environment})"
+  comment = "Managed by OpenTofu - Lensio API (${var.environment})"
 }
 
 # CNAME DNS Record for Dashboard
@@ -27,7 +27,7 @@ resource "cloudflare_record" "dashboard" {
   type    = "CNAME"
   proxied = true
   ttl     = 1 # Automatic when proxied
-  comment = "Managed by OpenTofu - NusaID Dashboard (${var.environment})"
+  comment = "Managed by OpenTofu - Lensio Dashboard (${var.environment})"
 }
 
 # Zone Settings & SSL/TLS Configuration
@@ -52,8 +52,8 @@ resource "cloudflare_zone_settings_override" "settings" {
 resource "cloudflare_ruleset" "ocr_rate_limiting" {
   count       = var.enable_waf ? 1 : 0
   zone_id     = var.zone_id
-  name        = "nusaid-${var.environment}-ocr-rate-limit"
-  description = "Edge rate limiting protection for NusaID OCR API"
+  name        = "lensio-${var.environment}-ocr-rate-limit"
+  description = "Edge rate limiting protection for Lensio OCR API"
   kind        = "zone"
   phase       = "http_ratelimit"
 
@@ -76,7 +76,7 @@ resource "cloudflare_ruleset" "ocr_rate_limiting" {
 resource "cloudflare_ruleset" "custom_waf" {
   count       = var.enable_waf ? 1 : 0
   zone_id     = var.zone_id
-  name        = "nusaid-${var.environment}-custom-waf"
+  name        = "lensio-${var.environment}-custom-waf"
   description = "Custom WAF rules blocking suspicious traffic"
   kind        = "zone"
   phase       = "http_request_firewall_custom"

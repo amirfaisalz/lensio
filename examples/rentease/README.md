@@ -1,12 +1,12 @@
 # RentEase Vehicle Rental Verification Demo Consumer
 
-> Fictional vehicle rental platform demonstrating external consumption of the NusaID KTP OCR API (`PRD Section 3`).
+> Fictional vehicle rental platform demonstrating external consumption of the Lensio KTP OCR API (`PRD Section 3`).
 
 ---
 
 ## 1. Overview
 
-**RentEase** is an external client platform that automates driver license and identity clearance for self-drive car rentals. When a customer reserves a vehicle, RentEase sends their Indonesian KTP to NusaID's `POST /api/v1/ocr/ktp` endpoint, and executes rental business rules:
+**RentEase** is an external client platform that automates driver license and identity clearance for self-drive car rentals. When a customer reserves a vehicle, RentEase sends their Indonesian KTP to Lensio's `POST /api/v1/ocr/ktp` endpoint, and executes rental business rules:
 - **Image Quality & Confidence**: Rejects documents with confidence $< 0.70$.
 - **Minimum Driving Age**: Requires the driver to be at least 21 years old.
 - **Citizenship & Permit Clearance**: Optional requirement for Indonesian citizenship (`WNI`) for domestic self-drive clearance.
@@ -17,7 +17,7 @@ Customer submits KTP
        ↓
 RentEase Consumer
        ↓
-NusaID OCR API (POST /api/v1/ocr/ktp)
+Lensio OCR API (POST /api/v1/ocr/ktp)
        ↓
 KTP fields extracted (Name, DOB, Citizenship)
        ↓
@@ -32,14 +32,14 @@ Digital Rental Pass Issued / Rejected
 
 ### Prerequisites
 - Go 1.22+
-- NusaID API running locally or on staging (e.g. `http://localhost:8080`)
-- A valid NusaID API Key with `ocr:write` scope
+- Lensio API running locally or on staging (e.g. `http://localhost:8080`)
+- A valid Lensio API Key with `ocr:write` scope
 
 ### Running the Demo
 
 ```bash
 # Set your API key
-export NUSAID_API_KEY="nusa_live_xxxxxxxxxxxxxxxxxxxxxxxx"
+export LENSIO_API_KEY="lensio_live_xxxxxxxxxxxxxxxxxxxxxxxx"
 
 # Run RentEase verification client
 go run ./examples/rentease/main.go \
@@ -53,8 +53,8 @@ go run ./examples/rentease/main.go \
 
 | Flag | Default | Description |
 |---|---|---|
-| `--api-url` | `http://localhost:8080` | NusaID base API URL |
-| `--api-key` | `$NUSAID_API_KEY` | Bearer API token |
+| `--api-url` | `http://localhost:8080` | Lensio base API URL |
+| `--api-key` | `$LENSIO_API_KEY` | Bearer API token |
 | `--image` | `tests/fixtures/synthetic/valid_ktp.jpg` | Path to KTP image file |
 | `--min-age` | `21` | Minimum required driver age |
 | `--require-wni` | `false` | Restrict rental to Indonesian citizens |

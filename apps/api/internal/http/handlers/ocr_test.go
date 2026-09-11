@@ -11,13 +11,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/amirfaisalz/nusaid/apps/api/internal/http/handlers"
-	"github.com/amirfaisalz/nusaid/apps/api/internal/http/middleware"
-	"github.com/amirfaisalz/nusaid/apps/api/internal/http/response"
-	"github.com/amirfaisalz/nusaid/apps/api/internal/store"
-	"github.com/amirfaisalz/nusaid/services/ocr"
-	"github.com/amirfaisalz/nusaid/services/ocr/providers"
-	"github.com/amirfaisalz/nusaid/tests/fixtures/synthetic"
+	"github.com/amirfaisalz/lensio/apps/api/internal/http/handlers"
+	"github.com/amirfaisalz/lensio/apps/api/internal/http/middleware"
+	"github.com/amirfaisalz/lensio/apps/api/internal/http/response"
+	"github.com/amirfaisalz/lensio/apps/api/internal/store"
+	"github.com/amirfaisalz/lensio/services/ocr"
+	"github.com/amirfaisalz/lensio/services/ocr/providers"
+	"github.com/amirfaisalz/lensio/tests/fixtures/synthetic"
 )
 
 type dummyOCRStore struct {

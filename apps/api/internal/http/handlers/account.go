@@ -7,10 +7,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/amirfaisalz/nusaid/apps/api/internal/http/middleware"
-	"github.com/amirfaisalz/nusaid/apps/api/internal/http/response"
-	"github.com/amirfaisalz/nusaid/apps/api/internal/quota"
-	"github.com/amirfaisalz/nusaid/apps/api/internal/store"
+	"github.com/amirfaisalz/lensio/apps/api/internal/http/middleware"
+	"github.com/amirfaisalz/lensio/apps/api/internal/http/response"
+	"github.com/amirfaisalz/lensio/apps/api/internal/quota"
+	"github.com/amirfaisalz/lensio/apps/api/internal/store"
 )
 
 // UpdatePlanRequest represents the JSON payload to change an organization's subscription plan.

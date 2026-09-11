@@ -1,7 +1,7 @@
 variable "project" {
   type        = string
   description = "Project name identifier"
-  default     = "nusaid"
+  default     = "lensio"
 }
 
 variable "environment" {
@@ -32,7 +32,7 @@ variable "delegated_subnet_id" {
 variable "admin_username" {
   type        = string
   description = "PostgreSQL administrator login name"
-  default     = "nusaidadmin"
+  default     = "lensioadmin"
 }
 
 variable "admin_password" {
@@ -80,7 +80,7 @@ variable "high_availability_mode" {
 variable "database_name" {
   type        = string
   description = "Default application database name"
-  default     = "nusaid"
+  default     = "lensio"
 }
 
 variable "tags" {

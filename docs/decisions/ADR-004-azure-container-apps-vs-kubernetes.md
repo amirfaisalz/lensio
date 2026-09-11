@@ -2,14 +2,14 @@
 
 - **Status**: Accepted
 - **Date**: 2026-09-12
-- **Deciders**: NusaID Engineering Team
+- **Deciders**: Lensio Engineering Team
 - **Technical Context**: `PRD Section 22`, `PRD Section 23`, `PRD Section 25`, `PRD Section 32`, `PRD Section 41`
 
 ---
 
 ## 1. Context and Problem Statement
 
-To deploy NusaID to the cloud, we needed a robust container execution platform that supports:
+To deploy Lensio to the cloud, we needed a robust container execution platform that supports:
 1. Running containerized Go REST API services and Nginx-based React dashboards.
 2. Autoscaling based on HTTP concurrency and request volume.
 3. Blue-green / canary style revisions for zero-downtime deployments.
@@ -50,7 +50,7 @@ The standard industry default for container orchestration is often **Kubernetes 
   - Scale-to-zero capability to optimize cost when development/staging environments are idle.
   - Native integration with Azure Key Vault via Managed Identity and Cloudflare edge proxy.
   - Clean OpenTofu module definition (`infra/modules/container_app/`).
-- *Cons*: Less control over low-level kernel parameters or custom CNI configurations (not needed for NusaID).
+- *Cons*: Less control over low-level kernel parameters or custom CNI configurations (not needed for Lensio).
 
 ---
 
@@ -64,9 +64,9 @@ We deliberately chose Azure Container Apps over Kubernetes to demonstrate modern
 1. **Under-60-Second Rollbacks**:
    ```bash
    az containerapp revision set-traffic \
-     --name ca-api-nusaid-prod \
-     --resource-group rg-nusaid-prod \
-     --revision-weight ca-api-nusaid-prod--1-4-0=100
+     --name ca-api-lensio-prod \
+     --resource-group rg-lensio-prod \
+     --revision-weight ca-api-lensio-prod--1-4-0=100
    ```
    Traffic switches at the Envoy proxy level immediately. No pods are killed or rescheduled during rollback.
 2. **KEDA Autoscaling**: Automatically scales replicas from 1 to 10 based on HTTP concurrent requests (e.g., scale out when concurrent requests exceed 50 per replica).

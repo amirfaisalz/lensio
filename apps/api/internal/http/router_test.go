@@ -10,12 +10,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/amirfaisalz/nusaid/apps/api/internal/apikey"
-	internalhttp "github.com/amirfaisalz/nusaid/apps/api/internal/http"
-	"github.com/amirfaisalz/nusaid/apps/api/internal/ratelimit"
-	"github.com/amirfaisalz/nusaid/apps/api/internal/store"
-	"github.com/amirfaisalz/nusaid/apps/api/internal/usage"
-	"github.com/amirfaisalz/nusaid/tests/fixtures/synthetic"
+	"github.com/amirfaisalz/lensio/apps/api/internal/apikey"
+	internalhttp "github.com/amirfaisalz/lensio/apps/api/internal/http"
+	"github.com/amirfaisalz/lensio/apps/api/internal/ratelimit"
+	"github.com/amirfaisalz/lensio/apps/api/internal/store"
+	"github.com/amirfaisalz/lensio/apps/api/internal/usage"
+	"github.com/amirfaisalz/lensio/tests/fixtures/synthetic"
 )
 
 type dummyPinger struct{}
@@ -314,8 +314,8 @@ func (d *dummyAccountStore) GetOrganizationMembers(ctx context.Context, orgID st
 		{
 			ID:        "user-1",
 			OrgID:     orgID,
-			Email:     "dev@nusaid.dev",
-			FullName:  "NusaID Lead Developer",
+			Email:     "dev@lensio.dev",
+			FullName:  "Lensio Lead Developer",
 			Role:      "owner",
 			CreatedAt: time.Now(),
 		},

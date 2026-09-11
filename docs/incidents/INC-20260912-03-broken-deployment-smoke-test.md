@@ -14,7 +14,7 @@
 
 ## 1. Executive Summary
 
-As part of NusaID Phase 9 Reliability Engineering (`PRD Section 26, Scenario C`), an automated drill was executed to simulate an erroneous release deployment where a broken container revision (e.g. missing environment variables or fatal startup crash) is deployed to staging.
+As part of Lensio Phase 9 Reliability Engineering (`PRD Section 26, Scenario C`), an automated drill was executed to simulate an erroneous release deployment where a broken container revision (e.g. missing environment variables or fatal startup crash) is deployed to staging.
 
 The drill verified that:
 1. `scripts/smoke-test.sh` immediately probed the deployed service's `/health` and `/ready` endpoints.

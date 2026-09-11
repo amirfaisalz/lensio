@@ -14,7 +14,7 @@ import type {
 } from "../types/api";
 
 const API_BASE = import.meta.env.VITE_API_URL || "";
-const STORAGE_KEY_API_KEY = "nusaid_api_key";
+const STORAGE_KEY_API_KEY = "lensio_api_key";
 
 class ApiClient {
 	private activeApiKey: string | null = null;

@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/amirfaisalz/nusaid/apps/api/internal/store"
+	"github.com/amirfaisalz/lensio/apps/api/internal/store"
 )
 
 // Recorder asynchronously consumes usage records via a buffered channel and persists them to PostgreSQL.

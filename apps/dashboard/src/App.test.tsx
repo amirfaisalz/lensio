@@ -85,7 +85,7 @@ describe("App & Dashboard Navigation", () => {
 		render(<App />);
 
 		// Initial Overview page
-		expect(screen.getByText("NusaID")).toBeDefined();
+		expect(screen.getByText("Lensio")).toBeDefined();
 		await waitFor(() => {
 			expect(screen.getByText("System Overview")).toBeDefined();
 		});

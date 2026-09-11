@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/amirfaisalz/nusaid/apps/api/internal/quota"
-	"github.com/amirfaisalz/nusaid/apps/api/internal/store"
+	"github.com/amirfaisalz/lensio/apps/api/internal/quota"
+	"github.com/amirfaisalz/lensio/apps/api/internal/store"
 )
 
 type mockAccountStore struct {

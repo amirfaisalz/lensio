@@ -1,18 +1,18 @@
 mock_provider "azurerm" {
   mock_resource "azurerm_subnet" {
     defaults = {
-      id = "/subscriptions/12345678-1234-9876-4563-123456789012/resourceGroups/rg-nusaid-staging/providers/Microsoft.Network/virtualNetworks/vnet-nusaid-staging/subnets/snet"
+      id = "/subscriptions/12345678-1234-9876-4563-123456789012/resourceGroups/rg-lensio-staging/providers/Microsoft.Network/virtualNetworks/vnet-lensio-staging/subnets/snet"
     }
   }
   mock_resource "azurerm_network_security_group" {
     defaults = {
-      id = "/subscriptions/12345678-1234-9876-4563-123456789012/resourceGroups/rg-nusaid-staging/providers/Microsoft.Network/networkSecurityGroups/nsg"
+      id = "/subscriptions/12345678-1234-9876-4563-123456789012/resourceGroups/rg-lensio-staging/providers/Microsoft.Network/networkSecurityGroups/nsg"
     }
   }
 }
 
 variables {
-  project     = "nusaid"
+  project     = "lensio"
   environment = "staging"
   location    = "southeastasia"
 }
@@ -21,7 +21,7 @@ run "validate_networking_resources" {
   command = plan
 
   assert {
-    condition     = azurerm_resource_group.rg.name == "rg-nusaid-staging"
+    condition     = azurerm_resource_group.rg.name == "rg-lensio-staging"
     error_message = "Resource group name did not match expected naming convention"
   }
 

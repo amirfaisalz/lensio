@@ -5,7 +5,7 @@ import (
 	"context"
 	"sync"
 
-	"github.com/amirfaisalz/nusaid/services/ocr"
+	"github.com/amirfaisalz/lensio/services/ocr"
 )
 
 // Magic markers in image bytes to trigger specific mock behaviors during testing.

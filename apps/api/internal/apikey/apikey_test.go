@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/amirfaisalz/nusaid/apps/api/internal/apikey"
+	"github.com/amirfaisalz/lensio/apps/api/internal/apikey"
 )
 
 func TestGenerate_Success(t *testing.T) {
@@ -17,25 +17,25 @@ func TestGenerate_Success(t *testing.T) {
 		{
 			name:       "default to live when empty",
 			env:        "",
-			wantPrefix: "nusa_live_",
+			wantPrefix: "lensio_live_",
 			wantEnv:    "live",
 		},
 		{
 			name:       "explicit live environment",
 			env:        "live",
-			wantPrefix: "nusa_live_",
+			wantPrefix: "lensio_live_",
 			wantEnv:    "live",
 		},
 		{
 			name:       "explicit test environment",
 			env:        "test",
-			wantPrefix: "nusa_test_",
+			wantPrefix: "lensio_test_",
 			wantEnv:    "test",
 		},
 		{
 			name:       "trimmed and uppercase normalized",
 			env:        "  LIVE  ",
-			wantPrefix: "nusa_live_",
+			wantPrefix: "lensio_live_",
 			wantEnv:    "live",
 		},
 	}
@@ -123,8 +123,8 @@ func TestMask(t *testing.T) {
 		prefix string
 		want   string
 	}{
-		{prefix: "nusa_live_1234", want: "nusa_live_1234••••••••"},
-		{prefix: "nusa_test_abcd", want: "nusa_test_abcd••••••••"},
+		{prefix: "lensio_live_1234", want: "lensio_live_1234••••••••"},
+		{prefix: "lensio_test_abcd", want: "lensio_test_abcd••••••••"},
 		{prefix: "", want: "••••••••"},
 	}
 
@@ -166,25 +166,25 @@ func TestValidateFormat(t *testing.T) {
 		},
 		{
 			name:      "too short token",
-			key:       "nusa_live_abcdef",
+			key:       "lensio_live_abcdef",
 			wantEnv:   "",
 			wantValid: false,
 		},
 		{
 			name:      "too long token",
-			key:       "nusa_live_" + strings.Repeat("a", 65),
+			key:       "lensio_live_" + strings.Repeat("a", 65),
 			wantEnv:   "",
 			wantValid: false,
 		},
 		{
 			name:      "non-hex characters in live key",
-			key:       "nusa_live_" + strings.Repeat("z", 64),
+			key:       "lensio_live_" + strings.Repeat("z", 64),
 			wantEnv:   "",
 			wantValid: false,
 		},
 		{
 			name:      "non-hex characters in test key",
-			key:       "nusa_test_" + strings.Repeat("g", 64),
+			key:       "lensio_test_" + strings.Repeat("g", 64),
 			wantEnv:   "",
 			wantValid: false,
 		},

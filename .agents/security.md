@@ -25,7 +25,7 @@ Structured Response Emitted
 ```
 
 ### Mandates
-1. **Zero Permanent Image Storage**: NusaID does not store raw KTP images in object storage or databases.
+1. **Zero Permanent Image Storage**: Lensio does not store raw KTP images in object storage or databases.
 2. **Ephemeral Memory Only**: The image byte slice is read, processed, and released for garbage collection immediately after OCR execution.
 3. **No PII in Application Logs**:
    - Forbidden in logs: `nik`, `nama`, `tempat_lahir`, `tanggal_lahir`, `alamat`, `rt_rw`, base64 image data.
@@ -35,11 +35,11 @@ Structured Response Emitted
 
 ## 2. API Key Lifecycle & Storage Security
 
-1. **Secret Generation**: Keys are generated with 32+ bytes of cryptographic entropy (`crypto/rand`) using a distinct prefix (`nusa_live_...` or `nusa_test_...`).
+1. **Secret Generation**: Keys are generated with 32+ bytes of cryptographic entropy (`crypto/rand`) using a distinct prefix (`lensio_live_...` or `lensio_test_...`).
 2. **One-Time Secret Presentation**: The full plaintext key is displayed to the developer exactly once upon creation. It is never retrievable again.
 3. **Storage Rule**: Only the cryptographic hash (SHA-256) of the token is saved in PostgreSQL:
    ```text
-   Stored columns: id, org_id, name, prefix (e.g. "nusa_live_3a..."), key_hash, scopes, created_at, revoked_at
+   Stored columns: id, org_id, name, prefix (e.g. "lensio_live_3a..."), key_hash, scopes, created_at, revoked_at
    ```
 4. **Instant Revocation**: Revoking an API key sets `revoked_at = NOW()`, immediately invalidating subsequent calls.
 

@@ -8,12 +8,12 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/amirfaisalz/nusaid/apps/api/internal/apikey"
-	internalhttp "github.com/amirfaisalz/nusaid/apps/api/internal/http"
-	"github.com/amirfaisalz/nusaid/apps/api/internal/http/handlers"
-	"github.com/amirfaisalz/nusaid/apps/api/internal/http/response"
-	"github.com/amirfaisalz/nusaid/services/ocr/providers"
-	"github.com/amirfaisalz/nusaid/tests/fixtures/synthetic"
+	"github.com/amirfaisalz/lensio/apps/api/internal/apikey"
+	internalhttp "github.com/amirfaisalz/lensio/apps/api/internal/http"
+	"github.com/amirfaisalz/lensio/apps/api/internal/http/handlers"
+	"github.com/amirfaisalz/lensio/apps/api/internal/http/response"
+	"github.com/amirfaisalz/lensio/services/ocr/providers"
+	"github.com/amirfaisalz/lensio/tests/fixtures/synthetic"
 )
 
 func buildTestMultipart(fieldName, filename string, content []byte) (*bytes.Buffer, string) {
@@ -80,7 +80,7 @@ func TestRouter_E2E_KeyLifecycleAndAuth(t *testing.T) {
 
 	// 3. Call protected endpoint with invalid key
 	badReq, _ := http.NewRequest(http.MethodGet, server.URL+"/api/v1/auth/verify", nil)
-	badReq.Header.Set("Authorization", "Bearer nusa_live_"+apikey.Hash("unknown")[:64])
+	badReq.Header.Set("Authorization", "Bearer lensio_live_"+apikey.Hash("unknown")[:64])
 	badResp, err := client.Do(badReq)
 	if err != nil {
 		t.Fatalf("failed calling verify with bad key: %v", err)
@@ -276,7 +276,7 @@ func TestRouter_E2E_OCRPipeline(t *testing.T) {
 
 		req, _ := http.NewRequest(http.MethodPost, server.URL+"/api/v1/ocr/ktp", reqBody)
 		req.Header.Set("Content-Type", contentType)
-		req.Header.Set("Authorization", "Bearer nusa_live_fakekeytoken12345678901234567890123456789012")
+		req.Header.Set("Authorization", "Bearer lensio_live_fakekeytoken12345678901234567890123456789012")
 
 		ocrResp, err := client.Do(req)
 		if err != nil {

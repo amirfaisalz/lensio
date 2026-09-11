@@ -4,8 +4,8 @@ import (
 	"os"
 	"testing"
 
-	"github.com/amirfaisalz/nusaid/services/ocr"
-	"github.com/amirfaisalz/nusaid/tests/fixtures/synthetic"
+	"github.com/amirfaisalz/lensio/services/ocr"
+	"github.com/amirfaisalz/lensio/tests/fixtures/synthetic"
 )
 
 func TestSyntheticFixtures(t *testing.T) {

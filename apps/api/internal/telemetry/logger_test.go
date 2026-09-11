@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/amirfaisalz/nusaid/apps/api/internal/http/response"
+	"github.com/amirfaisalz/lensio/apps/api/internal/http/response"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 )
 
@@ -24,7 +24,7 @@ func TestPIISanitizer_SensitiveKeysRedaction(t *testing.T) {
 		slog.String("full_name", "Jane Doe"),
 		slog.String("alamat", "Jl. Sudirman No. 12"),
 		slog.String("tanggal_lahir", "1990-05-15"),
-		slog.String("token", "nusa_live_secret123"),
+		slog.String("token", "lensio_live_secret123"),
 		slog.String("password", "supersecret"),
 		slog.String("key_hash", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"),
 		slog.String("safe_field", "safe_value"),

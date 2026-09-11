@@ -4,7 +4,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/amirfaisalz/nusaid/apps/api/internal/config"
+	"github.com/amirfaisalz/lensio/apps/api/internal/config"
 )
 
 func TestLoad_Defaults(t *testing.T) {
@@ -44,7 +44,7 @@ func TestLoad_Defaults(t *testing.T) {
 func TestLoad_CustomEnv(t *testing.T) {
 	t.Setenv("PORT", "9090")
 	t.Setenv("ENV", "production")
-	t.Setenv("DATABASE_URL", "postgres://user:pass@localhost:5432/nusaid?sslmode=disable")
+	t.Setenv("DATABASE_URL", "postgres://user:pass@localhost:5432/lensio?sslmode=disable")
 	t.Setenv("LOG_LEVEL", "debug")
 	t.Setenv("OCR_PROVIDER", "gemini_flash")
 	t.Setenv("GEMINI_API_KEY", "test-key-123")
@@ -57,7 +57,7 @@ func TestLoad_CustomEnv(t *testing.T) {
 	if cfg.Env != "production" {
 		t.Fatalf("expected Env 'production', got '%s'", cfg.Env)
 	}
-	if cfg.DatabaseURL != "postgres://user:pass@localhost:5432/nusaid?sslmode=disable" {
+	if cfg.DatabaseURL != "postgres://user:pass@localhost:5432/lensio?sslmode=disable" {
 		t.Fatalf("expected custom DatabaseURL, got '%s'", cfg.DatabaseURL)
 	}
 	if cfg.LogLevel != "debug" {

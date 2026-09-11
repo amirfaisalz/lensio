@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/amirfaisalz/nusaid/apps/api/internal/ratelimit"
+	"github.com/amirfaisalz/lensio/apps/api/internal/ratelimit"
 )
 
 func TestLimiter_Allow_Basic(t *testing.T) {

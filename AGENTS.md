@@ -1,13 +1,13 @@
-# NusaID AI Agent Operational Guide
+# Lensio AI Agent Operational Guide
 
-> Single source of truth for AI agents (and human contributors) working on the NusaID codebase.
+> Single source of truth for AI agents (and human contributors) working on the Lensio codebase.
 > **MANDATORY IN ALL SESSIONS**: All rules in this document must be strictly obeyed across every session without exception.
 
 ---
 
 ## 1. Project Identity & Purpose
 
-**NusaID** is an affordable Indonesian KTP OCR API as a service. It is designed as a production-grade API product demonstrating end-to-end platform engineering:
+**Lensio** is an affordable Indonesian KTP OCR API as a service. It is designed as a production-grade API product demonstrating end-to-end platform engineering:
 - **Language & Runtime**: Go (Backend API) + React & TypeScript (Developer Dashboard)
 - **Database**: PostgreSQL 16 (Relational state, migrations via `golang-migrate`)
 - **Primary OCR Engine**: Pluggable `OCREngine` interface. Default Vision AI: **Google Gemini 2.0 Flash / 1.5 Flash** (Google AI Studio Free Tier); Default Test Engine: **MockOCREngine** (deterministic fixtures).

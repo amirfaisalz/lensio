@@ -1,6 +1,6 @@
 # Coding Standards
 
-> Idiomatic Go and TypeScript conventions, Ponytail minimalism, Big O algorithmic efficiency, and quality guardrails for NusaID.
+> Idiomatic Go and TypeScript conventions, Ponytail minimalism, Big O algorithmic efficiency, and quality guardrails for Lensio.
 
 ---
 

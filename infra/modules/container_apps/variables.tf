@@ -1,7 +1,7 @@
 variable "project" {
   type        = string
   description = "Project name identifier"
-  default     = "nusaid"
+  default     = "lensio"
 }
 
 variable "environment" {
@@ -26,14 +26,14 @@ variable "infrastructure_subnet_id" {
 
 variable "api_image" {
   type        = string
-  description = "Docker image for NusaID API"
-  default     = "ghcr.io/amirfaisalz/nusaid-api:latest"
+  description = "Docker image for Lensio API"
+  default     = "ghcr.io/amirfaisalz/lensio-api:latest"
 }
 
 variable "dashboard_image" {
   type        = string
-  description = "Docker image for NusaID Dashboard"
-  default     = "ghcr.io/amirfaisalz/nusaid-dashboard:latest"
+  description = "Docker image for Lensio Dashboard"
+  default     = "ghcr.io/amirfaisalz/lensio-dashboard:latest"
 }
 
 variable "database_url" {

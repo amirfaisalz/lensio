@@ -1,4 +1,4 @@
-name: NusaID Emergency Rollback
+name: Lensio Emergency Rollback
 
 on:
   workflow_dispatch:
@@ -61,12 +61,12 @@ jobs:
             --app "${{ inputs.app }}" \
             --target-revision "${{ inputs.target_revision }}" \
             --traffic "${{ inputs.traffic_percentage }}" \
-            --api-url "${{ inputs.environment == 'production' && 'https://api.nusaid.com' || 'https://api.staging.nusaid.com' }}"
+            --api-url "${{ inputs.environment == 'production' && 'https://api.lensio.dev' || 'https://api.staging.lensio.dev' }}"
 
       - name: Post-Rollback Audit Summary
         if: always()
         run: |
-          echo "### 🚨 NusaID Emergency Rollback Report" >> $GITHUB_STEP_SUMMARY
+          echo "### 🚨 Lensio Emergency Rollback Report" >> $GITHUB_STEP_SUMMARY
           echo "- **Environment**: \`${{ inputs.environment }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- **Component**: \`${{ inputs.app }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- **Target Revision**: \`${{ inputs.target_revision }}\`" >> $GITHUB_STEP_SUMMARY

@@ -5,10 +5,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/amirfaisalz/nusaid/apps/api/internal/http/response"
-	"github.com/amirfaisalz/nusaid/apps/api/internal/store"
-	"github.com/amirfaisalz/nusaid/apps/api/internal/telemetry"
-	"github.com/amirfaisalz/nusaid/apps/api/internal/usage"
+	"github.com/amirfaisalz/lensio/apps/api/internal/http/response"
+	"github.com/amirfaisalz/lensio/apps/api/internal/store"
+	"github.com/amirfaisalz/lensio/apps/api/internal/telemetry"
+	"github.com/amirfaisalz/lensio/apps/api/internal/usage"
 )
 
 type statusResponseWriter struct {

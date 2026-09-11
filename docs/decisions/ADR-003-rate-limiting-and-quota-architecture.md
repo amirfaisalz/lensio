@@ -2,14 +2,14 @@
 
 - **Status**: Accepted
 - **Date**: 2026-09-12
-- **Deciders**: NusaID Engineering Team
+- **Deciders**: Lensio Engineering Team
 - **Technical Context**: `PRD Section 9`, `PRD Section 10`, `PRD Section 11`, `PRD Section 30`
 
 ---
 
 ## 1. Context and Problem Statement
 
-As a commercial API product, NusaID must protect its upstream AI vision providers (e.g. Gemini 2.0 Flash) and infrastructure from abusive bursts, accidental infinite loops, and distributed denial-of-service (DoS) attacks. Furthermore, the platform offers tiered subscription plans (`free`, `starter`, `pro`) with contractual limits on:
+As a commercial API product, Lensio must protect its upstream AI vision providers (e.g. Gemini 2.0 Flash) and infrastructure from abusive bursts, accidental infinite loops, and distributed denial-of-service (DoS) attacks. Furthermore, the platform offers tiered subscription plans (`free`, `starter`, `pro`) with contractual limits on:
 1. **Burst Concurrency / Rate Limits**: Short-term requests per minute (e.g., Free: 10 rpm, Starter: 30 rpm, Pro: 100 rpm).
 2. **Billing Volume / Monthly Quotas**: Long-term requests per calendar month (e.g., Free: 100/mo, Starter: 1,000/mo, Pro: 10,000/mo).
 

@@ -11,7 +11,7 @@ const syntheticKtpJpeg = fs.readFileSync(
 );
 
 test.describe.serial(
-	"NusaID Developer Portal & KTP OCR End-to-End Suite (PRD Section 28)",
+	"Lensio Developer Portal & KTP OCR End-to-End Suite (PRD Section 28)",
 	() => {
 		const apiBaseURL = process.env.API_URL || "http://localhost:8080";
 		let createdApiKey = "";
@@ -19,7 +19,7 @@ test.describe.serial(
 		test.beforeEach(async ({ page }) => {
 			if (createdApiKey) {
 				await page.addInitScript((key) => {
-					window.localStorage.setItem("nusaid_api_key", key);
+					window.localStorage.setItem("lensio_api_key", key);
 				}, createdApiKey);
 			}
 		});
@@ -33,7 +33,7 @@ test.describe.serial(
 			await page.goto("/");
 
 			// Verify Developer Portal branding & status
-			await expect(page.getByText("NusaID", { exact: true })).toBeVisible();
+			await expect(page.getByText("Lensio", { exact: true })).toBeVisible();
 			await expect(page.getByText("Portal", { exact: true })).toBeVisible();
 			await expect(page.getByText("API Online")).toBeVisible();
 
@@ -100,7 +100,7 @@ test.describe.serial(
 			const secretInput = page.locator("#created-key-token");
 			await expect(secretInput).toBeVisible();
 			const tokenVal = await secretInput.inputValue();
-			expect(tokenVal).toMatch(/^nusa_live_[a-f0-9]{32,}$/);
+			expect(tokenVal).toMatch(/^lensio_live_[a-f0-9]{32,}$/);
 			createdApiKey = tokenVal;
 
 			// Verify copy action

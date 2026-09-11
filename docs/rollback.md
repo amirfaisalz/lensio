@@ -1,6 +1,6 @@
-# NusaID Rollback Runbook & Procedures
+# Lensio Rollback Runbook & Procedures
 
-> Standard operating procedure for executing emergency rollbacks on NusaID deployments in **under 60 seconds**.
+> Standard operating procedure for executing emergency rollbacks on Lensio deployments in **under 60 seconds**.
 
 ---
 
@@ -40,12 +40,12 @@ Rolling back does **not** re-build or re-download container layers; it executes 
 
 ## 3. Method A: Automated GitHub Actions Rollback (Recommended)
 
-1. Navigate to **Actions** -> **NusaID Emergency Rollback** in GitHub repository.
+1. Navigate to **Actions** -> **Lensio Emergency Rollback** in GitHub repository.
 2. Click **Run workflow**.
 3. Fill in the parameters:
    - **Environment**: `production` (or `staging`)
    - **Component**: `api` (or `dashboard` / `all`)
-   - **Target Revision**: Enter previous stable revision name (e.g., `ca-api-nusaid-prod--1-4-0`)
+   - **Target Revision**: Enter previous stable revision name (e.g., `ca-api-lensio-prod--1-4-0`)
    - **Traffic Percentage**: `100`
    - **Incident Reason**: Brief description of the observed symptom.
 4. Click **Run workflow**.
@@ -60,20 +60,20 @@ If GitHub Actions is unreachable or experiencing delays, an engineer with Azure 
 ```bash
 # 1. List active revisions to identify previous stable revision
 az containerapp revision list \
-  --name ca-api-nusaid-production \
-  --resource-group rg-nusaid-production \
+  --name ca-api-lensio-production \
+  --resource-group rg-lensio-production \
   --query "[].{Name:name, Created:createdTime, Traffic:trafficWeight, Active:active}" \
   --output table
 
 # 2. Shift 100% traffic to stable revision immediately
 az containerapp revision set-traffic \
-  --name ca-api-nusaid-production \
-  --resource-group rg-nusaid-production \
-  --revision-weight ca-api-nusaid-prod--<stable-revision>=100
+  --name ca-api-lensio-production \
+  --resource-group rg-lensio-production \
+  --revision-weight ca-api-lensio-prod--<stable-revision>=100
 
 # 3. Verify health probe
-curl -f https://api.nusaid.com/health
-curl -f https://api.nusaid.com/ready
+curl -f https://api.lensio.dev/health
+curl -f https://api.lensio.dev/ready
 ```
 
 Alternatively, run the automated script directly from the repository root:
@@ -82,7 +82,7 @@ Alternatively, run the automated script directly from the repository root:
 ./scripts/rollback.sh \
   --env production \
   --app api \
-  --target-revision ca-api-nusaid-prod--<stable-revision> \
+  --target-revision ca-api-lensio-prod--<stable-revision> \
   --traffic 100
 ```
 
@@ -90,8 +90,8 @@ Alternatively, run the automated script directly from the repository root:
 
 ## 5. Post-Rollback Verification Checklist
 
-- [ ] Confirm `curl https://api.nusaid.com/health` returns `{"status":"ok"}`.
-- [ ] Confirm `curl https://api.nusaid.com/ready` returns `{"status":"ready","database":"connected"}`.
-- [ ] Execute smoke test: `./scripts/smoke-test.sh https://api.nusaid.com`.
+- [ ] Confirm `curl https://api.lensio.dev/health` returns `{"status":"ok"}`.
+- [ ] Confirm `curl https://api.lensio.dev/ready` returns `{"status":"ready","database":"connected"}`.
+- [ ] Execute smoke test: `./scripts/smoke-test.sh https://api.lensio.dev`.
 - [ ] Check Grafana RED dashboard: Verify 5xx error rate drops back to 0%.
 - [ ] Log incident post-mortem in `docs/incidents/` documenting root cause.

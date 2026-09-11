@@ -6,9 +6,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/amirfaisalz/nusaid/apps/api/internal/http/response"
-	"github.com/amirfaisalz/nusaid/apps/api/internal/quota"
-	"github.com/amirfaisalz/nusaid/apps/api/internal/store"
+	"github.com/amirfaisalz/lensio/apps/api/internal/http/response"
+	"github.com/amirfaisalz/lensio/apps/api/internal/quota"
+	"github.com/amirfaisalz/lensio/apps/api/internal/store"
 )
 
 // UsageSummaryHandler handles GET /api/v1/usage.

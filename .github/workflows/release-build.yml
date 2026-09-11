@@ -1,4 +1,4 @@
-name: NusaID Release Build & Packaging
+name: Lensio Release Build & Packaging
 
 on:
   push:
@@ -23,8 +23,8 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       image_tag: ${{ steps.meta.outputs.version }}
-      api_image: ghcr.io/${{ github.repository }}/nusaid-api:${{ steps.meta.outputs.version }}
-      dashboard_image: ghcr.io/${{ github.repository }}/nusaid-dashboard:${{ steps.meta.outputs.version }}
+      api_image: ghcr.io/${{ github.repository }}/lensio-api:${{ steps.meta.outputs.version }}
+      dashboard_image: ghcr.io/${{ github.repository }}/lensio-dashboard:${{ steps.meta.outputs.version }}
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -46,7 +46,7 @@ jobs:
         id: meta-api
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository }}/nusaid-api
+          images: ghcr.io/${{ github.repository }}/lensio-api
           tags: |
             type=sha,prefix=sha-,format=short
             type=ref,event=branch
@@ -58,7 +58,7 @@ jobs:
         id: meta-dash
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository }}/nusaid-dashboard
+          images: ghcr.io/${{ github.repository }}/lensio-dashboard
           tags: |
             type=sha,prefix=sha-,format=short
             type=ref,event=branch
@@ -66,7 +66,7 @@ jobs:
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
             type=raw,value=${{ inputs.version_tag }},enable=${{ inputs.version_tag != '' }}
 
-      - name: Build & Push NusaID API Image
+      - name: Build & Push Lensio API Image
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -78,7 +78,7 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Build & Push NusaID Dashboard Image
+      - name: Build & Push Lensio Dashboard Image
         uses: docker/build-push-action@v5
         with:
           context: apps/dashboard
@@ -100,5 +100,5 @@ jobs:
           fi
           echo "version=$TAG" >> $GITHUB_OUTPUT
           echo "### 📦 Packaged Container Images" >> $GITHUB_STEP_SUMMARY
-          echo "- **API Image**: \`ghcr.io/${{ github.repository }}/nusaid-api:${TAG}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- **Dashboard Image**: \`ghcr.io/${{ github.repository }}/nusaid-dashboard:${TAG}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **API Image**: \`ghcr.io/${{ github.repository }}/lensio-api:${TAG}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Dashboard Image**: \`ghcr.io/${{ github.repository }}/lensio-dashboard:${TAG}\`" >> $GITHUB_STEP_SUMMARY

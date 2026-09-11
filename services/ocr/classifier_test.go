@@ -3,7 +3,7 @@ package ocr_test
 import (
 	"testing"
 
-	"github.com/amirfaisalz/nusaid/services/ocr"
+	"github.com/amirfaisalz/lensio/services/ocr"
 )
 
 func TestClassifyDocument(t *testing.T) {

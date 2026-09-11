@@ -10,11 +10,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/amirfaisalz/nusaid/apps/api/internal/apikey"
-	"github.com/amirfaisalz/nusaid/apps/api/internal/http/handlers"
-	"github.com/amirfaisalz/nusaid/apps/api/internal/http/middleware"
-	"github.com/amirfaisalz/nusaid/apps/api/internal/http/response"
-	"github.com/amirfaisalz/nusaid/apps/api/internal/store"
+	"github.com/amirfaisalz/lensio/apps/api/internal/apikey"
+	"github.com/amirfaisalz/lensio/apps/api/internal/http/handlers"
+	"github.com/amirfaisalz/lensio/apps/api/internal/http/middleware"
+	"github.com/amirfaisalz/lensio/apps/api/internal/http/response"
+	"github.com/amirfaisalz/lensio/apps/api/internal/store"
 )
 
 type mockAPIKeyStore struct {
@@ -272,7 +272,7 @@ func TestListAPIKeysHandler(t *testing.T) {
 		ID:          "k1",
 		OrgID:       handlers.DefaultOrgID,
 		Name:        "Key 1",
-		Prefix:      "nusa_live_1234",
+		Prefix:      "lensio_live_1234",
 		Scopes:      []string{"ocr:write"},
 		Environment: "live",
 	}
@@ -299,7 +299,7 @@ func TestListAPIKeysHandler(t *testing.T) {
 	if len(resp.Data) != 1 {
 		t.Fatalf("expected 1 item, got %d", len(resp.Data))
 	}
-	if resp.Data[0].MaskedKey != "nusa_live_1234••••••••" {
+	if resp.Data[0].MaskedKey != "lensio_live_1234••••••••" {
 		t.Errorf("unexpected masked key: %s", resp.Data[0].MaskedKey)
 	}
 }
@@ -326,7 +326,7 @@ func TestRevokeAPIKeyHandler_Success(t *testing.T) {
 		OrgID:       handlers.DefaultOrgID,
 		Name:        "To Revoke",
 		KeyHash:     "hash123",
-		Prefix:      "nusa_live_1234",
+		Prefix:      "lensio_live_1234",
 		Environment: "live",
 	}
 	_ = s.CreateAPIKey(context.Background(), k)

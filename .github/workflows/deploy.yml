@@ -1,8 +1,8 @@
-name: NusaID Deployment & Environment Promotion
+name: Lensio Deployment & Environment Promotion
 
 on:
   workflow_run:
-    workflows: ["NusaID Release Build & Packaging"]
+    workflows: ["Lensio Release Build & Packaging"]
     types:
       - completed
     branches:
@@ -68,13 +68,13 @@ jobs:
           echo "Updating Azure Container Apps (Staging) with tag ${IMAGE_TAG}..."
           if command -v az >/dev/null 2>&1 && [ -n "${{ secrets.AZURE_CREDENTIALS }}" ]; then
             az containerapp update \
-              --name ca-api-nusaid-staging \
-              --resource-group rg-nusaid-staging \
-              --image "ghcr.io/${{ github.repository }}/nusaid-api:${IMAGE_TAG}"
+              --name ca-api-lensio-staging \
+              --resource-group rg-lensio-staging \
+              --image "ghcr.io/${{ github.repository }}/lensio-api:${IMAGE_TAG}"
             az containerapp update \
-              --name ca-dash-nusaid-staging \
-              --resource-group rg-nusaid-staging \
-              --image "ghcr.io/${{ github.repository }}/nusaid-dashboard:${IMAGE_TAG}"
+              --name ca-dash-lensio-staging \
+              --resource-group rg-lensio-staging \
+              --image "ghcr.io/${{ github.repository }}/lensio-dashboard:${IMAGE_TAG}"
           else
             echo "Simulation mode: az CLI or AZURE_CREDENTIALS not configured."
           fi
@@ -83,8 +83,8 @@ jobs:
         run: |
           chmod +x scripts/smoke-test.sh
           # Run smoke tests against staging endpoint (or localhost fallback if in sandbox)
-          STAGING_API_URL="${{ vars.STAGING_API_URL || 'https://api.staging.nusaid.com' }}"
-          STAGING_DASH_URL="${{ vars.STAGING_DASH_URL || 'https://staging.nusaid.com' }}"
+          STAGING_API_URL="${{ vars.STAGING_API_URL || 'https://api.staging.lensio.dev' }}"
+          STAGING_DASH_URL="${{ vars.STAGING_DASH_URL || 'https://staging.lensio.dev' }}"
           if curl -s --connect-timeout 2 "${STAGING_API_URL}/health" >/dev/null 2>&1; then
             ./scripts/smoke-test.sh "${STAGING_API_URL}" "${STAGING_DASH_URL}"
           else
@@ -132,13 +132,13 @@ jobs:
           echo "Updating Azure Container Apps (Production) with tag ${IMAGE_TAG}..."
           if command -v az >/dev/null 2>&1 && [ -n "${{ secrets.AZURE_CREDENTIALS }}" ]; then
             az containerapp update \
-              --name ca-api-nusaid-production \
-              --resource-group rg-nusaid-production \
-              --image "ghcr.io/${{ github.repository }}/nusaid-api:${IMAGE_TAG}"
+              --name ca-api-lensio-production \
+              --resource-group rg-lensio-production \
+              --image "ghcr.io/${{ github.repository }}/lensio-api:${IMAGE_TAG}"
             az containerapp update \
-              --name ca-dash-nusaid-production \
-              --resource-group rg-nusaid-production \
-              --image "ghcr.io/${{ github.repository }}/nusaid-dashboard:${IMAGE_TAG}"
+              --name ca-dash-lensio-production \
+              --resource-group rg-lensio-production \
+              --image "ghcr.io/${{ github.repository }}/lensio-dashboard:${IMAGE_TAG}"
           else
             echo "Simulation mode: az CLI or AZURE_CREDENTIALS not configured."
           fi
@@ -147,8 +147,8 @@ jobs:
         id: smoke-test
         run: |
           chmod +x scripts/smoke-test.sh
-          PROD_API_URL="${{ vars.PROD_API_URL || 'https://api.nusaid.com' }}"
-          PROD_DASH_URL="${{ vars.PROD_DASH_URL || 'https://nusaid.com' }}"
+          PROD_API_URL="${{ vars.PROD_API_URL || 'https://api.lensio.dev' }}"
+          PROD_DASH_URL="${{ vars.PROD_DASH_URL || 'https://lensio.dev' }}"
           if curl -s --connect-timeout 2 "${PROD_API_URL}/health" >/dev/null 2>&1; then
             ./scripts/smoke-test.sh "${PROD_API_URL}" "${PROD_DASH_URL}"
           else

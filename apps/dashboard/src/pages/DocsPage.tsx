@@ -10,7 +10,7 @@ export const DocsPage: React.FC = () => {
 	>("curl");
 	const [copied, setCopied] = useState(false);
 
-	const displayKey = apiKey || "nusa_live_sample_key_12345678";
+	const displayKey = apiKey || "lensio_live_sample_key_12345678";
 
 	const snippets = {
 		curl: `# Extract KTP data via cURL

@@ -14,7 +14,7 @@ import { api } from "./services/api";
 const pageMeta: Record<NavigationPage, { title: string; subtitle: string }> = {
 	overview: {
 		title: "Overview",
-		subtitle: "NusaID KTP OCR developer analytics & quick test harness",
+		subtitle: "Lensio KTP OCR developer analytics & quick test harness",
 	},
 	keys: {
 		title: "API Keys",

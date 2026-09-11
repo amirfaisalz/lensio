@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# NusaID Azure Container Apps Rapid Rollback Automation
+# Lensio Azure Container Apps Rapid Rollback Automation
 # ==============================================================================
 # Enables instantaneous traffic shifting (<60 seconds SLA) to a previous stable
 # container revision on Azure Container Apps without rebuilding images.
@@ -32,15 +32,15 @@ Options:
   -a, --app <api|dashboard|all>    Application component to roll back (default: api)
   -r, --target-revision <name>     Target Azure Container App revision name (required)
   -t, --traffic <percentage>       Traffic percentage to shift (default: 100)
-  -g, --resource-group <name>      Azure Resource Group (default: rg-nusaid-<env>)
+  -g, --resource-group <name>      Azure Resource Group (default: rg-lensio-<env>)
   -u, --api-url <url>              API base URL for post-rollback verification
   --dry-run                        Simulate rollback without executing Azure commands
   --no-verify                      Skip post-rollback health checks
   -h, --help                       Show this help message
 
 Examples:
-  $(basename "$0") --env production --app api --target-revision ca-api-nusaid-prod--20260912-1400
-  $(basename "$0") --env staging --target-revision ca-api-nusaid-staging--stable --dry-run
+  $(basename "$0") --env production --app api --target-revision ca-api-lensio-prod--20260912-1400
+  $(basename "$0") --env staging --target-revision ca-api-lensio-staging--stable --dry-run
 EOF
     exit 1
 }
@@ -72,7 +72,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 if [ -z "${RESOURCE_GROUP}" ]; then
-    RESOURCE_GROUP="rg-nusaid-${ENV}"
+    RESOURCE_GROUP="rg-lensio-${ENV}"
 fi
 
 if [ -z "${TARGET_REVISION}" ]; then
@@ -83,7 +83,7 @@ fi
 START_TIME=$(date +%s)
 
 echo "========================================================"
-echo " 🚨 NusaID Emergency Revision Rollback Automation"
+echo " 🚨 Lensio Emergency Revision Rollback Automation"
 echo "========================================================"
 echo "  Environment:        ${ENV}"
 echo "  Component:          ${APP}"
@@ -130,14 +130,14 @@ rollback_app() {
 # Determine target container app names
 case "${APP}" in
     api)
-        rollback_app "ca-api-nusaid-${ENV}"
+        rollback_app "ca-api-lensio-${ENV}"
         ;;
     dashboard)
-        rollback_app "ca-dash-nusaid-${ENV}"
+        rollback_app "ca-dash-lensio-${ENV}"
         ;;
     all)
-        rollback_app "ca-api-nusaid-${ENV}"
-        rollback_app "ca-dash-nusaid-${ENV}"
+        rollback_app "ca-api-lensio-${ENV}"
+        rollback_app "ca-dash-lensio-${ENV}"
         ;;
     *)
         echo -e "${RED}[ERROR]${NC} Invalid app '${APP}'. Must be api, dashboard, or all." >&2
@@ -155,9 +155,9 @@ if [ "${VERIFY}" = true ] && [ "${DRY_RUN}" = false ]; then
     SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
     if [ -z "${API_URL}" ]; then
         if [ "${ENV}" = "production" ]; then
-            API_URL="https://api.nusaid.com"
+            API_URL="https://api.lensio.dev"
         else
-            API_URL="https://api.staging.nusaid.com"
+            API_URL="https://api.staging.lensio.dev"
         fi
     fi
     echo -e "${BLUE}[INFO]${NC} Executing post-rollback verification against ${API_URL}..."

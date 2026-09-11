@@ -57,7 +57,7 @@ func TestInit_DefaultConfig(t *testing.T) {
 func TestInit_CustomConfig(t *testing.T) {
 	ctx := context.Background()
 	cfg := Config{
-		ServiceName:     "custom-nusaid",
+		ServiceName:     "custom-lensio",
 		ServiceVersion:  "2.1.0",
 		Environment:     "staging",
 		TraceSampleRate: 0.5,

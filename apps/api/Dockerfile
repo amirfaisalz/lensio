@@ -15,7 +15,7 @@ COPY . .
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
     -trimpath \
     -ldflags="-w -s -extldflags '-static'" \
-    -o /bin/nusaid-api \
+    -o /bin/lensio-api \
     ./apps/api/cmd/server
 
 # ==============================================================================
@@ -29,7 +29,7 @@ RUN apk --no-cache add ca-certificates tzdata && \
 
 WORKDIR /app
 
-COPY --from=builder --chown=65532:65532 /bin/nusaid-api /app/nusaid-api
+COPY --from=builder --chown=65532:65532 /bin/lensio-api /app/lensio-api
 
 EXPOSE 8080
 
@@ -38,4 +38,4 @@ USER 65532:65532
 HEALTHCHECK --interval=10s --timeout=3s --start-period=5s --retries=3 \
     CMD wget -qO- http://localhost:8080/health || exit 1
 
-ENTRYPOINT ["/app/nusaid-api"]
+ENTRYPOINT ["/app/lensio-api"]

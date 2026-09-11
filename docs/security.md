@@ -1,4 +1,4 @@
-# NusaID Security & Privacy Architecture
+# Lensio Security & Privacy Architecture
 
 > Comprehensive security specification, threat model, compliance posture, and automated security controls.  
 > Governed by `AGENTS.md` (Mandatory Rules 4 & 5) and `PRD Section 15`.
@@ -7,7 +7,7 @@
 
 ## 1. Security Philosophy: Defense in Depth
 
-NusaID processes Indonesian identity documents (KTP). Because national identity cards contain sensitive citizen identity markers (NIK, full names, addresses, photos), security and privacy are treated as core platform architectural constraints rather than afterthoughts.
+Lensio processes Indonesian identity documents (KTP). Because national identity cards contain sensitive citizen identity markers (NIK, full names, addresses, photos), security and privacy are treated as core platform architectural constraints rather than afterthoughts.
 
 Our posture is built on five non-negotiable pillars:
 1. **Zero Plaintext Secrets**: Cryptographic hashing of API tokens.
@@ -20,7 +20,7 @@ Our posture is built on five non-negotiable pillars:
 
 ## 2. Threat Modeling: STRIDE & OWASP API Security Top 10
 
-| Category | Threat Scenario | Impact | NusaID Mitigation Control |
+| Category | Threat Scenario | Impact | Lensio Mitigation Control |
 |---|---|---|---|
 | **Spoofing** | Adversary attempts to forge or brute-force API keys | Unauthorized API access, identity data extraction | High-entropy CSPRNG tokens (256-bit entropy) with SHA-256 one-way hashing; brute-forcing is computationally infeasible. |
 | **Tampering** | Attacker intercepts or modifies image/JSON payloads in transit | Identity fraud, payload corruption | Mandatory TLS 1.3 edge-to-container; Cloudflare WAF inspection; strict deterministic NIK structure validation. |
@@ -39,12 +39,12 @@ API keys authenticate programmatic consumers. To eliminate the danger of key com
 [Key Generation]
   1. Generate 32 cryptographically secure random bytes (crypto/rand).
   2. Hex-encode token: 9f8a3c2e...
-  3. Prepend prefix: nusa_live_9f8a3c2e... (Plaintext returned to user ONCE)
+  3. Prepend prefix: lensio_live_9f8a3c2e... (Plaintext returned to user ONCE)
   4. Compute SHA-256 hash: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
-  5. Store only: { key_hash, prefix: "nusa_live_9f8a", scopes: ["ocr:write"], org_id }
+  5. Store only: { key_hash, prefix: "lensio_live_9f8a", scopes: ["ocr:write"], org_id }
 
 [Key Verification]
-  Incoming Header: Authorization: Bearer nusa_live_9f8a3c2e...
+  Incoming Header: Authorization: Bearer lensio_live_9f8a3c2e...
   1. Hash received token: digest = SHA-256(received_token)
   2. SQL Lookup: SELECT * FROM api_keys WHERE key_hash = digest AND revoked_at IS NULL
   3. Verify expiration and assert requested scopes.
@@ -52,7 +52,7 @@ API keys authenticate programmatic consumers. To eliminate the danger of key com
 
 - **One-Way Hash**: Impossible to reverse the database digest to recover the plaintext key.
 - **Prefix Identification**: Truncated prefix (`prefix`) enables identification in the Developer Dashboard without revealing the secret.
-- **Scannable Secret Pattern**: Prefixes (`nusa_live_` and `nusa_test_`) allow automated regex scanners (Gitleaks, GitHub Secret Scanning) to prevent accidental repository commits.
+- **Scannable Secret Pattern**: Prefixes (`lensio_live_` and `lensio_test_`) allow automated regex scanners (Gitleaks, GitHub Secret Scanning) to prevent accidental repository commits.
 
 ---
 

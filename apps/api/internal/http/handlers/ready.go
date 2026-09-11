@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/amirfaisalz/nusaid/apps/api/internal/http/response"
-	"github.com/amirfaisalz/nusaid/apps/api/internal/store"
+	"github.com/amirfaisalz/lensio/apps/api/internal/http/response"
+	"github.com/amirfaisalz/lensio/apps/api/internal/store"
 )
 
 // ReadyResponse represents the response payload for the readiness probe.

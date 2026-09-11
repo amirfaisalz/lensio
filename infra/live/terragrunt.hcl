@@ -5,7 +5,7 @@ locals {
   # Load environment-level variables from env.hcl if present
   env_vars = fileexists("${get_terragrunt_dir()}/env.hcl") ? read_terragrunt_config("${get_terragrunt_dir()}/env.hcl").locals : {}
 
-  project     = "nusaid"
+  project     = "lensio"
   environment = lookup(local.env_vars, "environment", "staging")
   location    = lookup(local.env_vars, "location", "southeastasia")
 
@@ -59,8 +59,8 @@ EOF
 remote_state {
   backend = "azurerm"
   config = {
-    resource_group_name  = "rg-nusaid-tfstate"
-    storage_account_name = "stnusaidtfstate"
+    resource_group_name  = "rg-lensio-tfstate"
+    storage_account_name = "stlensiotfstate"
     container_name       = "tfstate"
     key                  = "${path_relative_to_include()}/terraform.tfstate"
   }
