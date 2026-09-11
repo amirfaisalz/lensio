@@ -56,7 +56,7 @@ func main() {
 		logger.Warn("DATABASE_URL not configured, running in ephemeral mode")
 	}
 
-	router := internalhttp.NewRouter(pinger)
+	router := internalhttp.NewRouter(pinger, db)
 
 	srv := &http.Server{
 		Addr:         ":" + cfg.Port,

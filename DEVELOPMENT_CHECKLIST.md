@@ -9,7 +9,7 @@
 
 - [x] **Phase 0: Project Inception, Repository Setup & AI Agent Guardrails**
 - [x] **Phase 1: Core Foundation & Scaffolding (Day 1)**
-- [ ] **Phase 2: API Contract, Authentication & Security Core (Day 2)**
+- [x] **Phase 2: API Contract, Authentication & Security Core (Day 2)**
 - [ ] **Phase 3: OCR Engine Abstraction & Processing Pipeline (Day 3)**
 - [ ] **Phase 4: API Platform – Rate Limiting, Quotas & Usage Metering (Day 4)**
 - [ ] **Phase 5: Developer Dashboard & Portal (Days 1, 4 & 7)**
@@ -79,11 +79,11 @@ Establish the monorepo directory layout, database schema migrations, and baselin
 
 Build the foundational HTTP middleware, API key lifecycle, and scoped authorization.
 
-- [ ] **OpenAPI Specification (`PRD Section 29`)**
-  - [ ] Create `openapi/openapi.yaml` documenting all v1 endpoints, security schemas, error models, and examples.
-  - [ ] Implement Swagger UI / scalar / OpenAPI viewer route (`/docs`, `/openapi`).
-- [ ] **Standard Error Envelope & Tracing (`PRD Section 20`)**
-  - [ ] Implement unified error model:
+- [x] **OpenAPI Specification (`PRD Section 29`)**
+  - [x] Create `openapi/openapi.yaml` documenting all v1 endpoints, security schemas, error models, and examples.
+  - [x] Implement Swagger UI / scalar / OpenAPI viewer route (`/docs`, `/openapi`).
+- [x] **Standard Error Envelope & Tracing (`PRD Section 20`)**
+  - [x] Implement unified error model:
     ```json
     {
       "error": {
@@ -93,22 +93,22 @@ Build the foundational HTTP middleware, API key lifecycle, and scoped authorizat
       }
     }
     ```
-  - [ ] Implement `RequestID` middleware (generates `req_...` or reads `X-Request-ID`, attaches to context and response header).
-  - [ ] Define standardized error codes: `invalid_request`, `invalid_api_key`, `insufficient_scope`, `rate_limit_exceeded`, `quota_exceeded`, `invalid_document`, `unsupported_document`, `ocr_failed`, `low_confidence`, `internal_error`.
-- [ ] **API Key Management (`PRD Section 7 & 8`)**
-  - [ ] Cryptographic key generator (e.g., prefix `nusa_live_` or `nusa_test_` + high-entropy token).
-  - [ ] Key hashing logic using SHA-256 before persistence (never store plaintext API keys).
-  - [ ] Endpoint `POST /api/v1/auth/api-keys` (create key, returns plaintext token once).
-  - [ ] Endpoint `GET /api/v1/auth/api-keys` (list organization's keys with masked token, prefix, scopes, last used).
-  - [ ] Endpoint `DELETE /api/v1/auth/api-keys/:id` (revoke API key).
-- [ ] **Authentication & Authorization Middleware**
-  - [ ] API Key authentication middleware (validates `Authorization: Bearer <key>`, compares hash, verifies active status, records `last_used_at`).
-  - [ ] Scope enforcement middleware (verifies key has required scopes, e.g., `ocr:read`, `ocr:write`, `usage:read`).
-  - [ ] Return HTTP 401 on missing/invalid key (`invalid_api_key`), HTTP 403 on insufficient scope (`insufficient_scope`).
-- [ ] **API Versioning Support (`PRD Section 6`)**
-  - [ ] Route grouping `/api/v1/...` and extensible design for future `/api/v2/...`.
-  - [ ] Deprecation header support (`Deprecation: true`, `Sunset: <date>`).
-- [ ] **Acceptance Criteria**:
+  - [x] Implement `RequestID` middleware (generates `req_...` or reads `X-Request-ID`, attaches to context and response header).
+  - [x] Define standardized error codes: `invalid_request`, `invalid_api_key`, `insufficient_scope`, `rate_limit_exceeded`, `quota_exceeded`, `invalid_document`, `unsupported_document`, `ocr_failed`, `low_confidence`, `internal_error`.
+- [x] **API Key Management (`PRD Section 7 & 8`)**
+  - [x] Cryptographic key generator (e.g., prefix `nusa_live_` or `nusa_test_` + high-entropy token).
+  - [x] Key hashing logic using SHA-256 before persistence (never store plaintext API keys).
+  - [x] Endpoint `POST /api/v1/auth/api-keys` (create key, returns plaintext token once).
+  - [x] Endpoint `GET /api/v1/auth/api-keys` (list organization's keys with masked token, prefix, scopes, last used).
+  - [x] Endpoint `DELETE /api/v1/auth/api-keys/:id` (revoke API key).
+- [x] **Authentication & Authorization Middleware**
+  - [x] API Key authentication middleware (validates `Authorization: Bearer <key>`, compares hash, verifies active status, records `last_used_at`).
+  - [x] Scope enforcement middleware (verifies key has required scopes, e.g., `ocr:read`, `ocr:write`, `usage:read`).
+  - [x] Return HTTP 401 on missing/invalid key (`invalid_api_key`), HTTP 403 on insufficient scope (`insufficient_scope`).
+- [x] **API Versioning Support (`PRD Section 6`)**
+  - [x] Route grouping `/api/v1/...` and extensible design for future `/api/v2/...`.
+  - [x] Deprecation header support (`Deprecation: true`, `Sunset: <date>`).
+- [x] **Acceptance Criteria**:
   - Unit tests covering key generation, hashing, verification, and revocation.
   - Integration tests verifying authorized requests succeed and unauthorized/out-of-scope requests receive appropriate 401/403 responses.
 

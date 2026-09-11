@@ -36,6 +36,8 @@ func TestMigrationsFS(t *testing.T) {
 		"000007_create_audit_logs.down.sql",
 		"000008_seed_default_plans.up.sql",
 		"000008_seed_default_plans.down.sql",
+		"000009_seed_default_organization.up.sql",
+		"000009_seed_default_organization.down.sql",
 	}
 
 	foundMap := make(map[string]bool)
@@ -123,8 +125,8 @@ func TestRunMigrations_LiveDB(t *testing.T) {
 	if dirty {
 		t.Fatalf("database schema is in dirty state")
 	}
-	if version != 8 {
-		t.Fatalf("expected migration version 8, got %d", version)
+	if version != 9 {
+		t.Fatalf("expected migration version 9, got %d", version)
 	}
 
 	// 5. Test RunMigrationsDown (rollback)

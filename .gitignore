@@ -52,6 +52,7 @@ crash.log
 .DS_Store
 .idea/
 .vscode/
+.omo/
 *.swp
 *.swo
 *~
