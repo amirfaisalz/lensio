@@ -31,11 +31,22 @@ type Organization struct {
 	CreatedAt          time.Time `json:"created_at"`
 }
 
+// User represents a tenant organization member or user account.
+type User struct {
+	ID        string    `json:"id"`
+	OrgID     string    `json:"org_id"`
+	Email     string    `json:"email"`
+	FullName  string    `json:"full_name"`
+	Role      string    `json:"role"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
 // AccountStore defines repository operations for organizations and subscription plans.
 type AccountStore interface {
 	GetOrganization(ctx context.Context, orgID string) (*Organization, error)
 	GetOrganizationPlan(ctx context.Context, orgID string) (*Plan, error)
 	UpdateOrganizationPlan(ctx context.Context, orgID string, planCode string) error
+	GetOrganizationMembers(ctx context.Context, orgID string) ([]User, error)
 }
 
 // GetOrganization retrieves tenant account metadata, plan details, and active key count.
@@ -175,3 +186,41 @@ func (db *DB) UpdateOrganizationPlan(ctx context.Context, orgID string, planCode
 
 	return nil
 }
+
+// GetOrganizationMembers retrieves all registered users belonging to an organization.
+func (db *DB) GetOrganizationMembers(ctx context.Context, orgID string) ([]User, error) {
+	if orgID == "" {
+		return nil, errors.New("orgID is required")
+	}
+
+	query := `
+		SELECT id, org_id, email, full_name, role, created_at
+		FROM users
+		WHERE org_id = $1
+		ORDER BY created_at ASC;
+	`
+
+	rows, err := db.QueryContext(ctx, query, orgID)
+	if err != nil {
+		return nil, fmt.Errorf("querying organization members: %w", err)
+	}
+	defer rows.Close()
+
+	var members []User
+	for rows.Next() {
+		var u User
+		if err := rows.Scan(&u.ID, &u.OrgID, &u.Email, &u.FullName, &u.Role, &u.CreatedAt); err != nil {
+			return nil, fmt.Errorf("scanning user row: %w", err)
+		}
+		members = append(members, u)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating user rows: %w", err)
+	}
+	if members == nil {
+		members = []User{}
+	}
+
+	return members, nil
+}
+

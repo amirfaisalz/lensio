@@ -144,3 +144,24 @@ func UpdatePlanHandler(accountStore store.AccountStore, auditStore store.AuditSt
 		})
 	}
 }
+
+// AccountMembersHandler handles GET /api/v1/account/members.
+func AccountMembersHandler(accountStore store.AccountStore, defaultOrgID string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		orgID := resolveOrgID(r, r.URL.Query().Get("org_id"), defaultOrgID)
+
+		if accountStore == nil {
+			response.JSON(w, http.StatusOK, map[string]any{"data": []store.User{}})
+			return
+		}
+
+		members, err := accountStore.GetOrganizationMembers(r.Context(), orgID)
+		if err != nil {
+			response.ErrorWithRequest(w, r, http.StatusInternalServerError, response.CodeInternalError, "Failed to retrieve organization members")
+			return
+		}
+
+		response.JSON(w, http.StatusOK, map[string]any{"data": members})
+	}
+}
+

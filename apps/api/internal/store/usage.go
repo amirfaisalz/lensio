@@ -21,12 +21,14 @@ type UsageRecord struct {
 
 // UsageSummary aggregates total requests, success/error distribution, and quota consumption.
 type UsageSummary struct {
-	TotalRequests     int       `json:"total_requests"`
-	SuccessCount      int       `json:"success_count"`
-	ErrorCount        int       `json:"error_count"`
-	QuotaLimit        int       `json:"quota_limit"`
-	QuotaRemaining    int       `json:"quota_remaining"`
-	BillingCycleReset time.Time `json:"billing_cycle_reset"`
+	TotalRequests        int       `json:"total_requests"`
+	SuccessCount         int       `json:"success_count"`
+	ErrorCount           int       `json:"error_count"`
+	QuotaLimit           int       `json:"quota_limit"`
+	QuotaRemaining       int       `json:"quota_remaining"`
+	P95LatencyMS         int       `json:"p95_latency_ms"`
+	RateLimitViolations  int       `json:"rate_limit_violations"`
+	BillingCycleReset    time.Time `json:"billing_cycle_reset"`
 }
 
 // DailyUsage represents aggregated request counts per calendar day.
@@ -44,6 +46,14 @@ type EndpointUsage struct {
 	AvgLatencyMS  float64 `json:"avg_latency_ms"`
 }
 
+// UsageRecordFilter specifies pagination and filtering criteria for request logs.
+type UsageRecordFilter struct {
+	Limit      int
+	Offset     int
+	StatusCode int
+	Endpoint   string
+}
+
 // UsageStore specifies repository operations for persisting and querying API usage metrics.
 type UsageStore interface {
 	CreateUsageRecord(ctx context.Context, rec *UsageRecord) error
@@ -51,6 +61,7 @@ type UsageStore interface {
 	GetDailyUsage(ctx context.Context, orgID string, since time.Time) ([]DailyUsage, error)
 	GetEndpointUsage(ctx context.Context, orgID string, since time.Time) ([]EndpointUsage, error)
 	GetMonthlyOCRCount(ctx context.Context, orgID string, since time.Time) (int, error)
+	GetUsageRecords(ctx context.Context, orgID string, filter UsageRecordFilter) ([]UsageRecord, int, error)
 }
 
 // CreateUsageRecord inserts a new usage record into PostgreSQL.
@@ -93,21 +104,27 @@ func (db *DB) GetUsageSummary(ctx context.Context, orgID string, since time.Time
 		SELECT 
 			COUNT(*),
 			COALESCE(COUNT(*) FILTER (WHERE status_code < 400), 0),
-			COALESCE(COUNT(*) FILTER (WHERE status_code >= 400), 0)
+			COALESCE(COUNT(*) FILTER (WHERE status_code >= 400), 0),
+			COALESCE(PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY latency_ms), 0)::int,
+			COALESCE(COUNT(*) FILTER (WHERE status_code = 429), 0)
 		FROM usage_records
 		WHERE org_id = $1 AND timestamp >= $2;
 	`
 
 	var (
-		totalRequests int
-		successCount  int
-		errorCount    int
+		totalRequests       int
+		successCount        int
+		errorCount          int
+		p95Latency          int
+		rateLimitViolations int
 	)
 
 	err := db.QueryRowContext(ctx, query, orgID, since).Scan(
 		&totalRequests,
 		&successCount,
 		&errorCount,
+		&p95Latency,
+		&rateLimitViolations,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("querying usage summary: %w", err)
@@ -119,12 +136,14 @@ func (db *DB) GetUsageSummary(ctx context.Context, orgID string, since time.Time
 	}
 
 	return &UsageSummary{
-		TotalRequests:     totalRequests,
-		SuccessCount:      successCount,
-		ErrorCount:        errorCount,
-		QuotaLimit:        planQuota,
-		QuotaRemaining:    quotaRemaining,
-		BillingCycleReset: cycleReset,
+		TotalRequests:       totalRequests,
+		SuccessCount:        successCount,
+		ErrorCount:          errorCount,
+		QuotaLimit:          planQuota,
+		QuotaRemaining:      quotaRemaining,
+		P95LatencyMS:        p95Latency,
+		RateLimitViolations: rateLimitViolations,
+		BillingCycleReset:   cycleReset,
 	}, nil
 }
 
@@ -237,3 +256,73 @@ func (db *DB) GetMonthlyOCRCount(ctx context.Context, orgID string, since time.T
 
 	return count, nil
 }
+
+// GetUsageRecords retrieves paginated request execution logs for an organization.
+func (db *DB) GetUsageRecords(ctx context.Context, orgID string, filter UsageRecordFilter) ([]UsageRecord, int, error) {
+	if orgID == "" {
+		return nil, 0, errors.New("orgID is required")
+	}
+
+	if filter.Limit <= 0 {
+		filter.Limit = 50
+	} else if filter.Limit > 100 {
+		filter.Limit = 100
+	}
+	if filter.Offset < 0 {
+		filter.Offset = 0
+	}
+
+	baseWhere := "WHERE org_id = $1"
+	args := []any{orgID}
+	argIdx := 2
+
+	if filter.StatusCode > 0 {
+		baseWhere += fmt.Sprintf(" AND status_code = $%d", argIdx)
+		args = append(args, filter.StatusCode)
+		argIdx++
+	}
+	if filter.Endpoint != "" {
+		baseWhere += fmt.Sprintf(" AND endpoint = $%d", argIdx)
+		args = append(args, filter.Endpoint)
+		argIdx++
+	}
+
+	countQuery := "SELECT COUNT(*) FROM usage_records " + baseWhere
+	var total int
+	if err := db.QueryRowContext(ctx, countQuery, args...).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("counting usage records: %w", err)
+	}
+
+	selectQuery := fmt.Sprintf(`
+		SELECT id, org_id, api_key_id, COALESCE(request_id, ''), endpoint, status_code, latency_ms, timestamp
+		FROM usage_records
+		%s
+		ORDER BY timestamp DESC
+		LIMIT $%d OFFSET $%d;
+	`, baseWhere, argIdx, argIdx+1)
+
+	queryArgs := append(args, filter.Limit, filter.Offset)
+	rows, err := db.QueryContext(ctx, selectQuery, queryArgs...)
+	if err != nil {
+		return nil, 0, fmt.Errorf("querying usage records: %w", err)
+	}
+	defer rows.Close()
+
+	var records []UsageRecord
+	for rows.Next() {
+		var r UsageRecord
+		if err := rows.Scan(&r.ID, &r.OrgID, &r.APIKeyID, &r.RequestID, &r.Endpoint, &r.StatusCode, &r.LatencyMS, &r.Timestamp); err != nil {
+			return nil, 0, fmt.Errorf("scanning usage record row: %w", err)
+		}
+		records = append(records, r)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("iterating usage records: %w", err)
+	}
+	if records == nil {
+		records = []UsageRecord{}
+	}
+
+	return records, total, nil
+}
+

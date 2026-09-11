@@ -41,6 +41,10 @@ func (m *mockUsageStoreForMiddleware) GetMonthlyOCRCount(ctx context.Context, or
 	return 0, nil
 }
 
+func (m *mockUsageStoreForMiddleware) GetUsageRecords(ctx context.Context, orgID string, filter store.UsageRecordFilter) ([]store.UsageRecord, int, error) {
+	return nil, 0, nil
+}
+
 func TestUsageMeteringMiddleware(t *testing.T) {
 	mockStore := &mockUsageStoreForMiddleware{}
 	recorder := usage.NewRecorder(mockStore, 10)

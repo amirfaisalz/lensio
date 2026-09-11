@@ -33,6 +33,10 @@ func TestUsageStore_ValidationErrors(t *testing.T) {
 	if _, err := db.GetMonthlyOCRCount(ctx, "", time.Now()); err == nil {
 		t.Fatal("expected error for empty orgID in GetMonthlyOCRCount")
 	}
+
+	if _, _, err := db.GetUsageRecords(ctx, "", store.UsageRecordFilter{}); err == nil {
+		t.Fatal("expected error for empty orgID in GetUsageRecords")
+	}
 }
 
 func TestUsageStore_LiveDB(t *testing.T) {
@@ -127,4 +131,26 @@ func TestUsageStore_LiveDB(t *testing.T) {
 	if ocrCount < 2 {
 		t.Errorf("expected at least 2 ocr requests, got %d", ocrCount)
 	}
+
+	// 6. Query Usage Records (paginated)
+	records, total, err := db.GetUsageRecords(ctx, defaultOrgID, store.UsageRecordFilter{Limit: 10, Offset: 0})
+	if err != nil {
+		t.Fatalf("failed querying usage records: %v", err)
+	}
+	if total < 2 {
+		t.Errorf("expected at least 2 records total, got %d", total)
+	}
+	if len(records) == 0 {
+		t.Errorf("expected non-empty records slice")
+	}
+
+	// 7. Query with filter
+	filtered, totalFiltered, err := db.GetUsageRecords(ctx, defaultOrgID, store.UsageRecordFilter{StatusCode: 429, Endpoint: "/api/v1/ocr/ktp"})
+	if err != nil {
+		t.Fatalf("failed querying filtered usage records: %v", err)
+	}
+	if totalFiltered < 1 || len(filtered) < 1 {
+		t.Errorf("expected at least 1 filtered record, got total %d, count %d", totalFiltered, len(filtered))
+	}
 }
+

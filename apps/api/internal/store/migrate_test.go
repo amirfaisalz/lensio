@@ -127,8 +127,8 @@ func TestRunMigrations_LiveDB(t *testing.T) {
 	if dirty {
 		t.Fatalf("database schema is in dirty state")
 	}
-	if version != 10 {
-		t.Fatalf("expected migration version 10, got %d", version)
+	if version != 11 {
+		t.Fatalf("expected migration version 11, got %d", version)
 	}
 
 	// 5. Test RunMigrationsDown (rollback)

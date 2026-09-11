@@ -29,6 +29,10 @@ func TestAccountStore_ValidationErrors(t *testing.T) {
 	if err := db.UpdateOrganizationPlan(ctx, "00000000-0000-0000-0000-000000000001", ""); err == nil {
 		t.Fatal("expected error for empty planCode in UpdateOrganizationPlan")
 	}
+
+	if _, err := db.GetOrganizationMembers(ctx, ""); err == nil {
+		t.Fatal("expected error for empty orgID in GetOrganizationMembers")
+	}
 }
 
 func TestAccountStore_LiveDB(t *testing.T) {
@@ -98,6 +102,16 @@ func TestAccountStore_LiveDB(t *testing.T) {
 		t.Fatalf("expected ErrNotFound for missing org, got %v", err)
 	}
 
+	// 6. Get organization members
+	members, err := db.GetOrganizationMembers(ctx, defaultOrgID)
+	if err != nil {
+		t.Fatalf("failed getting organization members: %v", err)
+	}
+	if len(members) == 0 {
+		t.Errorf("expected at least 1 member seeded for default org")
+	}
+
 	// Reset back to 'free' for clean state
 	_ = db.UpdateOrganizationPlan(ctx, defaultOrgID, "free")
 }
+

@@ -1,6 +1,6 @@
 # Binaries and build outputs
 /bin/
-/dist/
+dist/
 /build/
 *.exe
 *.exe~

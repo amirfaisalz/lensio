@@ -12,7 +12,7 @@
 - [x] **Phase 2: API Contract, Authentication & Security Core (Day 2)**
 - [x] **Phase 3: OCR Engine Abstraction & Processing Pipeline (Day 3)**
 - [x] **Phase 4: API Platform – Rate Limiting, Quotas & Usage Metering (Day 4)**
-- [ ] **Phase 5: Developer Dashboard & Portal (Days 1, 4 & 7)**
+- [x] **Phase 5: Developer Dashboard & Portal (Days 1, 4 & 7)**
 - [ ] **Phase 6: Observability, Telemetry & Structured Logging (Day 5)**
 - [ ] **Phase 7: Infrastructure as Code & Multi-Environment Provisioning (Day 5)**
 - [ ] **Phase 8: CI/CD Delivery Pipeline & Automated Security Gates (Day 5 & 6)**
@@ -215,34 +215,34 @@ Implement the platform layers that turn the OCR service into a managed API produ
 
 Build a clean, responsive developer dashboard using React + TypeScript.
 
-- [ ] **Frontend Architecture & Project Setup (`PRD Section 18`)**
-  - [ ] Initialize React + TypeScript application with Tailwind CSS and Vite/Next.
-  - [ ] Set up client API SDK with type generation from OpenAPI spec.
-  - [ ] Implement authentication (Session / JWT / Keycloak OIDC integration).
-- [ ] **Dashboard Navigation & Pages**
-  - [ ] **Overview Page**:
+- [x] **Frontend Architecture & Project Setup (`PRD Section 18`)**
+  - [x] Initialize React + TypeScript application with Tailwind CSS and Vite/Next.
+  - [x] Set up client API SDK with type generation from OpenAPI spec.
+  - [x] Implement authentication (Session / JWT / Keycloak OIDC integration).
+- [x] **Dashboard Navigation & Pages**
+  - [x] **Overview Page**:
     - High-level metric cards: Total Requests, Success Rate %, Error Rate %, P95 Latency.
     - Quota progress bar: e.g., `8,421 / 10,000 requests used`.
     - Rate limit violation counter.
     - Quick-test widget (drag & drop synthetic KTP image to test API live).
-  - [ ] **API Keys Page**:
+  - [x] **API Keys Page**:
     - List active and revoked API keys (masked tokens, prefixes, scopes, last-used timestamps).
     - Create New Key modal (select scopes, name, environment; display plaintext token once).
     - Revoke API key with confirmation modal.
-  - [ ] **Usage & Analytics Page**:
+  - [x] **Usage & Analytics Page**:
     - Historical usage charts (daily requests, success vs. 4xx/5xx).
     - Endpoint breakdown table.
     - Latency distribution graphs.
-  - [ ] **Requests / Logs Explorer**:
+  - [x] **Requests / Logs Explorer**:
     - Paginated request log table (Request ID, Timestamp, Endpoint, Status, Latency).
     - Filter by status code, date range, or API key.
     - Detail view showing latency and sanitized request metadata (NO PII).
-  - [ ] **API Documentation & Quickstart**:
+  - [x] **API Documentation & Quickstart**:
     - Embedded interactive OpenAPI documentation (`/docs`).
     - Copy-paste code snippets for cURL, Go, Python, and Node.js.
-  - [ ] **Account & Settings Page**:
+  - [x] **Account & Settings Page**:
     - Organization profile, current plan details, quota limits, member list.
-- [ ] **Acceptance Criteria**:
+- [x] **Acceptance Criteria**:
   - Developer can log in, create an API key, copy it, and see it listed.
   - Making an OCR request updates the Overview and Usage charts in real-time or on refresh.
 

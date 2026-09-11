@@ -97,12 +97,14 @@ func NewRouterWithDeps(deps RouterDeps) http.Handler {
 		mux.Handle("GET /api/v1/usage", authMiddleware(scopeUsageMiddleware(handlers.UsageSummaryHandler(deps.UsageStore, deps.AccountStore, handlers.DefaultOrgID))))
 		mux.Handle("GET /api/v1/usage/daily", authMiddleware(scopeUsageMiddleware(handlers.DailyUsageHandler(deps.UsageStore, handlers.DefaultOrgID))))
 		mux.Handle("GET /api/v1/usage/endpoints", authMiddleware(scopeUsageMiddleware(handlers.EndpointUsageHandler(deps.UsageStore, handlers.DefaultOrgID))))
+		mux.Handle("GET /api/v1/usage/records", authMiddleware(scopeUsageMiddleware(handlers.UsageRecordsHandler(deps.UsageStore, handlers.DefaultOrgID))))
 
 		// Account & Plan Management (PRD Section 5 & 30)
 		if deps.AccountStore != nil {
 			mux.Handle("GET /api/v1/account", authMiddleware(handlers.AccountDetailsHandler(deps.AccountStore, handlers.DefaultOrgID)))
 			mux.Handle("GET /api/v1/account/plan", authMiddleware(handlers.AccountPlanHandler(deps.AccountStore, handlers.DefaultOrgID)))
 			mux.Handle("PUT /api/v1/account/plan", authMiddleware(handlers.UpdatePlanHandler(deps.AccountStore, deps.AuditStore, handlers.DefaultOrgID)))
+			mux.Handle("GET /api/v1/account/members", authMiddleware(handlers.AccountMembersHandler(deps.AccountStore, handlers.DefaultOrgID)))
 		}
 	}
 
@@ -119,6 +121,7 @@ func NewRouterWithDeps(deps RouterDeps) http.Handler {
 		rootHandler = middleware.UsageMetering(deps.UsageRecorder, handlers.DefaultOrgID)(rootHandler)
 	}
 
-	// Global Middleware: Request ID injection & header emission (PRD Section 20)
-	return middleware.RequestID(rootHandler)
+	// Global Middleware: CORS and Request ID injection (PRD Section 20)
+	return middleware.CORS(middleware.RequestID(rootHandler))
 }
+

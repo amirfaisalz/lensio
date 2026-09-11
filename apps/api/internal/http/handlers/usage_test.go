@@ -16,6 +16,8 @@ type mockUsageStore struct {
 	summary   *store.UsageSummary
 	daily     []store.DailyUsage
 	endpoints []store.EndpointUsage
+	records   []store.UsageRecord
+	total     int
 	ocrCount  int
 	err       error
 }
@@ -52,6 +54,13 @@ func (m *mockUsageStore) GetMonthlyOCRCount(ctx context.Context, orgID string, s
 	return m.ocrCount, nil
 }
 
+func (m *mockUsageStore) GetUsageRecords(ctx context.Context, orgID string, filter store.UsageRecordFilter) ([]store.UsageRecord, int, error) {
+	if m.err != nil {
+		return nil, 0, m.err
+	}
+	return m.records, m.total, nil
+}
+
 type mockAccountStoreForUsage struct {
 	plan *store.Plan
 	err  error
@@ -70,6 +79,10 @@ func (m *mockAccountStoreForUsage) GetOrganizationPlan(ctx context.Context, orgI
 
 func (m *mockAccountStoreForUsage) UpdateOrganizationPlan(ctx context.Context, orgID string, planCode string) error {
 	return nil
+}
+
+func (m *mockAccountStoreForUsage) GetOrganizationMembers(ctx context.Context, orgID string) ([]store.User, error) {
+	return nil, nil
 }
 
 func TestUsageSummaryHandler(t *testing.T) {
@@ -202,3 +215,53 @@ func TestEndpointUsageHandler(t *testing.T) {
 		}
 	})
 }
+
+func TestUsageRecordsHandler(t *testing.T) {
+	t.Run("nil usage store returns empty response", func(t *testing.T) {
+		handler := handlers.UsageRecordsHandler(nil, "org-1")
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/usage/records?limit=10&offset=0", nil)
+		rec := httptest.NewRecorder()
+
+		handler.ServeHTTP(rec, req)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("expected 200, got %d", rec.Code)
+		}
+	})
+
+	t.Run("successful records retrieval with filters", func(t *testing.T) {
+		uStore := &mockUsageStore{
+			records: []store.UsageRecord{
+				{
+					ID:         "rec-1",
+					OrgID:      "org-1",
+					RequestID:  "req-1",
+					Endpoint:   "/api/v1/ocr/ktp",
+					StatusCode: 200,
+					LatencyMS:  150,
+				},
+			},
+			total: 1,
+		}
+		handler := handlers.UsageRecordsHandler(uStore, "org-1")
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/usage/records?limit=25&offset=0&status_code=200&endpoint=/api/v1/ocr/ktp", nil)
+		rec := httptest.NewRecorder()
+
+		handler.ServeHTTP(rec, req)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("expected 200, got %d", rec.Code)
+		}
+	})
+
+	t.Run("store error returns 500", func(t *testing.T) {
+		uStore := &mockUsageStore{err: errors.New("database failure")}
+		handler := handlers.UsageRecordsHandler(uStore, "org-1")
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/usage/records", nil)
+		rec := httptest.NewRecorder()
+
+		handler.ServeHTTP(rec, req)
+		if rec.Code != http.StatusInternalServerError {
+			t.Fatalf("expected 500, got %d", rec.Code)
+		}
+	})
+}
+

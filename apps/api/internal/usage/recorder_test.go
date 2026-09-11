@@ -43,6 +43,10 @@ func (m *mockUsageStore) GetMonthlyOCRCount(ctx context.Context, orgID string, s
 	return 0, nil
 }
 
+func (m *mockUsageStore) GetUsageRecords(ctx context.Context, orgID string, filter store.UsageRecordFilter) ([]store.UsageRecord, int, error) {
+	return nil, 0, nil
+}
+
 func TestRecorder_RecordAndDrain(t *testing.T) {
 	mockStore := &mockUsageStore{}
 	recorder := usage.NewRecorder(mockStore, 100)

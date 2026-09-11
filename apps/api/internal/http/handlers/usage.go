@@ -2,6 +2,8 @@ package handlers
 
 import (
 	"net/http"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/amirfaisalz/nusaid/apps/api/internal/http/response"
@@ -87,3 +89,52 @@ func EndpointUsageHandler(usageStore store.UsageStore, defaultOrgID string) http
 		response.JSON(w, http.StatusOK, map[string]any{"data": endpoints})
 	}
 }
+
+// UsageRecordsHandler handles GET /api/v1/usage/records.
+func UsageRecordsHandler(usageStore store.UsageStore, defaultOrgID string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		orgID := resolveOrgID(r, r.URL.Query().Get("org_id"), defaultOrgID)
+
+		limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+		if limit <= 0 {
+			limit = 50
+		}
+		offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
+		if offset < 0 {
+			offset = 0
+		}
+		statusCode, _ := strconv.Atoi(r.URL.Query().Get("status_code"))
+		endpoint := strings.TrimSpace(r.URL.Query().Get("endpoint"))
+
+		filter := store.UsageRecordFilter{
+			Limit:      limit,
+			Offset:     offset,
+			StatusCode: statusCode,
+			Endpoint:   endpoint,
+		}
+
+		if usageStore == nil {
+			response.JSON(w, http.StatusOK, map[string]any{
+				"data":   []store.UsageRecord{},
+				"total":  0,
+				"limit":  limit,
+				"offset": offset,
+			})
+			return
+		}
+
+		records, total, err := usageStore.GetUsageRecords(r.Context(), orgID, filter)
+		if err != nil {
+			response.ErrorWithRequest(w, r, http.StatusInternalServerError, response.CodeInternalError, "Failed to retrieve usage records")
+			return
+		}
+
+		response.JSON(w, http.StatusOK, map[string]any{
+			"data":   records,
+			"total":  total,
+			"limit":  limit,
+			"offset": offset,
+		})
+	}
+}
+

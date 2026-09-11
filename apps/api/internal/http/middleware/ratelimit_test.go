@@ -27,6 +27,10 @@ func (m *mockAccountStoreForRateLimit) UpdateOrganizationPlan(ctx context.Contex
 	return nil
 }
 
+func (m *mockAccountStoreForRateLimit) GetOrganizationMembers(ctx context.Context, orgID string) ([]store.User, error) {
+	return nil, nil
+}
+
 func TestRateLimitMiddleware(t *testing.T) {
 	limiter := ratelimit.NewLimiter()
 	accountStore := &mockAccountStoreForRateLimit{

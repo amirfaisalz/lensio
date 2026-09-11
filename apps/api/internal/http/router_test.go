@@ -256,6 +256,20 @@ func (d *dummyUsageStore) GetMonthlyOCRCount(ctx context.Context, orgID string, 
 	return 10, nil
 }
 
+func (d *dummyUsageStore) GetUsageRecords(ctx context.Context, orgID string, filter store.UsageRecordFilter) ([]store.UsageRecord, int, error) {
+	return []store.UsageRecord{
+		{
+			ID:         "rec-test-1",
+			OrgID:      orgID,
+			RequestID:  "req-test-1",
+			Endpoint:   "/api/v1/ocr/ktp",
+			StatusCode: 200,
+			LatencyMS:  120,
+			Timestamp:  time.Now(),
+		},
+	}, 1, nil
+}
+
 type dummyAccountStore struct {
 	org  *store.Organization
 	plan *store.Plan
@@ -293,6 +307,19 @@ func (d *dummyAccountStore) UpdateOrganizationPlan(ctx context.Context, orgID st
 		d.plan.Code = planCode
 	}
 	return nil
+}
+
+func (d *dummyAccountStore) GetOrganizationMembers(ctx context.Context, orgID string) ([]store.User, error) {
+	return []store.User{
+		{
+			ID:        "user-1",
+			OrgID:     orgID,
+			Email:     "dev@nusaid.dev",
+			FullName:  "NusaID Lead Developer",
+			Role:      "owner",
+			CreatedAt: time.Now(),
+		},
+	}, nil
 }
 
 type dummyAuditStore struct {

@@ -357,6 +357,71 @@ paths:
         '401':
           $ref: '#/components/responses/InvalidAPIKey'
 
+  /api/v1/usage/records:
+    get:
+      summary: Get Request Execution Logs
+      description: Retrieves paginated request logs with latency and status codes for the Request Explorer (strictly non-PII).
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 50
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 0
+        - name: status_code
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: endpoint
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Paginated request log records
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: integer
+                  limit:
+                    type: integer
+                  offset:
+                    type: integer
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                        request_id:
+                          type: string
+                        endpoint:
+                          type: string
+                        status_code:
+                          type: integer
+                        latency_ms:
+                          type: integer
+                        timestamp:
+                          type: string
+                          format: date-time
+        '401':
+          $ref: '#/components/responses/InvalidAPIKey'
+
   /api/v1/account:
     get:
       summary: Get Account Details
@@ -409,6 +474,44 @@ paths:
                   rate_limit_per_minute:
                     type: integer
                     example: 30
+        '401':
+          $ref: '#/components/responses/InvalidAPIKey'
+
+  /api/v1/account/members:
+    get:
+      summary: Get Organization Members
+      description: Retrieves team members and roles registered under the caller's organization.
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Organization team members
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                        org_id:
+                          type: string
+                          format: uuid
+                        email:
+                          type: string
+                          format: email
+                        full_name:
+                          type: string
+                        role:
+                          type: string
+                        created_at:
+                          type: string
+                          format: date-time
         '401':
           $ref: '#/components/responses/InvalidAPIKey'
 

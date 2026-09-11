@@ -14,11 +14,13 @@ import (
 )
 
 type mockAccountStoreForHandlers struct {
-	org       *store.Organization
-	plan      *store.Plan
-	orgErr    error
-	planErr   error
-	updateErr error
+	org        *store.Organization
+	plan       *store.Plan
+	members    []store.User
+	orgErr     error
+	planErr    error
+	updateErr  error
+	membersErr error
 }
 
 func (m *mockAccountStoreForHandlers) GetOrganization(ctx context.Context, orgID string) (*store.Organization, error) {
@@ -40,6 +42,13 @@ func (m *mockAccountStoreForHandlers) UpdateOrganizationPlan(ctx context.Context
 		return m.updateErr
 	}
 	return nil
+}
+
+func (m *mockAccountStoreForHandlers) GetOrganizationMembers(ctx context.Context, orgID string) ([]store.User, error) {
+	if m.membersErr != nil {
+		return nil, m.membersErr
+	}
+	return m.members, nil
 }
 
 type mockAuditStoreForHandlers struct {
@@ -256,3 +265,54 @@ func TestUpdatePlanHandler(t *testing.T) {
 		}
 	})
 }
+
+func TestAccountMembersHandler(t *testing.T) {
+	t.Run("nil store returns empty members", func(t *testing.T) {
+		handler := handlers.AccountMembersHandler(nil, "org-1")
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/account/members", nil)
+		rec := httptest.NewRecorder()
+
+		handler.ServeHTTP(rec, req)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("expected 200, got %d", rec.Code)
+		}
+	})
+
+	t.Run("successful members retrieval", func(t *testing.T) {
+		aStore := &mockAccountStoreForHandlers{
+			members: []store.User{
+				{
+					ID:        "user-1",
+					OrgID:     "org-1",
+					Email:     "dev@nusaid.dev",
+					FullName:  "NusaID Lead Developer",
+					Role:      "owner",
+					CreatedAt: time.Now(),
+				},
+			},
+		}
+		handler := handlers.AccountMembersHandler(aStore, "org-1")
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/account/members", nil)
+		rec := httptest.NewRecorder()
+
+		handler.ServeHTTP(rec, req)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("expected 200, got %d", rec.Code)
+		}
+	})
+
+	t.Run("store error returns 500", func(t *testing.T) {
+		aStore := &mockAccountStoreForHandlers{
+			membersErr: errors.New("db error"),
+		}
+		handler := handlers.AccountMembersHandler(aStore, "org-1")
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/account/members", nil)
+		rec := httptest.NewRecorder()
+
+		handler.ServeHTTP(rec, req)
+		if rec.Code != http.StatusInternalServerError {
+			t.Fatalf("expected 500, got %d", rec.Code)
+		}
+	})
+}
+
