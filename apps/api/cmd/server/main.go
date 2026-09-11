@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -76,9 +77,18 @@ func main() {
 	}
 
 	var ocrEngine ocr.OCREngine
-	if cfg.OCRProvider == "gemini_flash" && cfg.GeminiAPIKey != "" {
-		logger.Info("initializing Gemini Flash OCR provider", slog.String("model", cfg.GeminiModel))
-		ocrEngine = providers.NewGeminiEngine(cfg.GeminiAPIKey, cfg.GeminiModel)
+	isGemini := strings.EqualFold(cfg.OCRProvider, "gemini_flash") ||
+		strings.EqualFold(cfg.OCRProvider, "gemini") ||
+		strings.EqualFold(cfg.OCRProvider, "gemini-flash")
+
+	if isGemini {
+		if cfg.GeminiAPIKey != "" {
+			logger.Info("initializing Gemini Flash OCR provider", slog.String("model", cfg.GeminiModel))
+			ocrEngine = providers.NewGeminiEngine(cfg.GeminiAPIKey, cfg.GeminiModel)
+		} else {
+			logger.Warn("Gemini OCR provider selected but GEMINI_API_KEY is empty, falling back to Mock OCR engine")
+			ocrEngine = providers.NewMockEngine()
+		}
 	} else {
 		logger.Info("initializing Mock OCR engine (deterministic fixtures)")
 		ocrEngine = providers.NewMockEngine()

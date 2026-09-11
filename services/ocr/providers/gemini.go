@@ -221,13 +221,29 @@ func (g *GeminiOCREngine) Extract(ctx context.Context, imageBytes []byte) (*ocr.
 		return nil, fmt.Errorf("%w: empty candidate response from gemini", ocr.ErrOCRFailed)
 	}
 
-	text := geminiResp.Candidates[0].Content.Parts[0].Text
+	var rawText string
+	for _, part := range geminiResp.Candidates[0].Content.Parts {
+		if part.Text != "" {
+			rawText = part.Text
+			break
+		}
+	}
+	if rawText == "" {
+		return nil, fmt.Errorf("%w: empty text in candidate response from gemini", ocr.ErrOCRFailed)
+	}
+
+	cleanedText := strings.TrimSpace(rawText)
+	cleanedText = strings.TrimPrefix(cleanedText, "```json")
+	cleanedText = strings.TrimPrefix(cleanedText, "```")
+	cleanedText = strings.TrimSuffix(cleanedText, "```")
+	cleanedText = strings.TrimSpace(cleanedText)
+
 	var extracted geminiExtractedJSON
-	if err := json.Unmarshal([]byte(text), &extracted); err != nil {
+	if err := json.Unmarshal([]byte(cleanedText), &extracted); err != nil {
 		return nil, fmt.Errorf("%w: failed parsing model json output: %v", ocr.ErrOCRFailed, err)
 	}
 
-	if strings.EqualFold(extracted.DocumentType, "unsupported") {
+	if strings.EqualFold(extracted.DocumentType, "unsupported") || !strings.EqualFold(extracted.DocumentType, "ktp") {
 		return nil, ocr.ErrUnsupportedDocument
 	}
 

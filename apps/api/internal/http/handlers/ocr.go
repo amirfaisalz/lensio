@@ -195,6 +195,7 @@ func KTPOCRHandler(engine ocr.OCREngine, ocrStore store.OCRRequestStore, quotaCh
 		engDuration := time.Since(engStart).Seconds()
 
 		if err != nil {
+			slog.ErrorContext(r.Context(), "ocr engine extraction failed", slog.String("error", err.Error()))
 			engSpan.RecordError(err)
 			engSpan.SetStatus(codes.Error, err.Error())
 			engSpan.End()

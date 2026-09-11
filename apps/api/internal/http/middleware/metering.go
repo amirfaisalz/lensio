@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/amirfaisalz/nusaid/apps/api/internal/http/response"
@@ -47,6 +48,14 @@ func UsageMetering(recorder *usage.Recorder, defaultOrgID string) func(http.Hand
 			}
 
 			if recorder == nil {
+				return
+			}
+
+			// Exclude internal health probes, API docs, and dashboard telemetry/management queries from tenant usage records
+			if r.URL.Path == "/health" || r.URL.Path == "/ready" || r.URL.Path == "/metrics" ||
+				r.URL.Path == "/docs" || r.URL.Path == "/openapi" || r.URL.Path == "/openapi.yaml" ||
+				strings.HasPrefix(r.URL.Path, "/api/v1/usage") ||
+				strings.HasPrefix(r.URL.Path, "/api/v1/account") {
 				return
 			}
 

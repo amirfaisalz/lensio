@@ -106,7 +106,8 @@ func (db *DB) GetUsageSummary(ctx context.Context, orgID string, since time.Time
 			COALESCE(COUNT(*) FILTER (WHERE status_code < 400), 0),
 			COALESCE(COUNT(*) FILTER (WHERE status_code >= 400), 0),
 			COALESCE(PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY latency_ms), 0)::int,
-			COALESCE(COUNT(*) FILTER (WHERE status_code = 429), 0)
+			COALESCE(COUNT(*) FILTER (WHERE status_code = 429), 0),
+			COALESCE(COUNT(*) FILTER (WHERE endpoint = '/api/v1/ocr/ktp'), 0)
 		FROM usage_records
 		WHERE org_id = $1 AND timestamp >= $2;
 	`
@@ -117,6 +118,7 @@ func (db *DB) GetUsageSummary(ctx context.Context, orgID string, since time.Time
 		errorCount          int
 		p95Latency          int
 		rateLimitViolations int
+		ocrRequestsCount    int
 	)
 
 	err := db.QueryRowContext(ctx, query, orgID, since).Scan(
@@ -125,12 +127,13 @@ func (db *DB) GetUsageSummary(ctx context.Context, orgID string, since time.Time
 		&errorCount,
 		&p95Latency,
 		&rateLimitViolations,
+		&ocrRequestsCount,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("querying usage summary: %w", err)
 	}
 
-	quotaRemaining := planQuota - totalRequests
+	quotaRemaining := planQuota - ocrRequestsCount
 	if quotaRemaining < 0 {
 		quotaRemaining = 0
 	}

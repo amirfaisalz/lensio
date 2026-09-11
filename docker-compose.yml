@@ -40,6 +40,9 @@ services:
       ENV: "development"
       DATABASE_URL: "postgres://nusaid:nusaid_dev_password@postgres:5432/nusaid?sslmode=disable"
       LOG_LEVEL: "info"
+      OCR_PROVIDER: "${OCR_PROVIDER:-mock}"
+      GEMINI_API_KEY: "${GEMINI_API_KEY:-}"
+      GEMINI_MODEL: "${GEMINI_MODEL:-gemini-3.6-flash}"
     depends_on:
       postgres:
         condition: service_healthy
