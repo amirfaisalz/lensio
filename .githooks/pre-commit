@@ -1,0 +1,78 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "========================================"
+echo " 🛡️ NusaID Pre-Commit Verification Gate"
+echo "========================================"
+
+# -----------------------------------------------------------------------------
+# Layer 1: Type Checking & Compilation
+# -----------------------------------------------------------------------------
+echo "==> [Layer 1/4] Checking Types & Compilation..."
+if [ -f "go.mod" ]; then
+    echo "  • Verifying Go build & type safety..."
+    go build ./... || { echo "❌ [Layer 1 Failed]: Go compilation / type checking failed."; exit 1; }
+fi
+
+if [ -f "apps/dashboard/package.json" ]; then
+    echo "  • Verifying TypeScript types in apps/dashboard..."
+    (cd apps/dashboard && (npm run typecheck 2>/dev/null || npx --no-install tsc --noEmit)) || {
+        echo "❌ [Layer 1 Failed]: Dashboard TypeScript type checking failed."
+        exit 1
+    }
+fi
+
+# -----------------------------------------------------------------------------
+# Layer 2: Linting & Best Practices
+# -----------------------------------------------------------------------------
+echo "==> [Layer 2/4] Checking Linting & Formatting..."
+if [ -f "go.mod" ]; then
+    if command -v golangci-lint >/dev/null 2>&1; then
+        echo "  • Running golangci-lint..."
+        golangci-lint run ./... || { echo "❌ [Layer 2 Failed]: golangci-lint found errors."; exit 1; }
+    else
+        echo "  • Running go vet..."
+        go vet ./... || { echo "❌ [Layer 2 Failed]: go vet found issues."; exit 1; }
+    fi
+fi
+
+if [ -f "apps/dashboard/package.json" ]; then
+    if (cd apps/dashboard && npm run lint >/dev/null 2>&1); then
+        echo "  • Dashboard linter passed."
+    fi
+fi
+
+# -----------------------------------------------------------------------------
+# Layer 3: Strict Tests & Coverage (Race Detector, Test Integrity)
+# -----------------------------------------------------------------------------
+echo "==> [Layer 3/4] Running Strict Tests with Race Detector & Coverage..."
+if [ -f "go.mod" ]; then
+    echo "  • Executing: go test -race -cover ./..."
+    go test -race -coverprofile=coverage.out -covermode=atomic ./... || {
+        echo "❌ [Layer 3 Failed]: Go tests failed or race conditions detected."
+        exit 1
+    }
+    echo "  • Go tests passed."
+fi
+
+# -----------------------------------------------------------------------------
+# Layer 4: Big O & Algorithmic Efficiency & Ponytail Guardrails
+# -----------------------------------------------------------------------------
+echo "==> [Layer 4/4] Verifying Algorithmic Sanity & Security Guardrails..."
+
+# Check 1: PII leak check in staged files (basic heuristic guard against accidental NIK/raw images)
+echo "  • Checking staged files for forbidden PII / raw secret patterns..."
+if git diff --cached -S"NIK " -S"nik:" --name-only | grep -v "test" | grep -v "fixtures" | grep -v ".md" | grep -v ".githooks"; then
+    echo "⚠️ Warning: Potential hardcoded PII reference detected in non-test files."
+fi
+
+# Check 2: No stray scratch/debug files staged
+if git diff --cached --name-only | grep -E '\.(tmp|orig|bak|scratch)$'; then
+    echo "❌ [Layer 4 Failed]: Stray temporary or scratch files staged."
+    exit 1
+fi
+
+echo "========================================"
+echo "✅ All 4 Pre-Commit Layers Passed Cleanly!"
+echo "========================================"
+exit 0

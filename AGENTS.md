@@ -1,0 +1,109 @@
+# NusaID AI Agent Operational Guide
+
+> Single source of truth for AI agents (and human contributors) working on the NusaID codebase.
+> **MANDATORY IN ALL SESSIONS**: All rules in this document must be strictly obeyed across every session without exception.
+
+---
+
+## 1. Project Identity & Purpose
+
+**NusaID** is an affordable Indonesian KTP OCR API as a service. It is designed as a production-grade API product demonstrating end-to-end platform engineering:
+- **Language & Runtime**: Go (Backend API) + React & TypeScript (Developer Dashboard)
+- **Database**: PostgreSQL 16 (Relational state, migrations via `golang-migrate`)
+- **Primary OCR Engine**: Pluggable `OCREngine` interface. Default Vision AI: **Google Gemini 2.0 Flash / 1.5 Flash** (Google AI Studio Free Tier); Default Test Engine: **MockOCREngine** (deterministic fixtures).
+- **Platform Infrastructure**: Azure Container Apps, Cloudflare, OpenTofu, Terragrunt, OpenTelemetry, Grafana.
+
+### Core Engineering Principle
+> **"Build the smallest real product that forces us to solve real production engineering problems."**
+> Never build features merely to add tech to a README. Every piece exists because the product demands it.
+
+---
+
+## 2. Current Strategic Focus (Strict MVP Scope)
+
+- **Target Document**: **Indonesian KTP only** (`POST /api/v1/ocr/ktp`).
+- **Target Platform**: API authentication, scoped API keys, rate limiting, quota enforcement, non-blocking usage metering, `/health` and `/ready` probes, OpenTelemetry instrumentation.
+- **Future Product Lines**: SIM, Passport, NPWP, KK, Invoices, and Identity Verification are explicitly deferred to post-MVP iterations. **Do not implement them now.**
+
+---
+
+## 3. Five Mandatory Agent Operating Rules (Enforced in ALL Sessions)
+
+All AI agents must strictly follow these five non-negotiable rules on every task:
+
+### Rule 1: Always Apply Ponytail Skills (Minimal & Simplest Solution)
+- **Lazy Senior Dev Mindset**: The best code is the code never written. Always find the simplest, shortest, most minimal solution that actually works (YAGNI).
+- **Climb the Ponytail Ladder**:
+  1. *Does this need to exist at all?* (If speculative, skip it).
+  2. *Already in this codebase?* (Reuse existing utils/types).
+  3. *Standard library does it?* (Reach for Go `net/http`, `crypto/sha256`, `log/slog` before adding dependencies).
+  4. *Native platform feature covers it?* (DB constraint, native HTML/CSS).
+  5. *Shortest working diff wins.*
+- **Rules**:
+  - No unrequested abstractions: no interface with only one implementation (except `OCREngine` required by spec), no premature factories, no scaffolding "for later".
+  - Deletion over addition. Boring over clever.
+  - **NEVER be lazy about**: Understanding the problem, input validation at boundaries, security, error handling, or test correctness.
+
+### Rule 2: Strict Test Integrity & 100% Coverage Target
+- Every single feature and algorithm must have comprehensive tests targeting **100% coverage**.
+- **Absolute Test Integrity**: NEVER game, bypass, or fake tests (e.g. no dummy `assert true == true`, no mocking away the actual logic being evaluated, no empty assertions).
+- **True Red-Green Verification**: Every test must genuinely prove both the **failed** state (negative tests, malformed inputs, error branches, edge cases) and the **passed** state (valid inputs, expected outputs).
+- **Race Detection Mandate**: Always run tests with race detection enabled: `go test -race -cover ./...`.
+- **Synthetic Test Data Only**: NEVER use real Indonesian KTP or citizen identity data. Use synthetic fixtures in `tests/fixtures/synthetic/`.
+
+### Rule 3: Algorithmic Efficiency & Big O Benchmarking
+- All algorithms and data processing pipelines must be fast, optimal, and low-overhead.
+- **Big O Notation as Benchmark**:
+  - Explicitly evaluate Time Complexity (prioritize $O(1)$ lookups and $O(n)$ single-pass processing; strictly avoid accidental $O(n^2)$ quadratic loops in hot paths).
+  - Explicitly evaluate Space Complexity (keep memory allocations minimal; avoid heap escapes where stack allocation suffices).
+- Benchmark critical algorithms (regex extractors, NIK validators, rate limit evaluators) using Go benchmarks (`testing.B`).
+
+### Rule 4: Zero Lint Errors, Zero Type Errors & Strict Best Practices
+- **Zero Type Errors**: Strict Go compilation, strict TypeScript (`strict: true`, `noImplicitAny: true`, zero `any`).
+- **Zero Lint Errors**: Must pass `golangci-lint run ./...` and frontend linters without warnings or suppressed errors.
+- **Idiomatic Best Practices**:
+  - Always wrap errors with context (`fmt.Errorf("...: %w", err)`).
+  - **Zero Panics**: Never call `panic()` in production paths; use standardized error envelopes.
+  - Structured logging with `log/slog` (JSON format, correlated with `request_id`, zero PII).
+
+### Rule 5: Pre-Commit Git Hooks Enforced on Every Commit
+- Git hooks in `.githooks/pre-commit` must be active and configured via `git config core.hooksPath .githooks`.
+- **Always run and pass all 4 verification layers before committing code**:
+  - **Layer 1**: Type Checking & Compilation (`go build ./...`, `tsc --noEmit`)
+  - **Layer 2**: Linting & Best Practices (`golangci-lint` / `go vet`, frontend lint)
+  - **Layer 3**: Strict Tests & Coverage with Race Detector (`go test -race -cover ./...`)
+  - **Layer 4**: Big O, Security Guardrails & PII leak prevention
+- Never bypass pre-commit hooks with `--no-verify`.
+
+---
+
+## 4. Security & Privacy Non-Negotiables
+
+1. **Zero Plaintext Secrets**: Store only cryptographic hashes (SHA-256) of API keys in PostgreSQL. Plaintext keys are returned once upon generation and never stored.
+2. **Strict Data Minimization**: Never store uploaded KTP images. Process in memory/temporary buffer and discard immediately.
+3. **Zero PII in Logs**: Never write NIK, full names, addresses, or dates of birth to application logs. Correlate using `request_id` and `trace_id` only.
+4. **Deterministic Validation First**: Validate NIK (16 digits, valid numeric structure) and dates deterministically. Do not rely solely on LLM output.
+5. **No Leaky Abstractions**: Keep OCR providers strictly behind the `OCREngine` interface. The HTTP API layer must never know provider details.
+
+---
+
+## 5. Context Pointers (`.agents/`)
+
+Read these files based on the nature of your current task:
+
+| Topic | File Pointer | When to Read |
+|---|---|---|
+| **Architecture & Structure** | [`.agents/architecture.md`](.agents/architecture.md) | Adding modules, altering database schemas, introducing new services or interfaces. |
+| **Coding Standards** | [`.agents/coding.md`](.agents/coding.md) | Writing or refactoring Go backend code, error envelopes, or React dashboard code. |
+| **Testing & Quality** | [`.agents/testing.md`](.agents/testing.md) | Writing unit tests, integration tests, mocks, or Playwright E2E tests. |
+| **Security & Privacy** | [`.agents/security.md`](.agents/security.md) | Handling authentication, authorization, API keys, PII sanitization, or input validation. |
+| **Deployment & Ops** | [`.agents/deployment.md`](.agents/deployment.md) | Working on Dockerfiles, OpenTofu, CI/CD workflows, health probes, or rollback procedures. |
+
+---
+
+## 6. Development Phase Tracking
+
+All phases and granular deliverables are tracked in:
+👉 **[`DEVELOPMENT_CHECKLIST.md`](DEVELOPMENT_CHECKLIST.md)**
+
+Update the checklist checkmarks `[x]` as each item's acceptance criteria are verified.
