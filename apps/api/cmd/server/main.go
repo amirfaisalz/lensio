@@ -12,7 +12,9 @@ import (
 
 	"github.com/amirfaisalz/nusaid/apps/api/internal/config"
 	internalhttp "github.com/amirfaisalz/nusaid/apps/api/internal/http"
+	"github.com/amirfaisalz/nusaid/apps/api/internal/ratelimit"
 	"github.com/amirfaisalz/nusaid/apps/api/internal/store"
+	"github.com/amirfaisalz/nusaid/apps/api/internal/usage"
 	"github.com/amirfaisalz/nusaid/services/ocr"
 	"github.com/amirfaisalz/nusaid/services/ocr/providers"
 )
@@ -67,7 +69,24 @@ func main() {
 		ocrEngine = providers.NewMockEngine()
 	}
 
-	router := internalhttp.NewRouter(pinger, db, ocrEngine, db)
+	rateLimiter := ratelimit.NewLimiter()
+
+	var usageRecorder *usage.Recorder
+	if db != nil {
+		usageRecorder = usage.NewRecorder(db, 1024)
+	}
+
+	router := internalhttp.NewRouterWithDeps(internalhttp.RouterDeps{
+		Pinger:        pinger,
+		KeyStore:      db,
+		OCREngine:     ocrEngine,
+		OCRStore:      db,
+		UsageStore:    db,
+		AccountStore:  db,
+		AuditStore:    db,
+		RateLimiter:   rateLimiter,
+		UsageRecorder: usageRecorder,
+	})
 
 	srv := &http.Server{
 		Addr:         ":" + cfg.Port,
@@ -99,6 +118,12 @@ func main() {
 		logger.Error("graceful server shutdown failed", slog.String("error", err.Error()))
 	} else {
 		logger.Info("server exited cleanly")
+	}
+
+	if usageRecorder != nil {
+		if err := usageRecorder.Close(shutdownCtx); err != nil {
+			logger.Error("error draining usage recorder", slog.String("error", err.Error()))
+		}
 	}
 
 	if db != nil {

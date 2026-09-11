@@ -83,9 +83,23 @@ func (m *mockAPIKeyStore) TouchAPIKeyLastUsed(ctx context.Context, keyID string,
 	return nil
 }
 
+type mockAuditStore struct {
+	recorded []*store.AuditLog
+}
+
+func (m *mockAuditStore) RecordAuditLog(ctx context.Context, log *store.AuditLog) error {
+	m.recorded = append(m.recorded, log)
+	return nil
+}
+
+func (m *mockAuditStore) ListAuditLogsByOrg(ctx context.Context, orgID string) ([]*store.AuditLog, error) {
+	return m.recorded, nil
+}
+
 func TestCreateAPIKeyHandler_Success(t *testing.T) {
 	s := newMockStore()
-	handler := handlers.CreateAPIKeyHandler(s, handlers.DefaultOrgID)
+	audit := &mockAuditStore{}
+	handler := handlers.CreateAPIKeyHandler(s, audit, handlers.DefaultOrgID)
 
 	payload := map[string]any{
 		"name": "Production Service",
@@ -125,7 +139,7 @@ func TestCreateAPIKeyHandler_Success(t *testing.T) {
 
 func TestCreateAPIKeyHandler_CustomScopesAndEnv(t *testing.T) {
 	s := newMockStore()
-	handler := handlers.CreateAPIKeyHandler(s, handlers.DefaultOrgID)
+	handler := handlers.CreateAPIKeyHandler(s, nil, handlers.DefaultOrgID)
 
 	payload := map[string]any{
 		"name":        "Test Runner",
@@ -160,7 +174,7 @@ func TestCreateAPIKeyHandler_CustomScopesAndEnv(t *testing.T) {
 
 func TestCreateAPIKeyHandler_AuthKeyOrgResolution(t *testing.T) {
 	s := newMockStore()
-	handler := handlers.CreateAPIKeyHandler(s, handlers.DefaultOrgID)
+	handler := handlers.CreateAPIKeyHandler(s, nil, handlers.DefaultOrgID)
 
 	payload := map[string]any{
 		"name": "Service Key",
@@ -190,7 +204,7 @@ func TestCreateAPIKeyHandler_AuthKeyOrgResolution(t *testing.T) {
 
 func TestCreateAPIKeyHandler_ValidationErrors(t *testing.T) {
 	s := newMockStore()
-	handler := handlers.CreateAPIKeyHandler(s, handlers.DefaultOrgID)
+	handler := handlers.CreateAPIKeyHandler(s, nil, handlers.DefaultOrgID)
 
 	tests := []struct {
 		name       string
@@ -240,7 +254,7 @@ func TestCreateAPIKeyHandler_ValidationErrors(t *testing.T) {
 func TestCreateAPIKeyHandler_StoreError(t *testing.T) {
 	s := newMockStore()
 	s.createErr = errors.New("db disk full")
-	handler := handlers.CreateAPIKeyHandler(s, handlers.DefaultOrgID)
+	handler := handlers.CreateAPIKeyHandler(s, nil, handlers.DefaultOrgID)
 
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/api-keys", bytes.NewBufferString(`{"name": "test"}`))
@@ -318,7 +332,8 @@ func TestRevokeAPIKeyHandler_Success(t *testing.T) {
 	_ = s.CreateAPIKey(context.Background(), k)
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("DELETE /api/v1/auth/api-keys/{id}", handlers.RevokeAPIKeyHandler(s, handlers.DefaultOrgID))
+	audit := &mockAuditStore{}
+	mux.HandleFunc("DELETE /api/v1/auth/api-keys/{id}", handlers.RevokeAPIKeyHandler(s, audit, handlers.DefaultOrgID))
 
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodDelete, "/api/v1/auth/api-keys/k-revoke-me", nil)
@@ -328,12 +343,15 @@ func TestRevokeAPIKeyHandler_Success(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("expected 200 OK, got %d. Body: %s", rec.Code, rec.Body.String())
 	}
+	if len(audit.recorded) != 1 || audit.recorded[0].Action != "api_key.revoke" {
+		t.Errorf("expected 1 api_key.revoke audit log, got %+v", audit.recorded)
+	}
 }
 
 func TestRevokeAPIKeyHandler_NotFound(t *testing.T) {
 	s := newMockStore()
 	mux := http.NewServeMux()
-	mux.HandleFunc("DELETE /api/v1/auth/api-keys/{id}", handlers.RevokeAPIKeyHandler(s, handlers.DefaultOrgID))
+	mux.HandleFunc("DELETE /api/v1/auth/api-keys/{id}", handlers.RevokeAPIKeyHandler(s, nil, handlers.DefaultOrgID))
 
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodDelete, "/api/v1/auth/api-keys/non-existent-id", nil)
@@ -348,7 +366,7 @@ func TestRevokeAPIKeyHandler_NotFound(t *testing.T) {
 func TestRevokeAPIKeyHandler_Errors(t *testing.T) {
 	t.Run("missing path value", func(t *testing.T) {
 		s := newMockStore()
-		handler := handlers.RevokeAPIKeyHandler(s, handlers.DefaultOrgID)
+		handler := handlers.RevokeAPIKeyHandler(s, nil, handlers.DefaultOrgID)
 
 		rec := httptest.NewRecorder()
 		req := httptest.NewRequest(http.MethodDelete, "/api/v1/auth/api-keys/", nil)
@@ -364,7 +382,7 @@ func TestRevokeAPIKeyHandler_Errors(t *testing.T) {
 		s := newMockStore()
 		s.revokeErr = errors.New("db error")
 		mux := http.NewServeMux()
-		mux.HandleFunc("DELETE /api/v1/auth/api-keys/{id}", handlers.RevokeAPIKeyHandler(s, handlers.DefaultOrgID))
+		mux.HandleFunc("DELETE /api/v1/auth/api-keys/{id}", handlers.RevokeAPIKeyHandler(s, nil, handlers.DefaultOrgID))
 
 		rec := httptest.NewRecorder()
 		req := httptest.NewRequest(http.MethodDelete, "/api/v1/auth/api-keys/some-id", nil)

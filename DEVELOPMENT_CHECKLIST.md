@@ -11,7 +11,7 @@
 - [x] **Phase 1: Core Foundation & Scaffolding (Day 1)**
 - [x] **Phase 2: API Contract, Authentication & Security Core (Day 2)**
 - [x] **Phase 3: OCR Engine Abstraction & Processing Pipeline (Day 3)**
-- [ ] **Phase 4: API Platform – Rate Limiting, Quotas & Usage Metering (Day 4)**
+- [x] **Phase 4: API Platform – Rate Limiting, Quotas & Usage Metering (Day 4)**
 - [ ] **Phase 5: Developer Dashboard & Portal (Days 1, 4 & 7)**
 - [ ] **Phase 6: Observability, Telemetry & Structured Logging (Day 5)**
 - [ ] **Phase 7: Infrastructure as Code & Multi-Environment Provisioning (Day 5)**
@@ -173,38 +173,38 @@ Implement the pluggable OCR interface, image preprocessing, extraction, and vali
 
 Implement the platform layers that turn the OCR service into a managed API product.
 
-- [ ] **Rate Limiting Engine (`PRD Section 9`)**
-  - [ ] Implement rate limiter middleware (Token Bucket / Sliding Window).
-  - [ ] Tier-based rate limits based on organization's plan:
+- [x] **Rate Limiting Engine (`PRD Section 9`)**
+  - [x] Implement rate limiter middleware (Token Bucket / Sliding Window).
+  - [x] Tier-based rate limits based on organization's plan:
     - Free: 10 req/min
     - Starter: 30 req/min
     - Pro: 100 req/min
-  - [ ] Add standard rate limit headers:
+  - [x] Add standard rate limit headers:
     - `X-RateLimit-Limit`
     - `X-RateLimit-Remaining`
     - `X-RateLimit-Reset`
     - `Retry-After` (on 429)
-  - [ ] Return HTTP 429 with error code `rate_limit_exceeded` on violations.
-- [ ] **Quota Enforcement System (`PRD Section 10 & 30`)**
-  - [ ] Monthly billing period tracking per organization.
-  - [ ] Quota checks before executing OCR requests:
+  - [x] Return HTTP 429 with error code `rate_limit_exceeded` on violations.
+- [x] **Quota Enforcement System (`PRD Section 10 & 30`)**
+  - [x] Monthly billing period tracking per organization.
+  - [x] Quota checks before executing OCR requests:
     - Free: 100 req/month
     - Starter: 1,000 req/month
     - Pro: 10,000 req/month
-  - [ ] Return HTTP 429 with error code `quota_exceeded` when monthly quota exhausted.
-- [ ] **Usage Metering Subsystem (`PRD Section 11`)**
-  - [ ] Non-blocking usage recorder (asynchronous dispatch / buffered channel).
-  - [ ] Persist usage record per request (`request_id`, `organization_id`, `api_key_id`, `endpoint`, `status_code`, `latency_ms`, `timestamp`).
-  - [ ] Implement analytics queries:
+  - [x] Return HTTP 429 with error code `quota_exceeded` when monthly quota exhausted.
+- [x] **Usage Metering Subsystem (`PRD Section 11`)**
+  - [x] Non-blocking usage recorder (asynchronous dispatch / buffered channel).
+  - [x] Persist usage record per request (`request_id`, `organization_id`, `api_key_id`, `endpoint`, `status_code`, `latency_ms`, `timestamp`).
+  - [x] Implement analytics queries:
     - `GET /api/v1/usage` (summary: total requests, successes, errors, quota used/remaining).
     - `GET /api/v1/usage/daily` (daily timeseries for billing cycle).
     - `GET /api/v1/usage/endpoints` (breakdown by endpoint).
-- [ ] **Account & Plan Management (`PRD Section 5`)**
-  - [ ] Implement `GET /api/v1/account` (organization details, member count, active keys).
-  - [ ] Implement `GET /api/v1/account/plan` (current plan, quota limits, renewal/reset date).
-- [ ] **Audit Logging (`PRD Section 21`)**
-  - [ ] Record audit trail for sensitive administrative events: API key creation, revocation, plan change.
-- [ ] **Acceptance Criteria**:
+- [x] **Account & Plan Management (`PRD Section 5`)**
+  - [x] Implement `GET /api/v1/account` (organization details, member count, active keys).
+  - [x] Implement `GET /api/v1/account/plan` (current plan, quota limits, renewal/reset date).
+- [x] **Audit Logging (`PRD Section 21`)**
+  - [x] Record audit trail for sensitive administrative events: API key creation, revocation, plan change.
+- [x] **Acceptance Criteria**:
   - Exceeding rate limit triggers HTTP 429 with expected headers.
   - Exceeding monthly quota blocks further OCR requests.
   - Every API call accurately increments usage metrics.

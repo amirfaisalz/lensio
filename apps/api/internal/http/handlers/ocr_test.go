@@ -91,11 +91,25 @@ func TestGenerateUUIDv4(t *testing.T) {
 	}
 }
 
+type mockQuotaChecker struct {
+	allowed   bool
+	remaining int
+	limit     int
+	err       error
+}
+
+func (m *mockQuotaChecker) CheckQuota(ctx context.Context, orgID string) (bool, int, int, error) {
+	if m.err != nil {
+		return false, 0, 0, m.err
+	}
+	return m.allowed, m.remaining, m.limit, nil
+}
+
 func TestKTPOCRHandler(t *testing.T) {
 	validImage := synthetic.GenerateValidKTPImage()
 	engine := providers.NewMockEngine()
 	ocrStore := newDummyOCRStore()
-	handler := handlers.KTPOCRHandler(engine, ocrStore)
+	handler := handlers.KTPOCRHandler(engine, ocrStore, nil)
 
 	t.Run("unauthenticated request returns 401", func(t *testing.T) {
 		req := createMultipartRequest(t, "document", "ktp.png", validImage)
@@ -143,7 +157,7 @@ func TestKTPOCRHandler(t *testing.T) {
 	})
 
 	t.Run("nil engine returns 502", func(t *testing.T) {
-		nilHandler := handlers.KTPOCRHandler(nil, ocrStore)
+		nilHandler := handlers.KTPOCRHandler(nil, ocrStore, nil)
 		req := createMultipartRequest(t, "document", "ktp.png", validImage)
 		req = withAuth(req, "org-1", "key-1")
 		rec := httptest.NewRecorder()
@@ -248,7 +262,7 @@ func TestKTPOCRHandler(t *testing.T) {
 
 	t.Run("store failure does not block successful 200 response", func(t *testing.T) {
 		failingStore := &dummyOCRStore{err: errors.New("database down")}
-		failStoreHandler := handlers.KTPOCRHandler(engine, failingStore)
+		failStoreHandler := handlers.KTPOCRHandler(engine, failingStore, nil)
 
 		req := createMultipartRequest(t, "document", "ktp.png", validImage)
 		req = withAuth(req, "org-1", "key-1")
@@ -257,6 +271,40 @@ func TestKTPOCRHandler(t *testing.T) {
 		failStoreHandler.ServeHTTP(rec, req)
 		if rec.Code != http.StatusOK {
 			t.Fatalf("expected 200 even if store failed, got %d", rec.Code)
+		}
+	})
+
+	t.Run("quota exhausted returns 429 quota_exceeded", func(t *testing.T) {
+		quotaChecker := &mockQuotaChecker{allowed: false}
+		quotaHandler := handlers.KTPOCRHandler(engine, ocrStore, quotaChecker)
+
+		req := createMultipartRequest(t, "document", "ktp.png", validImage)
+		req = withAuth(req, "org-1", "key-1")
+		rec := httptest.NewRecorder()
+
+		quotaHandler.ServeHTTP(rec, req)
+		if rec.Code != http.StatusTooManyRequests {
+			t.Fatalf("expected 429, got %d", rec.Code)
+		}
+
+		var envelope response.ErrorEnvelope
+		_ = json.NewDecoder(rec.Body).Decode(&envelope)
+		if envelope.Error.Code != response.CodeQuotaExceeded {
+			t.Errorf("expected code quota_exceeded, got %s", envelope.Error.Code)
+		}
+	})
+
+	t.Run("quota check error returns 500 internal_error", func(t *testing.T) {
+		quotaChecker := &mockQuotaChecker{err: errors.New("quota db timeout")}
+		quotaHandler := handlers.KTPOCRHandler(engine, ocrStore, quotaChecker)
+
+		req := createMultipartRequest(t, "document", "ktp.png", validImage)
+		req = withAuth(req, "org-1", "key-1")
+		rec := httptest.NewRecorder()
+
+		quotaHandler.ServeHTTP(rec, req)
+		if rec.Code != http.StatusInternalServerError {
+			t.Fatalf("expected 500, got %d", rec.Code)
 		}
 	})
 }

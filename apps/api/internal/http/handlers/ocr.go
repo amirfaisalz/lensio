@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"crypto/rand"
 	"errors"
 	"fmt"
@@ -50,10 +51,15 @@ type OCRRequestMetadata struct {
 	CreatedAt  time.Time `json:"created_at"`
 }
 
+// QuotaChecker specifies the capability to evaluate remaining monthly request quota.
+type QuotaChecker interface {
+	CheckQuota(ctx context.Context, orgID string) (allowed bool, remaining int, limit int, err error)
+}
+
 // KTPOCRHandler processes an uploaded Indonesian KTP image, performs classification,
 // deterministic field normalization/validation, and returns structured data.
 // Uploaded image buffers are strictly processed in memory and discarded immediately.
-func KTPOCRHandler(engine ocr.OCREngine, ocrStore store.OCRRequestStore) http.HandlerFunc {
+func KTPOCRHandler(engine ocr.OCREngine, ocrStore store.OCRRequestStore, quotaChecker QuotaChecker) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		startTime := time.Now()
 
@@ -67,6 +73,30 @@ func KTPOCRHandler(engine ocr.OCREngine, ocrStore store.OCRRequestStore) http.Ha
 				"Unauthenticated request",
 			)
 			return
+		}
+
+		if quotaChecker != nil {
+			allowed, _, _, err := quotaChecker.CheckQuota(r.Context(), key.OrgID)
+			if err != nil {
+				response.ErrorWithRequest(
+					w,
+					r,
+					http.StatusInternalServerError,
+					response.CodeInternalError,
+					"Failed checking quota availability",
+				)
+				return
+			}
+			if !allowed {
+				response.ErrorWithRequest(
+					w,
+					r,
+					http.StatusTooManyRequests,
+					response.CodeQuotaExceeded,
+					"Monthly API quota exceeded. Please upgrade your plan.",
+				)
+				return
+			}
 		}
 
 		// Enforce maximum upload body size (5MB + 1KB buffer for multipart headers)

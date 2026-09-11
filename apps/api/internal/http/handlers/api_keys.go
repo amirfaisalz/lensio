@@ -54,7 +54,7 @@ type APIKeyListItem struct {
 }
 
 // CreateAPIKeyHandler handles POST /api/v1/auth/api-keys.
-func CreateAPIKeyHandler(keyStore store.APIKeyStore, defaultOrgID string) http.HandlerFunc {
+func CreateAPIKeyHandler(keyStore store.APIKeyStore, auditStore store.AuditStore, defaultOrgID string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req CreateKeyRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -108,6 +108,25 @@ func CreateAPIKeyHandler(keyStore store.APIKeyStore, defaultOrgID string) http.H
 			return
 		}
 
+		if auditStore != nil {
+			actorID := "system"
+			if authKey := middleware.GetAPIKey(r.Context()); authKey != nil && authKey.ID != "" {
+				actorID = "api_key:" + authKey.ID
+			}
+			_ = auditStore.RecordAuditLog(r.Context(), &store.AuditLog{
+				OrgID:          keyModel.OrgID,
+				ActorID:        actorID,
+				Action:         "api_key.create",
+				TargetResource: "api_key:" + keyModel.ID,
+				Metadata: map[string]any{
+					"name":        keyModel.Name,
+					"prefix":      keyModel.Prefix,
+					"scopes":      keyModel.Scopes,
+					"environment": keyModel.Environment,
+				},
+			})
+		}
+
 		response.JSON(w, http.StatusCreated, CreateKeyResponse{
 			ID:          keyModel.ID,
 			OrgID:       keyModel.OrgID,
@@ -156,7 +175,7 @@ func ListAPIKeysHandler(keyStore store.APIKeyStore, defaultOrgID string) http.Ha
 }
 
 // RevokeAPIKeyHandler handles DELETE /api/v1/auth/api-keys/{id}.
-func RevokeAPIKeyHandler(keyStore store.APIKeyStore, defaultOrgID string) http.HandlerFunc {
+func RevokeAPIKeyHandler(keyStore store.APIKeyStore, auditStore store.AuditStore, defaultOrgID string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		keyID := strings.TrimSpace(r.PathValue("id"))
 		if keyID == "" {
@@ -173,6 +192,20 @@ func RevokeAPIKeyHandler(keyStore store.APIKeyStore, defaultOrgID string) http.H
 			}
 			response.ErrorWithRequest(w, r, http.StatusInternalServerError, response.CodeInternalError, "Failed to revoke API key")
 			return
+		}
+
+		if auditStore != nil {
+			actorID := "system"
+			if authKey := middleware.GetAPIKey(r.Context()); authKey != nil && authKey.ID != "" {
+				actorID = "api_key:" + authKey.ID
+			}
+			_ = auditStore.RecordAuditLog(r.Context(), &store.AuditLog{
+				OrgID:          orgID,
+				ActorID:        actorID,
+				Action:         "api_key.revoke",
+				TargetResource: "api_key:" + keyID,
+				Metadata:       map[string]any{},
+			})
 		}
 
 		response.JSON(w, http.StatusOK, map[string]any{
