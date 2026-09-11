@@ -70,6 +70,9 @@ Example:
     "status_perkawinan": "KAWIN",
     "pekerjaan": "KARYAWAN SWASTA",
     "kewarganegaraan": "WNI"
+  },
+  "processing": {
+    "latency_ms": 1820
   }
 }
 ```
@@ -335,13 +338,13 @@ Example:
 
 ```text
 Free
-100 requests/day
+10 requests/minute
 
 Starter
-1,000 requests/day
+30 requests/minute
 
 Pro
-10,000 requests/day
+100 requests/minute
 
 Business
 Custom
@@ -465,7 +468,8 @@ The OCR system should use an abstraction layer.
                          │
             ┌────────────┼────────────┐
             ▼            ▼            ▼
-       Tesseract     Cloud OCR      AI OCR
+       Mock Engine   Gemini Flash   Cloud / Local
+      (Test Fixture)  (Default AI)   (Extensible)
 ```
 
 Go interface:
@@ -1314,7 +1318,9 @@ API Keys
 ## OCR
 
 ```text
-Pluggable OCR provider
+Pluggable OCR Engine:
+- Default Vision AI: Google Gemini 2.0 / 1.5 Flash (Google AI Studio Free Tier)
+- Test Engine: MockOCREngine (Deterministic fixtures for CI)
 ```
 
 ## Observability
