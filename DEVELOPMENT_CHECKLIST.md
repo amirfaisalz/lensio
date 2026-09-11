@@ -14,7 +14,7 @@
 - [x] **Phase 4: API Platform – Rate Limiting, Quotas & Usage Metering (Day 4)**
 - [x] **Phase 5: Developer Dashboard & Portal (Days 1, 4 & 7)**
 - [x] **Phase 6: Observability, Telemetry & Structured Logging (Day 5)**
-- [ ] **Phase 7: Infrastructure as Code & Multi-Environment Provisioning (Day 5)**
+- [x] **Phase 7: Infrastructure as Code & Multi-Environment Provisioning (Day 5)**
 - [ ] **Phase 8: CI/CD Delivery Pipeline & Automated Security Gates (Day 5 & 6)**
 - [ ] **Phase 9: Reliability Engineering, Failure Drills & E2E Testing (Day 6)**
 - [ ] **Phase 10: Documentation, ADRs, Demo Consumers & Portfolio Polish (Day 7)**
@@ -282,25 +282,25 @@ Instrument the Go application with OpenTelemetry, Prometheus metrics, and Grafan
 
 Define production-grade infrastructure using OpenTofu and Terragrunt on Azure Container Apps.
 
-- [ ] **Containerization (`PRD Section 22`)**
-  - [ ] Multi-stage `Dockerfile` for Go API:
+- [x] **Containerization (`PRD Section 22`)**
+  - [x] Multi-stage `Dockerfile` for Go API:
     - Builder stage using official Go image.
     - Minimal runtime stage using distroless or Alpine non-root user.
-  - [ ] Multi-stage `Dockerfile` for React Dashboard (Nginx static serving / optimized build).
-- [ ] **OpenTofu Modules (`infra/modules/`)**
-  - [ ] Resource Group & Virtual Network module.
-  - [ ] Azure Container Apps Environment module.
-  - [ ] Azure Database for PostgreSQL Flexible Server module.
-  - [ ] Azure Key Vault / Secret Store module.
-  - [ ] Cloudflare DNS & SSL module.
-- [ ] **Terragrunt Live Configurations (`infra/live/`)**
-  - [ ] `infra/live/staging/`: Configuration for staging environment.
-  - [ ] `infra/live/production/`: Configuration for production environment (higher redundancy, backups).
-- [ ] **Security Controls & Least Privilege (`PRD Section 22 & 32`)**
-  - [ ] Database credentials managed via Key Vault or managed identities.
-  - [ ] Private endpoint connectivity between Container Apps and Postgres.
-  - [ ] Cloudflare WAF and SSL termination rules.
-- [ ] **Acceptance Criteria**:
+  - [x] Multi-stage `Dockerfile` for React Dashboard (Nginx static serving / optimized build).
+- [x] **OpenTofu Modules (`infra/modules/`)**
+  - [x] Resource Group & Virtual Network module.
+  - [x] Azure Container Apps Environment module.
+  - [x] Azure Database for PostgreSQL Flexible Server module.
+  - [x] Azure Key Vault / Secret Store module.
+  - [x] Cloudflare DNS & SSL module.
+- [x] **Terragrunt Live Configurations (`infra/live/`)**
+  - [x] `infra/live/staging/`: Configuration for staging environment.
+  - [x] `infra/live/production/`: Configuration for production environment (higher redundancy, backups).
+- [x] **Security Controls & Least Privilege (`PRD Section 22 & 32`)**
+  - [x] Database credentials managed via Key Vault or managed identities.
+  - [x] Private endpoint connectivity between Container Apps and Postgres.
+  - [x] Cloudflare WAF and SSL termination rules.
+- [x] **Acceptance Criteria**:
   - `tofu plan` validates cleanly without errors.
   - Automated deployment successfully provisions staging infrastructure.
 

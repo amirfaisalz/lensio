@@ -42,6 +42,11 @@ if [ -f "apps/dashboard/package.json" ]; then
     fi
 fi
 
+if [ -d "infra" ] && command -v tofu >/dev/null 2>&1; then
+    echo "  • Verifying OpenTofu IaC formatting..."
+    tofu fmt -check -recursive infra/ || { echo "❌ [Layer 2 Failed]: OpenTofu formatting check failed in infra/."; exit 1; }
+fi
+
 # -----------------------------------------------------------------------------
 # Layer 3: Strict Tests & Coverage (Race Detector, Test Integrity)
 # -----------------------------------------------------------------------------

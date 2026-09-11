@@ -1,0 +1,13 @@
+.git
+.github
+.agents
+.githooks
+node_modules
+apps/dashboard/node_modules
+apps/dashboard/dist
+.terragrunt-cache
+.tofu
+.terraform
+*.tmp
+*.log
+coverage.out

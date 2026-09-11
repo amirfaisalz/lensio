@@ -1,0 +1,110 @@
+variable "project" {
+  type        = string
+  description = "Project name identifier"
+  default     = "nusaid"
+}
+
+variable "environment" {
+  type        = string
+  description = "Deployment environment (e.g. staging, production)"
+}
+
+variable "location" {
+  type        = string
+  description = "Azure region for resource deployment"
+}
+
+variable "resource_group_name" {
+  type        = string
+  description = "Name of the resource group"
+}
+
+variable "infrastructure_subnet_id" {
+  type        = string
+  description = "Subnet ID delegated to Microsoft.App/environments"
+}
+
+variable "api_image" {
+  type        = string
+  description = "Docker image for NusaID API"
+  default     = "ghcr.io/amirfaisalz/nusaid-api:latest"
+}
+
+variable "dashboard_image" {
+  type        = string
+  description = "Docker image for NusaID Dashboard"
+  default     = "ghcr.io/amirfaisalz/nusaid-dashboard:latest"
+}
+
+variable "database_url" {
+  type        = string
+  description = "PostgreSQL connection string"
+  sensitive   = true
+}
+
+variable "gemini_api_key" {
+  type        = string
+  description = "Google Gemini API key for OCR engine"
+  default     = ""
+  sensitive   = true
+}
+
+variable "log_level" {
+  type        = string
+  description = "Application log level"
+  default     = "info"
+}
+
+variable "api_cpu" {
+  type        = number
+  description = "CPU cores allocated to API container"
+  default     = 0.5
+}
+
+variable "api_memory" {
+  type        = string
+  description = "Memory allocated to API container"
+  default     = "1.0Gi"
+}
+
+variable "api_min_replicas" {
+  type        = number
+  description = "Minimum replicas for API"
+  default     = 1
+}
+
+variable "api_max_replicas" {
+  type        = number
+  description = "Maximum replicas for API"
+  default     = 3
+}
+
+variable "dashboard_cpu" {
+  type        = number
+  description = "CPU cores allocated to Dashboard container"
+  default     = 0.25
+}
+
+variable "dashboard_memory" {
+  type        = string
+  description = "Memory allocated to Dashboard container"
+  default     = "0.5Gi"
+}
+
+variable "dashboard_min_replicas" {
+  type        = number
+  description = "Minimum replicas for Dashboard"
+  default     = 1
+}
+
+variable "dashboard_max_replicas" {
+  type        = number
+  description = "Maximum replicas for Dashboard"
+  default     = 2
+}
+
+variable "tags" {
+  type        = map(string)
+  description = "Resource tags"
+  default     = {}
+}
