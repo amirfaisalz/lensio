@@ -1,0 +1,9 @@
+extends: ["spectral:oas"]
+
+rules:
+  # Enforce operationId, summary, description, and tags on all endpoints
+  operation-operationId: error
+  operation-tags: error
+  operation-description: warn
+  info-contact: warn
+  oas3-unused-component: "off"

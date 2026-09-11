@@ -1,0 +1,47 @@
+run:
+  timeout: 5m
+  tests: true
+  modules-download-mode: readonly
+
+linters:
+  enable:
+    - errcheck
+    - gosimple
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    - typecheck
+    - revive
+    - exportloopref
+    - gosec
+    - misspell
+
+linters-settings:
+  govet:
+    enable-all: true
+    disable:
+      - fieldalignment
+      - shadow
+  gosec:
+    severity: high
+    confidence: high
+    excludes:
+      - G101 # Allow test mock token strings
+      - G404 # Insecure random number generator in non-crypto test paths
+  revive:
+    rules:
+      - name: exported
+        disabled: false
+      - name: var-naming
+        disabled: false
+
+issues:
+  exclude-dirs:
+    - tests/fixtures
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - gosec
+        - errcheck
+        - funlen

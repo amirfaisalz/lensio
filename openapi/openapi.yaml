@@ -5,6 +5,10 @@ info:
   description: |
     Indonesian KTP OCR API as a Service.
     Affordable, privacy-conscious, and production-grade identity data extraction.
+  contact:
+    name: NusaID Engineering Team
+    url: https://nusaid.com
+    email: api@nusaid.com
 servers:
   - url: http://localhost:8080
     description: Local development server
@@ -13,11 +17,26 @@ servers:
   - url: https://api.nusaid.com
     description: Production environment
 
+tags:
+  - name: System
+    description: Health and readiness probes
+  - name: Authentication
+    description: Scoped API key lifecycle management
+  - name: OCR
+    description: Indonesian KTP extraction pipeline
+  - name: Usage
+    description: Usage metering, daily metrics, and audit records
+  - name: Account
+    description: Organization profile and subscription plan details
+
 paths:
   /health:
     get:
       summary: Liveness Probe
       description: Verifies that the API service process is alive.
+      operationId: getHealth
+      tags:
+        - System
       responses:
         '200':
           description: Service is healthy
@@ -37,6 +56,9 @@ paths:
     get:
       summary: Readiness Probe
       description: Verifies that all dependencies (PostgreSQL database) are healthy.
+      operationId: getReady
+      tags:
+        - System
       responses:
         '200':
           description: Service and dependencies are ready
@@ -77,6 +99,9 @@ paths:
       description: |
         Generates a new cryptographically secure API key.
         The plaintext token is displayed only once upon creation and cannot be retrieved later.
+      operationId: createAPIKey
+      tags:
+        - Authentication
       security:
         - BearerAuth: []
         - {}
@@ -157,6 +182,9 @@ paths:
     get:
       summary: List API Keys
       description: Lists active and revoked API keys for the caller's organization. Secrets are masked.
+      operationId: listAPIKeys
+      tags:
+        - Authentication
       security:
         - BearerAuth: []
         - {}
@@ -179,6 +207,9 @@ paths:
     delete:
       summary: Revoke API Key
       description: Immediately revokes an API key, preventing any further requests using it.
+      operationId: revokeAPIKey
+      tags:
+        - Authentication
       security:
         - BearerAuth: []
       parameters:
@@ -213,6 +244,9 @@ paths:
       description: |
         Processes an uploaded Indonesian KTP image, performs classification,
         extracts text fields, and validates them deterministically.
+      operationId: extractKTP
+      tags:
+        - OCR
       security:
         - BearerAuth: []
       requestBody:
@@ -259,6 +293,9 @@ paths:
     get:
       summary: Get OCR Request Status / Metadata
       description: Retrieves previous OCR execution metadata (non-PII) by ID.
+      operationId: getOCRRequest
+      tags:
+        - OCR
       security:
         - BearerAuth: []
       parameters:
@@ -284,6 +321,9 @@ paths:
     get:
       summary: Get Usage Summary
       description: Retrieves organization usage metrics and quota consumption for current billing cycle.
+      operationId: getUsageSummary
+      tags:
+        - Usage
       security:
         - BearerAuth: []
       responses:
@@ -302,6 +342,9 @@ paths:
     get:
       summary: Get Daily Usage Timeseries
       description: Retrieves daily breakdown of requests and status codes.
+      operationId: getDailyUsage
+      tags:
+        - Usage
       security:
         - BearerAuth: []
       responses:
@@ -333,6 +376,9 @@ paths:
     get:
       summary: Get Usage by Endpoint
       description: Retrieves breakdown of requests partitioned by endpoint.
+      operationId: getEndpointUsage
+      tags:
+        - Usage
       security:
         - BearerAuth: []
       responses:
@@ -361,6 +407,9 @@ paths:
     get:
       summary: Get Request Execution Logs
       description: Retrieves paginated request logs with latency and status codes for the Request Explorer (strictly non-PII).
+      operationId: getUsageRecords
+      tags:
+        - Usage
       security:
         - BearerAuth: []
       parameters:
@@ -426,6 +475,9 @@ paths:
     get:
       summary: Get Account Details
       description: Retrieves current organization details, active keys count, and plan.
+      operationId: getAccount
+      tags:
+        - Account
       security:
         - BearerAuth: []
       responses:
@@ -452,6 +504,9 @@ paths:
     get:
       summary: Get Plan & Limits
       description: Retrieves current organization plan limits, monthly quota, and rate limits.
+      operationId: getAccountPlan
+      tags:
+        - Account
       security:
         - BearerAuth: []
       responses:
@@ -481,6 +536,9 @@ paths:
     get:
       summary: Get Organization Members
       description: Retrieves team members and roles registered under the caller's organization.
+      operationId: getAccountMembers
+      tags:
+        - Account
       security:
         - BearerAuth: []
       responses:

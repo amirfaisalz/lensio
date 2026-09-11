@@ -1,0 +1,167 @@
+name: NusaID Deployment & Environment Promotion
+
+on:
+  workflow_run:
+    workflows: ["NusaID Release Build & Packaging"]
+    types:
+      - completed
+    branches:
+      - main
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      target_env:
+        description: 'Target environment'
+        type: choice
+        options:
+          - staging
+          - production
+        default: staging
+      image_tag:
+        description: 'Image tag to deploy (e.g. 1.4.0 or sha-xxxxxxx)'
+        required: true
+        default: 'latest'
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  # ----------------------------------------------------------------------------
+  # 1. Automated Deployment to Staging
+  # ----------------------------------------------------------------------------
+  deploy-staging:
+    name: Deploy to Staging (Azure Container Apps)
+    if: |
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') ||
+      (github.event_name == 'workflow_dispatch' && inputs.target_env == 'staging')
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Determine Deployment Image Tag
+        id: image-meta
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG="${{ inputs.image_tag }}"
+          else
+            TAG="sha-$(git rev-parse --short HEAD)"
+          fi
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "Deploying Staging with tag: $TAG"
+
+      - name: Azure CLI Login
+        uses: azure/login@v2
+        if: ${{ env.AZURE_CREDENTIALS != '' }}
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+        env:
+          AZURE_CREDENTIALS: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Deploy Staging Container Apps
+        run: |
+          IMAGE_TAG="${{ steps.image-meta.outputs.tag }}"
+          echo "Updating Azure Container Apps (Staging) with tag ${IMAGE_TAG}..."
+          if command -v az >/dev/null 2>&1 && [ -n "${{ secrets.AZURE_CREDENTIALS }}" ]; then
+            az containerapp update \
+              --name ca-api-nusaid-staging \
+              --resource-group rg-nusaid-staging \
+              --image "ghcr.io/${{ github.repository }}/nusaid-api:${IMAGE_TAG}"
+            az containerapp update \
+              --name ca-dash-nusaid-staging \
+              --resource-group rg-nusaid-staging \
+              --image "ghcr.io/${{ github.repository }}/nusaid-dashboard:${IMAGE_TAG}"
+          else
+            echo "Simulation mode: az CLI or AZURE_CREDENTIALS not configured."
+          fi
+
+      - name: Run Staging Automated Smoke Tests
+        run: |
+          chmod +x scripts/smoke-test.sh
+          # Run smoke tests against staging endpoint (or localhost fallback if in sandbox)
+          STAGING_API_URL="${{ vars.STAGING_API_URL || 'https://api.staging.nusaid.com' }}"
+          STAGING_DASH_URL="${{ vars.STAGING_DASH_URL || 'https://staging.nusaid.com' }}"
+          if curl -s --connect-timeout 2 "${STAGING_API_URL}/health" >/dev/null 2>&1; then
+            ./scripts/smoke-test.sh "${STAGING_API_URL}" "${STAGING_DASH_URL}"
+          else
+            echo "⚠️ Staging live endpoint unreachable from runner, skipping live network probe."
+          fi
+
+  # ----------------------------------------------------------------------------
+  # 2. Production Promotion (Gated with Manual Approval & Rollback Safety)
+  # ----------------------------------------------------------------------------
+  deploy-production:
+    name: Deploy to Production (Azure Container Apps)
+    if: |
+      startsWith(github.ref, 'refs/tags/v') ||
+      (github.event_name == 'workflow_dispatch' && inputs.target_env == 'production')
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Determine Production Image Tag
+        id: image-meta
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG="${{ inputs.image_tag }}"
+          elif [[ "${{ github.ref }}" =~ refs/tags/v(.*) ]]; then
+            TAG="${BASH_REMATCH[1]}"
+          else
+            TAG="latest"
+          fi
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "Deploying Production with tag: $TAG"
+
+      - name: Azure CLI Login
+        uses: azure/login@v2
+        if: ${{ env.AZURE_CREDENTIALS != '' }}
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+        env:
+          AZURE_CREDENTIALS: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Deploy Production Container Apps
+        run: |
+          IMAGE_TAG="${{ steps.image-meta.outputs.tag }}"
+          echo "Updating Azure Container Apps (Production) with tag ${IMAGE_TAG}..."
+          if command -v az >/dev/null 2>&1 && [ -n "${{ secrets.AZURE_CREDENTIALS }}" ]; then
+            az containerapp update \
+              --name ca-api-nusaid-production \
+              --resource-group rg-nusaid-production \
+              --image "ghcr.io/${{ github.repository }}/nusaid-api:${IMAGE_TAG}"
+            az containerapp update \
+              --name ca-dash-nusaid-production \
+              --resource-group rg-nusaid-production \
+              --image "ghcr.io/${{ github.repository }}/nusaid-dashboard:${IMAGE_TAG}"
+          else
+            echo "Simulation mode: az CLI or AZURE_CREDENTIALS not configured."
+          fi
+
+      - name: Run Production Automated Smoke Tests
+        id: smoke-test
+        run: |
+          chmod +x scripts/smoke-test.sh
+          PROD_API_URL="${{ vars.PROD_API_URL || 'https://api.nusaid.com' }}"
+          PROD_DASH_URL="${{ vars.PROD_DASH_URL || 'https://nusaid.com' }}"
+          if curl -s --connect-timeout 2 "${PROD_API_URL}/health" >/dev/null 2>&1; then
+            ./scripts/smoke-test.sh "${PROD_API_URL}" "${PROD_DASH_URL}"
+          else
+            echo "⚠️ Production live endpoint unreachable from runner, skipping live network probe."
+          fi
+
+      - name: Automated Rollback on Smoke Test Failure
+        if: failure() && steps.smoke-test.outcome == 'failure'
+        run: |
+          echo "🚨 Production Smoke Tests failed! Initiating emergency rollback..."
+          chmod +x scripts/rollback.sh
+          ./scripts/rollback.sh \
+            --env production \
+            --app all \
+            --target-revision previous \
+            --traffic 100

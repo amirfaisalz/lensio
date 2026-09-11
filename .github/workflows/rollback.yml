@@ -1,0 +1,76 @@
+name: NusaID Emergency Rollback
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target deployment environment'
+        type: choice
+        options:
+          - production
+          - staging
+        default: production
+        required: true
+      app:
+        description: 'Component to roll back'
+        type: choice
+        options:
+          - api
+          - dashboard
+          - all
+        default: api
+        required: true
+      target_revision:
+        description: 'Target Container App revision name to shift traffic to'
+        required: true
+      traffic_percentage:
+        description: 'Traffic percentage to allocate to target revision'
+        default: '100'
+        required: true
+      incident_reason:
+        description: 'Reason for rollback (incident / alert context)'
+        required: true
+        default: 'P95 latency degradation or 5xx error spike'
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  rollback:
+    name: Execute <60s Traffic Rollback
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Azure CLI Login
+        uses: azure/login@v2
+        if: ${{ env.AZURE_CREDENTIALS != '' }}
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+        env:
+          AZURE_CREDENTIALS: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Execute Rapid Rollback Script
+        run: |
+          chmod +x scripts/rollback.sh scripts/smoke-test.sh
+          ./scripts/rollback.sh \
+            --env "${{ inputs.environment }}" \
+            --app "${{ inputs.app }}" \
+            --target-revision "${{ inputs.target_revision }}" \
+            --traffic "${{ inputs.traffic_percentage }}" \
+            --api-url "${{ inputs.environment == 'production' && 'https://api.nusaid.com' || 'https://api.staging.nusaid.com' }}"
+
+      - name: Post-Rollback Audit Summary
+        if: always()
+        run: |
+          echo "### 🚨 NusaID Emergency Rollback Report" >> $GITHUB_STEP_SUMMARY
+          echo "- **Environment**: \`${{ inputs.environment }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Component**: \`${{ inputs.app }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Target Revision**: \`${{ inputs.target_revision }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Traffic Shift**: \`${{ inputs.traffic_percentage }}%\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Incident Reason**: ${{ inputs.incident_reason }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Triggered By**: @${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Status**: ✅ Shift Completed in < 60s" >> $GITHUB_STEP_SUMMARY

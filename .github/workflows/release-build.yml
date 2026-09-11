@@ -1,0 +1,104 @@
+name: NusaID Release Build & Packaging
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version_tag:
+        description: 'Explicit version tag (e.g. 1.4.0)'
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build-and-push:
+    name: Build & Package Container Images
+    runs-on: ubuntu-latest
+    outputs:
+      image_tag: ${{ steps.meta.outputs.version }}
+      api_image: ghcr.io/${{ github.repository }}/nusaid-api:${{ steps.meta.outputs.version }}
+      dashboard_image: ghcr.io/${{ github.repository }}/nusaid-dashboard:${{ steps.meta.outputs.version }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract Docker Metadata (API)
+        id: meta-api
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}/nusaid-api
+          tags: |
+            type=sha,prefix=sha-,format=short
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+            type=raw,value=${{ inputs.version_tag }},enable=${{ inputs.version_tag != '' }}
+
+      - name: Extract Docker Metadata (Dashboard)
+        id: meta-dash
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}/nusaid-dashboard
+          tags: |
+            type=sha,prefix=sha-,format=short
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+            type=raw,value=${{ inputs.version_tag }},enable=${{ inputs.version_tag != '' }}
+
+      - name: Build & Push NusaID API Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: apps/api/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.meta-api.outputs.tags }}
+          labels: ${{ steps.meta-api.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build & Push NusaID Dashboard Image
+        uses: docker/build-push-action@v5
+        with:
+          context: apps/dashboard
+          file: apps/dashboard/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.meta-dash.outputs.tags }}
+          labels: ${{ steps.meta-dash.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Summarize Build Artifacts
+        id: meta
+        run: |
+          SHORT_SHA=$(git rev-parse --short HEAD)
+          TAG="${{ inputs.version_tag }}"
+          if [ -z "$TAG" ]; then
+            TAG="sha-${SHORT_SHA}"
+          fi
+          echo "version=$TAG" >> $GITHUB_OUTPUT
+          echo "### 📦 Packaged Container Images" >> $GITHUB_STEP_SUMMARY
+          echo "- **API Image**: \`ghcr.io/${{ github.repository }}/nusaid-api:${TAG}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Dashboard Image**: \`ghcr.io/${{ github.repository }}/nusaid-dashboard:${TAG}\`" >> $GITHUB_STEP_SUMMARY

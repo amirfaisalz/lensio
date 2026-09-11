@@ -1,0 +1,192 @@
+name: NusaID CI & Quality Gate
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ----------------------------------------------------------------------------
+  # 1. Backend Go Typecheck, Lint & Race-Detected Tests
+  # ----------------------------------------------------------------------------
+  go-ci:
+    name: Go Lint & Strict Tests (with -race)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+          cache: true
+          check-latest: false
+
+      - name: Verify Go Formatting & Vet
+        run: |
+          go vet ./...
+
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: v1.61.0
+          args: --timeout=5m
+
+      - name: Run Go Tests with Race Detector & Coverage
+        run: |
+          go test -race -coverprofile=coverage.out -covermode=atomic ./...
+
+      - name: Upload Go Coverage Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: go-coverage-report
+          path: coverage.out
+          retention-days: 7
+
+  # ----------------------------------------------------------------------------
+  # 2. Frontend React Dashboard Typecheck, Lint & Unit Tests
+  # ----------------------------------------------------------------------------
+  frontend-ci:
+    name: Frontend Typecheck, Lint & Vitest
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/dashboard
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: apps/dashboard/package-lock.json
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Run TypeScript Typecheck (tsc --noEmit)
+        run: npm run typecheck
+
+      - name: Run Biome Linter
+        run: npm run lint
+
+      - name: Run Vitest Unit Tests
+        run: npm test
+
+  # ----------------------------------------------------------------------------
+  # 3. OpenAPI 3.0 Contract Spectral Validation
+  # ----------------------------------------------------------------------------
+  openapi-validation:
+    name: OpenAPI Contract Validation (Spectral)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Lint OpenAPI Contract with Spectral
+        run: |
+          npx @stoplight/spectral-cli lint openapi/openapi.yaml
+
+  # ----------------------------------------------------------------------------
+  # 4. End-to-End Integration Tests with Containerized PostgreSQL
+  # ----------------------------------------------------------------------------
+  integration-test:
+    name: PostgreSQL Integration Tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: nusaid
+          POSTGRES_PASSWORD: nusaid_ci_password
+          POSTGRES_DB: nusaid
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+          cache: true
+
+      - name: Start NusaID API against Containerized Postgres
+        env:
+          PORT: "8080"
+          ENV: "test"
+          DATABASE_URL: "postgres://nusaid:nusaid_ci_password@localhost:5432/nusaid?sslmode=disable"
+          LOG_LEVEL: "info"
+        run: |
+          go run ./apps/api/cmd/server &
+          API_PID=$!
+          echo "API_PID=$API_PID" >> $GITHUB_ENV
+
+          # Wait for API server and database readiness
+          chmod +x scripts/smoke-test.sh
+          for i in {1..30}; do
+            if curl -s http://localhost:8080/ready | grep -q '"database":"connected"'; then
+              echo "✅ API server and database ready!"
+              break
+            fi
+            echo "Waiting for API server to become ready... ($i/30)"
+            sleep 1
+          done
+
+      - name: Execute Live Integration Test Suite
+        env:
+          API_URL: "http://localhost:8080"
+        run: |
+          go test -race -v ./tests/integration/...
+
+      - name: Teardown API Server
+        if: always()
+        run: |
+          if [ -n "$API_PID" ]; then
+            kill $API_PID || true
+          fi
+
+  # ----------------------------------------------------------------------------
+  # 5. Master Quality Gate
+  # ----------------------------------------------------------------------------
+  ci-gate:
+    name: CI Master Quality Gate
+    needs:
+      - go-ci
+      - frontend-ci
+      - openapi-validation
+      - integration-test
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Verify All Quality Gates Passed
+        run: |
+          if [ "${{ needs.go-ci.result }}" != "success" ] || \
+             [ "${{ needs.frontend-ci.result }}" != "success" ] || \
+             [ "${{ needs.openapi-validation.result }}" != "success" ] || \
+             [ "${{ needs.integration-test.result }}" != "success" ]; then
+            echo "❌ CI Quality Gate Failed: One or more required checks did not succeed." >&2
+            exit 1
+          fi
+          echo "✅ All CI Quality Gates Passed Cleanly!"

@@ -15,7 +15,7 @@
 - [x] **Phase 5: Developer Dashboard & Portal (Days 1, 4 & 7)**
 - [x] **Phase 6: Observability, Telemetry & Structured Logging (Day 5)**
 - [x] **Phase 7: Infrastructure as Code & Multi-Environment Provisioning (Day 5)**
-- [ ] **Phase 8: CI/CD Delivery Pipeline & Automated Security Gates (Day 5 & 6)**
+- [x] **Phase 8: CI/CD Delivery Pipeline & Automated Security Gates (Day 5 & 6)**
 - [ ] **Phase 9: Reliability Engineering, Failure Drills & E2E Testing (Day 6)**
 - [ ] **Phase 10: Documentation, ADRs, Demo Consumers & Portfolio Polish (Day 7)**
 
@@ -310,32 +310,32 @@ Define production-grade infrastructure using OpenTofu and Terragrunt on Azure Co
 
 Build GitHub Actions workflows with quality gates, automated scanning, and versioned promotion.
 
-- [ ] **Pull Request Validation Workflow (`.github/workflows/ci.yml`) (`PRD Section 24`)**
-  - [ ] Go unit tests with race detector (`go test -race ./...`).
-  - [ ] Go code quality check (`golangci-lint run`).
-  - [ ] Frontend linting and typechecking (`tsc --noEmit`, ESLint).
-  - [ ] Frontend unit tests (Vitest / Jest).
-  - [ ] OpenAPI contract validation (`spectral lint openapi/openapi.yaml`).
-  - [ ] Integration tests against containerized Postgres in GitHub Actions runner.
-- [ ] **Automated Security Scanning Suite (`PRD Section 15 & 24`)**
-  - [ ] **Secret Scanning**: Gitleaks / TruffleHog action.
-  - [ ] **Dependency Scanning**: `govulncheck` and `npm audit`.
-  - [ ] **SAST**: `gosec` for Go source code analysis.
-  - [ ] **IaC Scanning**: `tfsec` or `checkov` for OpenTofu configurations.
-  - [ ] **Container Scanning**: Trivy scanning on built Docker images.
-  - [ ] Quality gate: Fail pipeline if high or critical vulnerabilities are discovered.
-- [ ] **Build & Image Packaging Workflow**
-  - [ ] Build multi-platform Docker images.
-  - [ ] Tag images with Git commit SHA and semantic version (e.g., `nusaid-api:1.4.0`).
-  - [ ] Push images to GitHub Packages (GHCR) or Azure Container Registry (ACR).
-- [ ] **Deployment & Promotion Workflows (`PRD Section 23`)**
-  - [ ] Automated deployment to `staging` upon merge to `main`.
-  - [ ] Automated smoke tests on staging environment.
-  - [ ] Manual approval gate / release tag trigger for `production`.
-- [ ] **Rollback Automation (`PRD Section 25`)**
-  - [ ] Versioned revision deployment on Azure Container Apps.
-  - [ ] Documented rollback script or GitHub Action workflow (`rollback.yml`) allowing instant traffic shift to previous stable revision (e.g., `1.4.1` -> `1.4.0`).
-- [ ] **Acceptance Criteria**:
+- [x] **Pull Request Validation Workflow (`.github/workflows/ci.yml`) (`PRD Section 24`)**
+  - [x] Go unit tests with race detector (`go test -race ./...`).
+  - [x] Go code quality check (`golangci-lint run`).
+  - [x] Frontend linting and typechecking (`tsc --noEmit`, ESLint/Biome).
+  - [x] Frontend unit tests (Vitest / Jest).
+  - [x] OpenAPI contract validation (`spectral lint openapi/openapi.yaml`).
+  - [x] Integration tests against containerized Postgres in GitHub Actions runner.
+- [x] **Automated Security Scanning Suite (`PRD Section 15 & 24`)**
+  - [x] **Secret Scanning**: Gitleaks / TruffleHog action.
+  - [x] **Dependency Scanning**: `govulncheck` and `npm audit`.
+  - [x] **SAST**: `gosec` for Go source code analysis.
+  - [x] **IaC Scanning**: `tfsec` or `checkov` for OpenTofu configurations.
+  - [x] **Container Scanning**: Trivy scanning on built Docker images.
+  - [x] Quality gate: Fail pipeline if high or critical vulnerabilities are discovered.
+- [x] **Build & Image Packaging Workflow**
+  - [x] Build multi-platform Docker images.
+  - [x] Tag images with Git commit SHA and semantic version (e.g., `nusaid-api:1.4.0`).
+  - [x] Push images to GitHub Packages (GHCR) or Azure Container Registry (ACR).
+- [x] **Deployment & Promotion Workflows (`PRD Section 23`)**
+  - [x] Automated deployment to `staging` upon merge to `main`.
+  - [x] Automated smoke tests on staging environment.
+  - [x] Manual approval gate / release tag trigger for `production`.
+- [x] **Rollback Automation (`PRD Section 25`)**
+  - [x] Versioned revision deployment on Azure Container Apps.
+  - [x] Documented rollback script or GitHub Action workflow (`rollback.yml`) allowing instant traffic shift to previous stable revision (e.g., `1.4.1` -> `1.4.0`).
+- [x] **Acceptance Criteria**:
   - Pull request fails if any test, linter, or critical security scan fails.
   - Deployment creates reproducible, versioned container revisions.
   - Rollback can be triggered and completes in under 60 seconds.
