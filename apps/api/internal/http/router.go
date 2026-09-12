@@ -74,14 +74,9 @@ func NewRouterWithDeps(deps RouterDeps) http.Handler {
 		revokeKeyHandler := handlers.RevokeAPIKeyHandler(deps.KeyStore, deps.AuditStore, deps.Authorizer, handlers.DefaultOrgID)
 		listKeyHandler := handlers.ListAPIKeysHandler(deps.KeyStore, handlers.DefaultOrgID)
 
-		if deps.Authorizer != nil {
-			mux.Handle("POST /api/v1/auth/api-keys", authMiddleware(createKeyHandler))
-			mux.Handle("DELETE /api/v1/auth/api-keys/{id}", authMiddleware(revokeKeyHandler))
-		} else {
-			mux.Handle("POST /api/v1/auth/api-keys", createKeyHandler)
-			mux.Handle("DELETE /api/v1/auth/api-keys/{id}", revokeKeyHandler)
-		}
-		mux.Handle("GET /api/v1/auth/api-keys", listKeyHandler)
+		mux.Handle("POST /api/v1/auth/api-keys", authMiddleware(createKeyHandler))
+		mux.Handle("DELETE /api/v1/auth/api-keys/{id}", authMiddleware(revokeKeyHandler))
+		mux.Handle("GET /api/v1/auth/api-keys", authMiddleware(listKeyHandler))
 
 		scopeWriteMiddleware := middleware.RequireScope("ocr:write")
 		scopeReadMiddleware := middleware.RequireScope("ocr:read")

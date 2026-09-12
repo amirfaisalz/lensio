@@ -15,6 +15,7 @@ import (
 	"github.com/amirfaisalz/lensio/apps/api/internal/http/handlers"
 	"github.com/amirfaisalz/lensio/apps/api/internal/http/response"
 	"github.com/amirfaisalz/lensio/apps/api/internal/idempotency"
+	"github.com/amirfaisalz/lensio/apps/api/internal/store"
 	"github.com/amirfaisalz/lensio/apps/api/internal/usage"
 	"github.com/amirfaisalz/lensio/services/ocr/providers"
 	"github.com/amirfaisalz/lensio/tests/fixtures/synthetic"
@@ -29,6 +30,25 @@ func buildTestMultipart(fieldName, filename string, content []byte) (*bytes.Buff
 	return body, writer.FormDataContentType()
 }
 
+func seedTestAPIKey(t *testing.T, kStore *dummyKeyStore, orgID string, scopes []string) string {
+	t.Helper()
+	gen, err := apikey.Generate(apikey.EnvLive)
+	if err != nil {
+		t.Fatalf("failed generating bootstrap key: %v", err)
+	}
+	k := &store.APIKey{
+		ID:          "bootstrap-admin-key",
+		OrgID:       orgID,
+		KeyHash:     gen.KeyHash,
+		Prefix:      gen.Prefix,
+		Scopes:      scopes,
+		Environment: apikey.EnvLive,
+		CreatedAt:   time.Now(),
+	}
+	_ = kStore.CreateAPIKey(context.Background(), k)
+	return gen.Plaintext
+}
+
 func TestRouter_E2E_KeyLifecycleAndAuth(t *testing.T) {
 	kStore := newDummyKeyStore()
 	router := internalhttp.NewRouter(&dummyPinger{}, kStore, nil, nil)
@@ -37,14 +57,53 @@ func TestRouter_E2E_KeyLifecycleAndAuth(t *testing.T) {
 
 	client := server.Client()
 
-	// 1. Create Key
+	// 0. Verify unauthenticated requests return 401 Unauthorized
+	unauthGet, _ := http.NewRequest(http.MethodGet, server.URL+"/api/v1/auth/api-keys", nil)
+	unauthGetResp, err := client.Do(unauthGet)
+	if err != nil {
+		t.Fatalf("failed unauthenticated GET: %v", err)
+	}
+	unauthGetResp.Body.Close()
+	if unauthGetResp.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("expected 401 for unauthenticated GET /api/v1/auth/api-keys, got %d", unauthGetResp.StatusCode)
+	}
+
+	unauthPost, _ := http.NewRequest(http.MethodPost, server.URL+"/api/v1/auth/api-keys", bytes.NewBufferString(`{"name":"Unauth"}`))
+	unauthPost.Header.Set("Content-Type", "application/json")
+	unauthPostResp, err := client.Do(unauthPost)
+	if err != nil {
+		t.Fatalf("failed unauthenticated POST: %v", err)
+	}
+	unauthPostResp.Body.Close()
+	if unauthPostResp.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("expected 401 for unauthenticated POST /api/v1/auth/api-keys, got %d", unauthPostResp.StatusCode)
+	}
+
+	unauthDel, _ := http.NewRequest(http.MethodDelete, server.URL+"/api/v1/auth/api-keys/some-key", nil)
+	unauthDelResp, err := client.Do(unauthDel)
+	if err != nil {
+		t.Fatalf("failed unauthenticated DELETE: %v", err)
+	}
+	unauthDelResp.Body.Close()
+	if unauthDelResp.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("expected 401 for unauthenticated DELETE /api/v1/auth/api-keys/{id}, got %d", unauthDelResp.StatusCode)
+	}
+
+	// Seed bootstrap key to perform key management operations
+	adminToken := seedTestAPIKey(t, kStore, handlers.DefaultOrgID, []string{"*"})
+
+	// 1. Create Key with valid authentication
 	createPayload := map[string]any{
 		"name":   "E2E Key",
 		"scopes": []string{"ocr:write"},
 	}
 	body, _ := json.Marshal(createPayload)
 
-	resp, err := client.Post(server.URL+"/api/v1/auth/api-keys", "application/json", bytes.NewReader(body))
+	createReq, _ := http.NewRequest(http.MethodPost, server.URL+"/api/v1/auth/api-keys", bytes.NewReader(body))
+	createReq.Header.Set("Content-Type", "application/json")
+	createReq.Header.Set("Authorization", "Bearer "+adminToken)
+
+	resp, err := client.Do(createReq)
 	if err != nil {
 		t.Fatalf("failed creating key: %v", err)
 	}
@@ -100,7 +159,10 @@ func TestRouter_E2E_KeyLifecycleAndAuth(t *testing.T) {
 		"name":   "Read Only",
 		"scopes": []string{"ocr:read"},
 	})
-	readResp, err := client.Post(server.URL+"/api/v1/auth/api-keys", "application/json", bytes.NewReader(readBody))
+	readReq, _ := http.NewRequest(http.MethodPost, server.URL+"/api/v1/auth/api-keys", bytes.NewReader(readBody))
+	readReq.Header.Set("Content-Type", "application/json")
+	readReq.Header.Set("Authorization", "Bearer "+adminToken)
+	readResp, err := client.Do(readReq)
 	if err != nil {
 		t.Fatalf("failed creating read-only key: %v", err)
 	}
@@ -137,6 +199,7 @@ func TestRouter_E2E_OCRPipeline(t *testing.T) {
 	defer server.Close()
 
 	client := server.Client()
+	adminToken := seedTestAPIKey(t, kStore, handlers.DefaultOrgID, []string{"*"})
 
 	// 1. Create full OCR key (write + read)
 	createPayload := map[string]any{
@@ -145,7 +208,10 @@ func TestRouter_E2E_OCRPipeline(t *testing.T) {
 	}
 	body, _ := json.Marshal(createPayload)
 
-	resp, err := client.Post(server.URL+"/api/v1/auth/api-keys", "application/json", bytes.NewReader(body))
+	createReq, _ := http.NewRequest(http.MethodPost, server.URL+"/api/v1/auth/api-keys", bytes.NewReader(body))
+	createReq.Header.Set("Content-Type", "application/json")
+	createReq.Header.Set("Authorization", "Bearer "+adminToken)
+	resp, err := client.Do(createReq)
 	if err != nil {
 		t.Fatalf("failed creating key: %v", err)
 	}
@@ -159,7 +225,13 @@ func TestRouter_E2E_OCRPipeline(t *testing.T) {
 		"scopes": []string{"ocr:read"},
 	}
 	bodyRO, _ := json.Marshal(readOnlyPayload)
-	roResp, _ := client.Post(server.URL+"/api/v1/auth/api-keys", "application/json", bytes.NewReader(bodyRO))
+	roReq, _ := http.NewRequest(http.MethodPost, server.URL+"/api/v1/auth/api-keys", bytes.NewReader(bodyRO))
+	roReq.Header.Set("Content-Type", "application/json")
+	roReq.Header.Set("Authorization", "Bearer "+adminToken)
+	roResp, err := client.Do(roReq)
+	if err != nil {
+		t.Fatalf("failed creating read-only key: %v", err)
+	}
 	var roKey handlers.CreateKeyResponse
 	_ = json.NewDecoder(roResp.Body).Decode(&roKey)
 	roResp.Body.Close()
@@ -325,6 +397,7 @@ func TestRouter_E2E_IdempotencyPipeline(t *testing.T) {
 	defer server.Close()
 
 	client := server.Client()
+	adminToken := seedTestAPIKey(t, kStore, handlers.DefaultOrgID, []string{"*"})
 
 	// 1. Create full OCR key
 	createPayload := map[string]any{
@@ -332,7 +405,10 @@ func TestRouter_E2E_IdempotencyPipeline(t *testing.T) {
 		"scopes": []string{"ocr:write", "ocr:read"},
 	}
 	body, _ := json.Marshal(createPayload)
-	resp, err := client.Post(server.URL+"/api/v1/auth/api-keys", "application/json", bytes.NewReader(body))
+	createReq, _ := http.NewRequest(http.MethodPost, server.URL+"/api/v1/auth/api-keys", bytes.NewReader(body))
+	createReq.Header.Set("Content-Type", "application/json")
+	createReq.Header.Set("Authorization", "Bearer "+adminToken)
+	resp, err := client.Do(createReq)
 	if err != nil {
 		t.Fatalf("failed creating key: %v", err)
 	}
@@ -483,13 +559,20 @@ func TestRouter_E2E_Idempotency_ZeroDuplicateQuotaAndBilling(t *testing.T) {
 	defer server.Close()
 
 	client := server.Client()
+	adminToken := seedTestAPIKey(t, kStore, handlers.DefaultOrgID, []string{"*"})
 
 	createPayload := map[string]any{
 		"name":   "Quota Safe Key",
 		"scopes": []string{"ocr:write", "ocr:read"},
 	}
 	body, _ := json.Marshal(createPayload)
-	resp, _ := client.Post(server.URL+"/api/v1/auth/api-keys", "application/json", bytes.NewReader(body))
+	createReq, _ := http.NewRequest(http.MethodPost, server.URL+"/api/v1/auth/api-keys", bytes.NewReader(body))
+	createReq.Header.Set("Content-Type", "application/json")
+	createReq.Header.Set("Authorization", "Bearer "+adminToken)
+	resp, err := client.Do(createReq)
+	if err != nil {
+		t.Fatalf("failed creating key: %v", err)
+	}
 	var apiKey handlers.CreateKeyResponse
 	_ = json.NewDecoder(resp.Body).Decode(&apiKey)
 	resp.Body.Close()

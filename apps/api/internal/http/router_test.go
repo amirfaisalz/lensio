@@ -39,7 +39,9 @@ func newDummyKeyStore() *dummyKeyStore {
 }
 
 func (d *dummyKeyStore) CreateAPIKey(ctx context.Context, key *store.APIKey) error {
-	key.ID = "dummy-id-1"
+	if key.ID == "" {
+		key.ID = "dummy-id-1"
+	}
 	d.keys[key.KeyHash] = key
 	return nil
 }
@@ -53,10 +55,23 @@ func (d *dummyKeyStore) GetAPIKeyByHash(ctx context.Context, keyHash string) (*s
 }
 
 func (d *dummyKeyStore) ListAPIKeysByOrg(ctx context.Context, orgID string) ([]*store.APIKey, error) {
-	return nil, nil
+	var res []*store.APIKey
+	for _, k := range d.keys {
+		if k.OrgID == orgID {
+			res = append(res, k)
+		}
+	}
+	return res, nil
 }
 
 func (d *dummyKeyStore) RevokeAPIKey(ctx context.Context, orgID string, keyID string) error {
+	for _, k := range d.keys {
+		if k.ID == keyID && k.OrgID == orgID {
+			now := time.Now()
+			k.RevokedAt = &now
+			return nil
+		}
+	}
 	return nil
 }
 
@@ -632,4 +647,39 @@ func (m *testOIDCValidator) ValidateToken(ctx context.Context, token string) (*m
 		return nil, m.err
 	}
 	return m.user, nil
+}
+
+func TestRouter_APIKeyEndpoints_UnauthenticatedRejection(t *testing.T) {
+	kStore := newDummyKeyStore()
+	// Router without Authorizer (nil Authorizer)
+	r := internalhttp.NewRouterWithDeps(internalhttp.RouterDeps{
+		KeyStore: kStore,
+	})
+
+	t.Run("GET /api/v1/auth/api-keys without auth returns 401", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/auth/api-keys", nil)
+		rec := httptest.NewRecorder()
+		r.ServeHTTP(rec, req)
+		if rec.Code != http.StatusUnauthorized {
+			t.Fatalf("expected 401 Unauthorized, got %d", rec.Code)
+		}
+	})
+
+	t.Run("POST /api/v1/auth/api-keys without auth returns 401 when authorizer is nil", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/api-keys", bytes.NewBufferString(`{"name":"test"}`))
+		rec := httptest.NewRecorder()
+		r.ServeHTTP(rec, req)
+		if rec.Code != http.StatusUnauthorized {
+			t.Fatalf("expected 401 Unauthorized, got %d", rec.Code)
+		}
+	})
+
+	t.Run("DELETE /api/v1/auth/api-keys/{id} without auth returns 401 when authorizer is nil", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodDelete, "/api/v1/auth/api-keys/some-key-id", nil)
+		rec := httptest.NewRecorder()
+		r.ServeHTTP(rec, req)
+		if rec.Code != http.StatusUnauthorized {
+			t.Fatalf("expected 401 Unauthorized, got %d", rec.Code)
+		}
+	})
 }
