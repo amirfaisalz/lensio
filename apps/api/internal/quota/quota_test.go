@@ -177,3 +177,41 @@ func TestEnforcer_CheckQuota(t *testing.T) {
 		}
 	})
 }
+
+func BenchmarkCheckQuota(b *testing.B) {
+	e := quota.NewEnforcer(
+		&mockAccountStore{plan: &store.Plan{MonthlyQuota: 1000}},
+		&mockUsageStore{count: 42},
+	)
+	ctx := context.Background()
+
+	b.ResetTimer()
+	b.ReportAllocs()
+
+	for i := 0; i < b.N; i++ {
+		allowed, remaining, limit, err := e.CheckQuota(ctx, "org-1")
+		if err != nil || !allowed || remaining != 958 || limit != 1000 {
+			b.Fatalf("unexpected quota check result: %v", err)
+		}
+	}
+}
+
+func BenchmarkCheckQuotaParallel(b *testing.B) {
+	e := quota.NewEnforcer(
+		&mockAccountStore{plan: &store.Plan{MonthlyQuota: 1000}},
+		&mockUsageStore{count: 42},
+	)
+	ctx := context.Background()
+
+	b.ResetTimer()
+	b.ReportAllocs()
+
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			allowed, remaining, limit, err := e.CheckQuota(ctx, "org-1")
+			if err != nil || !allowed || remaining != 958 || limit != 1000 {
+				b.Fatalf("unexpected quota check result: %v", err)
+			}
+		}
+	})
+}

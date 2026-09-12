@@ -5,6 +5,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
+	"log/slog"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
@@ -438,4 +440,50 @@ func TestGetOCRRequestHandler(t *testing.T) {
 			t.Errorf("unexpected confidence or latency: %+v", meta)
 		}
 	})
+}
+
+func BenchmarkKTPOCRHandler(b *testing.B) {
+	oldLogger := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(io.Discard, nil)))
+	defer slog.SetDefault(oldLogger)
+
+	validImage := synthetic.GenerateValidKTPImage()
+	engine := providers.NewMockEngine()
+	ocrStore := newDummyOCRStore()
+	quotaChecker := &mockQuotaChecker{allowed: true, remaining: 100, limit: 100}
+	handler := handlers.KTPOCRHandler(engine, ocrStore, quotaChecker)
+
+	var bodyBuf bytes.Buffer
+	writer := multipart.NewWriter(&bodyBuf)
+	part, err := writer.CreateFormFile("document", "ktp.png")
+	if err != nil {
+		b.Fatalf("failed creating form file: %v", err)
+	}
+	if _, err := part.Write(validImage); err != nil {
+		b.Fatalf("failed writing image: %v", err)
+	}
+	writer.Close()
+	rawBody := bodyBuf.Bytes()
+	contentType := writer.FormDataContentType()
+
+	key := &store.APIKey{
+		ID:     "bench-key",
+		OrgID:  "bench-org",
+		Scopes: []string{"ocr:read", "ocr:write"},
+	}
+
+	b.ResetTimer()
+	b.ReportAllocs()
+
+	for i := 0; i < b.N; i++ {
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/ocr/ktp", bytes.NewReader(rawBody))
+		req.Header.Set("Content-Type", contentType)
+		req = req.WithContext(middleware.WithAPIKey(req.Context(), key))
+		rec := httptest.NewRecorder()
+
+		handler.ServeHTTP(rec, req)
+		if rec.Code != http.StatusOK {
+			b.Fatalf("expected 200, got %d", rec.Code)
+		}
+	}
 }

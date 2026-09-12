@@ -721,3 +721,47 @@ func TestOIDCValidator_EdgeCases(t *testing.T) {
 		t.Errorf("expected error for bad URL")
 	}
 }
+
+func BenchmarkValidateToken(b *testing.B) {
+	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		b.Fatalf("failed generating rsa key: %v", err)
+	}
+	pub := &priv.PublicKey
+	validator := middleware.NewStaticOIDCValidator(map[string]*rsa.PublicKey{
+		"bench-key": pub,
+	})
+
+	claims := map[string]any{
+		"sub":                "user-uuid-bench",
+		"email":              "bench@lensio.dev",
+		"email_verified":     true,
+		"preferred_username": "benchuser",
+		"name":               "Bench User",
+		"iss":                "https://auth.lensio.dev/realms/lensio",
+		"aud":                "lensio-api",
+		"exp":                time.Now().Add(1 * time.Hour).Unix(),
+	}
+
+	header := map[string]any{"alg": "RS256", "kid": "bench-key", "typ": "JWT"}
+	hJSON, _ := json.Marshal(header)
+	cJSON, _ := json.Marshal(claims)
+	signingInput := b64url(hJSON) + "." + b64url(cJSON)
+	hashed := sha256.Sum256([]byte(signingInput))
+	sig, err := rsa.SignPKCS1v15(rand.Reader, priv, crypto.SHA256, hashed[:])
+	if err != nil {
+		b.Fatalf("failed signing jwt: %v", err)
+	}
+	token := signingInput + "." + b64url(sig)
+
+	ctx := context.Background()
+	b.ResetTimer()
+	b.ReportAllocs()
+
+	for i := 0; i < b.N; i++ {
+		_, err := validator.ValidateToken(ctx, token)
+		if err != nil {
+			b.Fatalf("validation failed: %v", err)
+		}
+	}
+}

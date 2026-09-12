@@ -3,6 +3,8 @@ package usage_test
 import (
 	"context"
 	"errors"
+	"io"
+	"log/slog"
 	"sync"
 	"testing"
 	"time"
@@ -132,4 +134,64 @@ func TestRecorder_CloseTimeout(t *testing.T) {
 
 	// May return context error or nil if worker closed quickly
 	_ = recorder.Close(ctx)
+}
+
+func BenchmarkRecorder_Enqueue(b *testing.B) {
+	oldLogger := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(io.Discard, nil)))
+	defer slog.SetDefault(oldLogger)
+
+	rec := usage.NewRecorder(nil, 65536)
+	defer func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		_ = rec.Close(ctx)
+	}()
+
+	record := &store.UsageRecord{
+		OrgID:      "org-bench",
+		RequestID:  "req-bench",
+		Endpoint:   "/api/v1/ocr/ktp",
+		StatusCode: 200,
+		LatencyMS:  45,
+		Timestamp:  time.Now(),
+	}
+
+	b.ResetTimer()
+	b.ReportAllocs()
+
+	for i := 0; i < b.N; i++ {
+		rec.Record(record)
+	}
+}
+
+func BenchmarkRecorder_EnqueueParallel(b *testing.B) {
+	oldLogger := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(io.Discard, nil)))
+	defer slog.SetDefault(oldLogger)
+
+	rec := usage.NewRecorder(nil, 65536)
+	defer func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		_ = rec.Close(ctx)
+	}()
+
+	record := &store.UsageRecord{
+		OrgID:      "org-bench",
+		RequestID:  "req-bench",
+		Endpoint:   "/api/v1/ocr/ktp",
+		StatusCode: 200,
+		LatencyMS:  45,
+		Timestamp:  time.Now(),
+	}
+
+	b.ResetTimer()
+	b.ReportAllocs()
+
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			rec.Record(record)
+		}
+	})
 }
