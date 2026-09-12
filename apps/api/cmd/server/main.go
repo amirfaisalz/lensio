@@ -13,6 +13,7 @@ import (
 
 	"github.com/amirfaisalz/lensio/apps/api/internal/config"
 	internalhttp "github.com/amirfaisalz/lensio/apps/api/internal/http"
+	"github.com/amirfaisalz/lensio/apps/api/internal/http/middleware"
 	"github.com/amirfaisalz/lensio/apps/api/internal/idempotency"
 	"github.com/amirfaisalz/lensio/apps/api/internal/ratelimit"
 	"github.com/amirfaisalz/lensio/apps/api/internal/store"
@@ -109,6 +110,12 @@ func main() {
 		idempotencyStore = idempotency.NewMemoryStore(24 * time.Hour)
 	}
 
+	var oidcValidator middleware.TokenValidator
+	if cfg.KeycloakJWKSURL != "" {
+		logger.Info("initializing Keycloak OIDC validator", slog.String("jwks_url", cfg.KeycloakJWKSURL))
+		oidcValidator = middleware.NewOIDCValidator(cfg.KeycloakJWKSURL, nil)
+	}
+
 	router := internalhttp.NewRouterWithDeps(internalhttp.RouterDeps{
 		Pinger:           pinger,
 		KeyStore:         db,
@@ -120,6 +127,7 @@ func main() {
 		RateLimiter:      rateLimiter,
 		UsageRecorder:    usageRecorder,
 		IdempotencyStore: idempotencyStore,
+		OIDCValidator:    oidcValidator,
 	})
 
 	srv := &http.Server{

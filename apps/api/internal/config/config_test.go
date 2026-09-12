@@ -16,6 +16,7 @@ func TestLoad_Defaults(t *testing.T) {
 	os.Unsetenv("OCR_PROVIDER")
 	os.Unsetenv("GEMINI_API_KEY")
 	os.Unsetenv("GEMINI_MODEL")
+	os.Unsetenv("KEYCLOAK_JWKS_URL")
 
 	cfg := config.Load()
 	if cfg.Port != "8080" {
@@ -39,6 +40,9 @@ func TestLoad_Defaults(t *testing.T) {
 	if cfg.GeminiModel != "gemini-2.0-flash" {
 		t.Fatalf("expected GeminiModel 'gemini-2.0-flash', got '%s'", cfg.GeminiModel)
 	}
+	if cfg.KeycloakJWKSURL != "" {
+		t.Fatalf("expected empty KeycloakJWKSURL, got '%s'", cfg.KeycloakJWKSURL)
+	}
 }
 
 func TestLoad_CustomEnv(t *testing.T) {
@@ -49,6 +53,7 @@ func TestLoad_CustomEnv(t *testing.T) {
 	t.Setenv("OCR_PROVIDER", "gemini_flash")
 	t.Setenv("GEMINI_API_KEY", "test-key-123")
 	t.Setenv("GEMINI_MODEL", "gemini-1.5-flash")
+	t.Setenv("KEYCLOAK_JWKS_URL", "http://keycloak:8080/realms/lensio/protocol/openid-connect/certs")
 
 	cfg := config.Load()
 	if cfg.Port != "9090" {
@@ -71,5 +76,8 @@ func TestLoad_CustomEnv(t *testing.T) {
 	}
 	if cfg.GeminiModel != "gemini-1.5-flash" {
 		t.Fatalf("expected GeminiModel 'gemini-1.5-flash', got '%s'", cfg.GeminiModel)
+	}
+	if cfg.KeycloakJWKSURL != "http://keycloak:8080/realms/lensio/protocol/openid-connect/certs" {
+		t.Fatalf("expected KeycloakJWKSURL, got '%s'", cfg.KeycloakJWKSURL)
 	}
 }

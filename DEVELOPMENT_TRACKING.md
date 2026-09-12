@@ -25,7 +25,7 @@
 - [x] **Phase 11.1: Real Load Testing & RED Metrics Analysis (`k6`)**
 - [x] **Phase 11.2: API Idempotency Subsystem (`Idempotency-Key`)**
 - [x] **Phase 11.3: Verifiable Deployment & Rollback Evidence Log**
-- [ ] **Phase 11.4: Centralized Human Identity (Keycloak + OIDC / JWT)**
+- [x] **Phase 11.4: Centralized Human Identity (Keycloak + OIDC / JWT)**
 - [ ] **Phase 11.5: Fine-Grained Authorization (SpiceDB / ReBAC)**
 - [ ] **Phase 11.6: Deep Incident Engineering & Circuit Breaker Code Fix**
 - [ ] **Phase 11.7: Production SLOs & Actionable Alerting Rules**
@@ -133,16 +133,16 @@ Five core ADRs (`ADR-001` to `ADR-005`), production runbooks (`architecture.md`,
 ### Phase 11.4: Keycloak + OIDC Human Identity (Priority: HIGH)
 *Goal: Demonstrate proper dual authentication — OIDC for human operators, API keys for machines.*
 
-- [ ] Add Keycloak container to `docker-compose.yml` (`quay.io/keycloak/keycloak:24.0`).
-- [ ] Configure `infra/keycloak/realm-lensio.json`:
+- [x] Add Keycloak container to `docker-compose.yml` (`quay.io/keycloak/keycloak:24.0`).
+- [x] Configure `infra/keycloak/realm-lensio.json`:
   - Realm: `lensio`.
   - Clients: `lensio-api` (bearer-only resource server), `lensio-dashboard` (public SPA client).
   - Seed users: `admin@lensio.dev`, `developer@veriform.com`.
-- [ ] Implement `apps/api/internal/http/middleware/oidc.go`:
+- [x] Implement `apps/api/internal/http/middleware/oidc.go`:
   - Validate JWT bearer tokens against Keycloak JWKS endpoint.
   - Extract identity claims (`sub`, `email`, `preferred_username`).
   - Unit tests with mock JWKS/JWT generator.
-- [ ] Update Dashboard `AuthContext.tsx` to support both OIDC session login and API key switching.
+- [x] Update Dashboard `AuthContext.tsx` to support both OIDC session login and API key switching.
 - **Interview Narrative**:
   > *"We strictly separate human identity from machine identity. Humans access the dashboard via Keycloak OIDC with short-lived JWTs, while external partner applications authenticate using scoped, hashed API keys."*
 
@@ -254,8 +254,8 @@ Lensio Product Ecosystem
 
 - [ ] `k6` baseline and stress test scripts exist, executed, and benchmark report is committed.
 - [x] `Idempotency-Key` header is supported on `POST /api/v1/ocr/ktp` with 100% test coverage.
-- [ ] Deployment evidence log captures real CI test passes, security scans, and smoke test rollback.
-- [ ] Keycloak OIDC JWT validation middleware works with unit tests and Docker Compose.
+- [x] Deployment evidence log captures real CI test passes, security scans, and smoke test rollback.
+- [x] Keycloak OIDC JWT validation middleware works with unit tests and Docker Compose.
 - [ ] SpiceDB ReBAC authorization model is defined and protects sensitive API key mutations.
 - [ ] Circuit breaker protects the OCR engine from upstream latency spikes and has an incident post-mortem.
 - [ ] Prometheus alerting rules and SLO definition document are committed.

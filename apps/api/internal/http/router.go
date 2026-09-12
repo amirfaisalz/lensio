@@ -30,6 +30,7 @@ type RouterDeps struct {
 	RateLimiter      *ratelimit.Limiter
 	UsageRecorder    *usage.Recorder
 	IdempotencyStore idempotency.Store
+	OIDCValidator    middleware.TokenValidator
 }
 
 // NewRouter constructs the root HTTP handler for backward compatibility.
@@ -64,13 +65,30 @@ func NewRouterWithDeps(deps RouterDeps) http.Handler {
 		mux.HandleFunc("GET /api/v1/auth/api-keys", handlers.ListAPIKeysHandler(deps.KeyStore, handlers.DefaultOrgID))
 		mux.HandleFunc("DELETE /api/v1/auth/api-keys/{id}", handlers.RevokeAPIKeyHandler(deps.KeyStore, deps.AuditStore, handlers.DefaultOrgID))
 
-		authMiddleware := middleware.Authenticate(deps.KeyStore)
+		var authMiddleware func(http.Handler) http.Handler
+		if deps.OIDCValidator != nil {
+			authMiddleware = middleware.DualAuth(deps.KeyStore, deps.OIDCValidator)
+		} else {
+			authMiddleware = middleware.Authenticate(deps.KeyStore)
+		}
+
 		scopeWriteMiddleware := middleware.RequireScope("ocr:write")
 		scopeReadMiddleware := middleware.RequireScope("ocr:read")
 		scopeUsageMiddleware := middleware.RequireScope("usage:read")
 
 		// Protected verification probe for testing Auth & Scopes
 		verifyHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if user := middleware.GetOIDCUser(r.Context()); user != nil {
+				response.JSON(w, http.StatusOK, map[string]any{
+					"status":             "authenticated",
+					"auth_type":          "oidc",
+					"subject":            user.Subject,
+					"email":              user.Email,
+					"preferred_username": user.PreferredUsername,
+					"roles":              user.Roles,
+				})
+				return
+			}
 			key := middleware.GetAPIKey(r.Context())
 			response.JSON(w, http.StatusOK, map[string]any{
 				"status": "authenticated",

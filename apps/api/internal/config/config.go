@@ -12,8 +12,9 @@ type Config struct {
 	DatabaseURL  string
 	LogLevel     string
 	OCRProvider  string
-	GeminiAPIKey string
-	GeminiModel  string
+	GeminiAPIKey    string
+	GeminiModel     string
+	KeycloakJWKSURL string
 }
 
 // Load reads configuration from environment variables with sensible defaults.
@@ -47,13 +48,16 @@ func Load() *Config {
 		geminiModel = "gemini-2.0-flash"
 	}
 
+	keycloakJWKSURL := strings.TrimSpace(os.Getenv("KEYCLOAK_JWKS_URL"))
+
 	return &Config{
-		Port:         port,
-		Env:          env,
-		DatabaseURL:  dbURL,
-		LogLevel:     logLevel,
-		OCRProvider:  ocrProvider,
-		GeminiAPIKey: geminiAPIKey,
-		GeminiModel:  geminiModel,
+		Port:            port,
+		Env:             env,
+		DatabaseURL:     dbURL,
+		LogLevel:        logLevel,
+		OCRProvider:     ocrProvider,
+		GeminiAPIKey:    geminiAPIKey,
+		GeminiModel:     geminiModel,
+		KeycloakJWKSURL: keycloakJWKSURL,
 	}
 }

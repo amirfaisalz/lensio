@@ -3,6 +3,7 @@ package http_test
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/amirfaisalz/lensio/apps/api/internal/apikey"
 	internalhttp "github.com/amirfaisalz/lensio/apps/api/internal/http"
+	"github.com/amirfaisalz/lensio/apps/api/internal/http/middleware"
 	"github.com/amirfaisalz/lensio/apps/api/internal/ratelimit"
 	"github.com/amirfaisalz/lensio/apps/api/internal/store"
 	"github.com/amirfaisalz/lensio/apps/api/internal/usage"
@@ -521,4 +523,58 @@ func TestNewRouterWithDeps_Phase4(t *testing.T) {
 			t.Error("expected X-Trace-ID header on /metrics response")
 		}
 	})
+
+	// 10. Test Dual Authentication with OIDCValidator (Phase 11.4)
+	t.Run("Router with OIDCValidator supports dual authentication", func(t *testing.T) {
+		mockValidator := &testOIDCValidator{
+			user: &middleware.OIDCUser{
+				Subject:           "oidc-admin-1",
+				Email:             "admin@lensio.dev",
+				PreferredUsername: "admin",
+				Roles:             []string{"admin"},
+			},
+		}
+
+		dualRouter := internalhttp.NewRouterWithDeps(internalhttp.RouterDeps{
+			KeyStore:      kStore,
+			OIDCValidator: mockValidator,
+		})
+
+		// Test OIDC authentication
+		oidcReq := httptest.NewRequest(http.MethodGet, "/api/v1/auth/verify", nil)
+		oidcReq.Header.Set("Authorization", "Bearer eyJhbGci.eyJzdWIi.c2ln")
+		rec := httptest.NewRecorder()
+		dualRouter.ServeHTTP(rec, oidcReq)
+
+		if rec.Code != http.StatusOK {
+			t.Fatalf("expected 200 for OIDC, got %d: %s", rec.Code, rec.Body.String())
+		}
+		var oidcResp map[string]any
+		_ = json.NewDecoder(rec.Body).Decode(&oidcResp)
+		if oidcResp["auth_type"] != "oidc" || oidcResp["email"] != "admin@lensio.dev" {
+			t.Errorf("unexpected OIDC verify response: %v", oidcResp)
+		}
+
+		// Test API key authentication still works
+		apiKeyReq := httptest.NewRequest(http.MethodGet, "/api/v1/auth/verify", nil)
+		apiKeyReq.Header.Set("Authorization", "Bearer "+gen.Plaintext)
+		recKey := httptest.NewRecorder()
+		dualRouter.ServeHTTP(recKey, apiKeyReq)
+
+		if recKey.Code != http.StatusOK {
+			t.Fatalf("expected 200 for API key under dualRouter, got %d", recKey.Code)
+		}
+	})
+}
+
+type testOIDCValidator struct {
+	user *middleware.OIDCUser
+	err  error
+}
+
+func (m *testOIDCValidator) ValidateToken(ctx context.Context, token string) (*middleware.OIDCUser, error) {
+	if m.err != nil {
+		return nil, m.err
+	}
+	return m.user, nil
 }

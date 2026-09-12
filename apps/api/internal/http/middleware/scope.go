@@ -42,7 +42,8 @@ func RequireScope(requiredScopes ...string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			key := GetAPIKey(r.Context())
-			if key == nil {
+			user := GetOIDCUser(r.Context())
+			if key == nil && user == nil {
 				response.ErrorWithRequest(
 					w,
 					r,
@@ -53,7 +54,14 @@ func RequireScope(requiredScopes ...string) func(http.Handler) http.Handler {
 				return
 			}
 
-			ok, missing := HasScope(key.Scopes, requiredScopes...)
+			var candidateScopes []string
+			if key != nil {
+				candidateScopes = key.Scopes
+			} else if user != nil {
+				candidateScopes = user.Roles
+			}
+
+			ok, missing := HasScope(candidateScopes, requiredScopes...)
 			if !ok {
 				response.ErrorWithRequest(
 					w,

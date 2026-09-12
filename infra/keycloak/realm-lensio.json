@@ -1,0 +1,106 @@
+{
+  "id": "lensio",
+  "realm": "lensio",
+  "displayName": "Lensio Identity",
+  "enabled": true,
+  "sslRequired": "none",
+  "registrationAllowed": false,
+  "resetPasswordAllowed": true,
+  "rememberMe": true,
+  "verifyEmail": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "roles": {
+    "realm": [
+      {
+        "name": "admin",
+        "description": "Administrator with full organizational and system access"
+      },
+      {
+        "name": "developer",
+        "description": "Developer with OCR execution and API key management access"
+      },
+      {
+        "name": "ocr:write",
+        "description": "Permission to process OCR documents"
+      },
+      {
+        "name": "ocr:read",
+        "description": "Permission to retrieve OCR document results"
+      },
+      {
+        "name": "usage:read",
+        "description": "Permission to read usage metrics and analytics"
+      }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "lensio-api",
+      "name": "Lensio API Resource Server",
+      "description": "Bearer-only resource server for Lensio backend API token validation",
+      "enabled": true,
+      "bearerOnly": true,
+      "protocol": "openid-connect"
+    },
+    {
+      "clientId": "lensio-dashboard",
+      "name": "Lensio Developer Dashboard",
+      "description": "Public SPA client for human operator authentication",
+      "enabled": true,
+      "publicClient": true,
+      "directAccessGrantsEnabled": true,
+      "standardFlowEnabled": true,
+      "protocol": "openid-connect",
+      "redirectUris": [
+        "http://localhost:5173/*",
+        "http://localhost:3000/*",
+        "*"
+      ],
+      "webOrigins": [
+        "*"
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "admin@lensio.dev",
+      "email": "admin@lensio.dev",
+      "firstName": "Lensio",
+      "lastName": "Admin",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "admin123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "admin"
+      ]
+    },
+    {
+      "username": "developer@veriform.com",
+      "email": "developer@veriform.com",
+      "firstName": "Veriform",
+      "lastName": "Developer",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "dev123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "developer",
+        "ocr:write",
+        "ocr:read",
+        "usage:read"
+      ]
+    }
+  ]
+}
