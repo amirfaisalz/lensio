@@ -16,7 +16,7 @@ paths = [
   '''openapi/openapi\.yaml''',
   '''\.env\.example''',
   '''docker-compose\.yml''',
-  '''DEVELOPMENT_CHECKLIST\.md''',
+  '''DEVELOPMENT_TRACKING\.md''',
   '''PRD\.md''',
   '''AGENTS\.md'''
 ]

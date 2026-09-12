@@ -104,6 +104,6 @@ Read these files based on the nature of your current task:
 ## 6. Development Phase Tracking
 
 All phases and granular deliverables are tracked in:
-👉 **[`DEVELOPMENT_CHECKLIST.md`](DEVELOPMENT_CHECKLIST.md)**
+👉 **[`DEVELOPMENT_TRACKING.md`](DEVELOPMENT_TRACKING.md)**
 
 Update the checklist checkmarks `[x]` as each item's acceptance criteria are verified.

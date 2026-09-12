@@ -1642,7 +1642,7 @@ This is the core engineering story.
 
 ---
 
-# 38. Portier Relevance
+# 38. Production & Platform Engineering Relevance
 
 Lensio intentionally demonstrates capabilities relevant to a modern platform/API engineering role.
 
