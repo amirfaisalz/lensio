@@ -173,6 +173,11 @@ func main() {
 		IdleTimeout:  60 * time.Second,
 	}
 
+	// Initialize background cleaner for stale rate limiter buckets and expired idempotency keys (Issue #4)
+	cleanerCtx, cleanerCancel := context.WithCancel(context.Background())
+	defer cleanerCancel()
+	cleanerDone := startBackgroundCleaner(cleanerCtx, logger, 10*time.Minute, rateLimiter, idempotencyStore)
+
 	// Server runner goroutine
 	go func() {
 		logger.Info("http server listening", slog.String("addr", srv.Addr))
@@ -187,6 +192,10 @@ func main() {
 	signal.Notify(shutdownChan, os.Interrupt, syscall.SIGTERM)
 	sig := <-shutdownChan
 	logger.Info("shutdown signal received", slog.String("signal", sig.String()))
+
+	// Stop background cleaner
+	cleanerCancel()
+	<-cleanerDone
 
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer shutdownCancel()
