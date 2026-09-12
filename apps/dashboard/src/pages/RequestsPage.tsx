@@ -228,7 +228,7 @@ export const RequestsPage: React.FC = () => {
 	return (
 		<div className="space-y-6 animate-in fade-in duration-200">
 			{/* Header */}
-			<div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+			<div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
 				<div>
 					<h2 className="text-xl font-bold text-slate-900 tracking-tight">
 						Requests Explorer
@@ -243,7 +243,7 @@ export const RequestsPage: React.FC = () => {
 					type="button"
 					onClick={loadRecords}
 					disabled={isLoading}
-					className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
+					className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors w-full sm:w-auto cursor-pointer"
 				>
 					<RefreshCw
 						className={`w-3.5 h-3.5 ${isLoading ? "animate-spin" : ""}`}
@@ -258,7 +258,7 @@ export const RequestsPage: React.FC = () => {
 					<button
 						type="button"
 						onClick={loadRecords}
-						className="font-semibold underline"
+						className="font-semibold underline cursor-pointer"
 					>
 						Retry
 					</button>
@@ -266,11 +266,11 @@ export const RequestsPage: React.FC = () => {
 			)}
 
 			{/* Filter Bar */}
-			<div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex flex-wrap items-center justify-between gap-4 text-xs">
-				<div className="flex flex-wrap items-center gap-3">
+			<div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+				<div className="flex flex-col xs:flex-row items-stretch xs:items-center gap-2.5 w-full sm:w-auto">
 					{/* Status Code Filter */}
 					<div className="flex items-center gap-2">
-						<span className="text-slate-500 font-medium">Status:</span>
+						<span className="text-slate-500 font-medium shrink-0">Status:</span>
 						<select
 							value={statusCodeFilter ?? ""}
 							onChange={(e) => {
@@ -278,7 +278,7 @@ export const RequestsPage: React.FC = () => {
 								setStatusCodeFilter(val);
 								setOffset(0);
 							}}
-							className="px-2.5 py-1.5 border border-slate-300 rounded-lg text-xs bg-white text-slate-800 focus:outline-hidden focus:border-[#1877F2]"
+							className="px-2.5 py-1.5 border border-slate-300 rounded-lg text-xs bg-white text-slate-800 focus:outline-hidden focus:border-[#1877F2] w-full xs:w-auto cursor-pointer"
 						>
 							<option value="">All Statuses</option>
 							<option value="200">200 OK</option>
@@ -294,7 +294,7 @@ export const RequestsPage: React.FC = () => {
 
 					{/* Endpoint text filter */}
 					<div className="flex items-center gap-2">
-						<span className="text-slate-500 font-medium">Route:</span>
+						<span className="text-slate-500 font-medium shrink-0">Route:</span>
 						<input
 							type="text"
 							placeholder="e.g. /api/v1/ocr/ktp"
@@ -303,7 +303,7 @@ export const RequestsPage: React.FC = () => {
 								setEndpointFilter(e.target.value.trim());
 								setOffset(0);
 							}}
-							className="px-2.5 py-1.5 border border-slate-300 rounded-lg text-xs font-mono bg-white text-slate-800 focus:outline-hidden focus:border-[#1877F2]"
+							className="px-2.5 py-1.5 border border-slate-300 rounded-lg text-xs font-mono bg-white text-slate-800 focus:outline-hidden focus:border-[#1877F2] w-full xs:w-auto"
 						/>
 					</div>
 				</div>
@@ -317,7 +317,7 @@ export const RequestsPage: React.FC = () => {
 			{/* Requests Table */}
 			<div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
 				<div className="overflow-x-auto">
-					<table className="w-full text-left text-xs text-slate-600">
+					<table className="w-full text-left text-xs text-slate-600 min-w-[660px]">
 						<thead className="bg-slate-50 border-b border-slate-200 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
 							<tr>
 								<th className="px-6 py-3.5">Status</th>
@@ -393,7 +393,7 @@ export const RequestsPage: React.FC = () => {
 				</div>
 
 				{/* Pagination Footer */}
-				<div className="px-6 py-3.5 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between text-xs text-slate-500">
+				<div className="px-4 sm:px-6 py-3.5 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between text-xs text-slate-500">
 					<div>
 						Page <strong className="text-slate-800">{currentPage}</strong> of{" "}
 						{totalPages}
@@ -404,7 +404,7 @@ export const RequestsPage: React.FC = () => {
 							type="button"
 							disabled={offset === 0 || isLoading}
 							onClick={() => setOffset(Math.max(0, offset - limit))}
-							className="p-1.5 border border-slate-200 bg-white rounded-md disabled:opacity-40 hover:bg-slate-50 transition-colors"
+							className="p-2 sm:p-1.5 border border-slate-200 bg-white rounded-md disabled:opacity-40 hover:bg-slate-50 transition-colors cursor-pointer"
 						>
 							<ChevronLeft className="w-4 h-4" />
 						</button>
@@ -412,7 +412,7 @@ export const RequestsPage: React.FC = () => {
 							type="button"
 							disabled={offset + limit >= total || isLoading}
 							onClick={() => setOffset(offset + limit)}
-							className="p-1.5 border border-slate-200 bg-white rounded-md disabled:opacity-40 hover:bg-slate-50 transition-colors"
+							className="p-2 sm:p-1.5 border border-slate-200 bg-white rounded-md disabled:opacity-40 hover:bg-slate-50 transition-colors cursor-pointer"
 						>
 							<ChevronRight className="w-4 h-4" />
 						</button>
@@ -430,7 +430,7 @@ export const RequestsPage: React.FC = () => {
 						<button
 							type="button"
 							onClick={() => setSelectedRecord(null)}
-							className="px-4 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50"
+							className="w-full sm:w-auto px-4 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 cursor-pointer text-center"
 						>
 							Close
 						</button>
@@ -443,33 +443,35 @@ export const RequestsPage: React.FC = () => {
 						</div>
 
 						<div className="space-y-2 text-xs">
-							<div className="flex justify-between py-1 border-b border-slate-100">
-								<span className="text-slate-500">Request ID</span>
-								<span className="font-mono text-slate-900 font-semibold">
+							<div className="flex items-center justify-between py-1 border-b border-slate-100 gap-2">
+								<span className="text-slate-500 shrink-0">Request ID</span>
+								<span className="font-mono text-slate-900 font-semibold break-all text-right">
 									{selectedRecord.request_id}
 								</span>
 							</div>
-							<div className="flex justify-between py-1 border-b border-slate-100">
-								<span className="text-slate-500">Target Endpoint</span>
-								<span className="font-mono text-slate-900">
+							<div className="flex items-center justify-between py-1 border-b border-slate-100 gap-2">
+								<span className="text-slate-500 shrink-0">Target Endpoint</span>
+								<span className="font-mono text-slate-900 break-all text-right">
 									{selectedRecord.endpoint}
 								</span>
 							</div>
-							<div className="flex justify-between py-1 border-b border-slate-100">
-								<span className="text-slate-500">Execution Latency</span>
+							<div className="flex items-center justify-between py-1 border-b border-slate-100 gap-2">
+								<span className="text-slate-500 shrink-0">
+									Execution Latency
+								</span>
 								<span className="font-mono text-slate-900">
 									{selectedRecord.latency_ms} ms
 								</span>
 							</div>
-							<div className="flex justify-between py-1 border-b border-slate-100">
-								<span className="text-slate-500">Timestamp</span>
-								<span className="font-mono text-slate-900">
+							<div className="flex items-center justify-between py-1 border-b border-slate-100 gap-2">
+								<span className="text-slate-500 shrink-0">Timestamp</span>
+								<span className="font-mono text-slate-900 text-right">
 									{new Date(selectedRecord.timestamp).toISOString()}
 								</span>
 							</div>
-							<div className="flex justify-between py-1 border-b border-slate-100">
-								<span className="text-slate-500">API Key UUID</span>
-								<span className="font-mono text-slate-700">
+							<div className="flex items-center justify-between py-1 border-b border-slate-100 gap-2">
+								<span className="text-slate-500 shrink-0">API Key UUID</span>
+								<span className="font-mono text-slate-700 break-all text-right">
 									{selectedRecord.api_key_id || "System / Direct"}
 								</span>
 							</div>

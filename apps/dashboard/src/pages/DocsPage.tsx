@@ -147,7 +147,7 @@ console.log(data);`,
 	return (
 		<div className="space-y-8 animate-in fade-in duration-200">
 			{/* Top Banner */}
-			<div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+			<div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
 				<div>
 					<h2 className="text-xl font-bold text-slate-900 tracking-tight">
 						API Documentation & Quickstart
@@ -162,7 +162,7 @@ console.log(data);`,
 					href="/docs"
 					target="_blank"
 					rel="noopener noreferrer"
-					className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-[#1877F2] bg-[#E7F3FF] hover:bg-[#d5eaff] rounded-lg transition-colors"
+					className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-[#1877F2] bg-[#E7F3FF] hover:bg-[#d5eaff] rounded-lg transition-colors w-full sm:w-auto"
 				>
 					<BookOpen className="w-4 h-4" />
 					<span>Interactive OpenAPI Docs (/docs)</span>
@@ -172,7 +172,7 @@ console.log(data);`,
 
 			{/* Code Snippets Box */}
 			<div className="bg-slate-900 rounded-xl overflow-hidden shadow-lg border border-slate-800">
-				<div className="px-4 py-3 bg-slate-950/80 border-b border-slate-800 flex items-center justify-between">
+				<div className="px-4 py-3 bg-slate-950/80 border-b border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
 					<div className="flex items-center gap-2">
 						<Terminal className="w-4 h-4 text-[#1877F2]" />
 						<span className="text-xs font-semibold text-slate-300">
@@ -180,14 +180,14 @@ console.log(data);`,
 						</span>
 					</div>
 
-					<div className="flex items-center gap-2">
-						<div className="flex bg-slate-900 p-0.5 rounded-lg border border-slate-800 text-[11px] font-mono">
+					<div className="flex items-center justify-between sm:justify-end gap-2 w-full sm:w-auto">
+						<div className="flex bg-slate-900 p-0.5 rounded-lg border border-slate-800 text-[11px] font-mono overflow-x-auto">
 							{(["curl", "go", "python", "nodejs"] as const).map((lang) => (
 								<button
 									key={lang}
 									type="button"
 									onClick={() => setActiveTab(lang)}
-									className={`px-3 py-1 rounded transition-colors ${
+									className={`px-3 py-1 rounded transition-colors cursor-pointer ${
 										activeTab === lang
 											? "bg-[#1877F2] text-white font-semibold"
 											: "text-slate-400 hover:text-slate-200"
@@ -201,7 +201,7 @@ console.log(data);`,
 						<button
 							type="button"
 							onClick={handleCopySnippet}
-							className="p-1.5 text-slate-400 hover:text-white rounded hover:bg-slate-800 transition-colors flex items-center gap-1 text-xs"
+							className="p-1.5 text-slate-400 hover:text-white rounded hover:bg-slate-800 transition-colors flex items-center gap-1 text-xs cursor-pointer shrink-0"
 							title="Copy snippet"
 						>
 							{copied ? (
@@ -216,14 +216,14 @@ console.log(data);`,
 					</div>
 				</div>
 
-				<div className="p-5 font-mono text-xs text-slate-200 overflow-x-auto leading-relaxed">
+				<div className="p-4 sm:p-5 font-mono text-[11px] sm:text-xs text-slate-200 overflow-x-auto leading-relaxed">
 					<pre>{snippets[activeTab]}</pre>
 				</div>
 			</div>
 
 			{/* Standardized Error Codes Reference */}
 			<div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
-				<div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+				<div className="px-4 sm:px-6 py-4 border-b border-slate-100 flex items-center justify-between">
 					<div>
 						<h3 className="text-sm font-semibold text-slate-900">
 							Standardized API Error Codes
@@ -236,7 +236,7 @@ console.log(data);`,
 				</div>
 
 				<div className="overflow-x-auto">
-					<table className="w-full text-left text-xs text-slate-600">
+					<table className="w-full text-left text-xs text-slate-600 min-w-[500px]">
 						<thead className="bg-slate-50 border-b border-slate-200 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
 							<tr>
 								<th className="px-6 py-3.5">Error Code</th>

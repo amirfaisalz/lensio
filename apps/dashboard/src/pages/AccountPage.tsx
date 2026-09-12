@@ -158,7 +158,7 @@ export const AccountPage: React.FC = () => {
 	return (
 		<div className="space-y-8 animate-in fade-in duration-200">
 			{/* Header */}
-			<div className="flex items-center justify-between">
+			<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
 				<div>
 					<h2 className="text-xl font-bold text-slate-900 tracking-tight">
 						Account & Settings
@@ -172,7 +172,7 @@ export const AccountPage: React.FC = () => {
 					type="button"
 					onClick={loadData}
 					disabled={isLoading}
-					className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
+					className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors w-full sm:w-auto cursor-pointer"
 				>
 					<RefreshCw
 						className={`w-3.5 h-3.5 ${isLoading ? "animate-spin" : ""}`}
@@ -339,7 +339,7 @@ export const AccountPage: React.FC = () => {
 			) : (
 				<>
 					{/* Organization Profile Card */}
-					<div className="bg-white p-6 rounded-xl border border-slate-200 shadow-xs">
+					<div className="bg-white p-4 sm:p-6 rounded-xl border border-slate-200 shadow-xs">
 						<div className="flex items-center gap-2 mb-4">
 							<Building2 className="w-4 h-4 text-[#1877F2]" />
 							<h3 className="text-sm font-semibold text-slate-900">
@@ -353,7 +353,7 @@ export const AccountPage: React.FC = () => {
 								<Skeleton className="h-4 w-64" />
 							</div>
 						) : org ? (
-							<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-xs">
+							<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 text-xs">
 								<div className="p-3 bg-slate-50 rounded-lg border border-slate-100">
 									<span className="text-slate-400 block text-[10px] uppercase font-semibold">
 										Organization Name
@@ -372,7 +372,7 @@ export const AccountPage: React.FC = () => {
 									<span className="text-slate-400 block text-[10px] uppercase font-semibold">
 										Organization ID
 									</span>
-									<span className="font-mono text-[11px] text-slate-700">
+									<span className="font-mono text-[11px] text-slate-700 break-all">
 										{org.organization_id}
 									</span>
 								</div>
@@ -389,8 +389,8 @@ export const AccountPage: React.FC = () => {
 					</div>
 
 					{/* Subscription Plan Switcher */}
-					<div className="bg-white p-6 rounded-xl border border-slate-200 shadow-xs">
-						<div className="flex items-center justify-between mb-4">
+					<div className="bg-white p-4 sm:p-6 rounded-xl border border-slate-200 shadow-xs">
+						<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
 							<div>
 								<div className="flex items-center gap-2">
 									<CreditCard className="w-4 h-4 text-[#1877F2]" />
@@ -405,13 +405,13 @@ export const AccountPage: React.FC = () => {
 							</div>
 
 							{planUpdateSuccess && (
-								<span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200">
+								<span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200 self-start sm:self-auto">
 									<Check className="w-3.5 h-3.5" /> Plan Updated Successfully
 								</span>
 							)}
 						</div>
 
-						<div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+						<div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4 mb-6">
 							{planOptions.map((opt) => {
 								const isCurrent = plan?.plan_code === opt.code;
 								const isSelected = selectedPlan === opt.code;
@@ -459,11 +459,11 @@ export const AccountPage: React.FC = () => {
 						</div>
 
 						{plan && selectedPlan !== plan.plan_code && (
-							<div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
+							<div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2 sm:gap-3 pt-4 border-t border-slate-100">
 								<button
 									type="button"
 									onClick={() => setSelectedPlan(plan.plan_code)}
-									className="px-4 py-2 text-xs font-medium text-slate-600 hover:text-slate-900"
+									className="px-4 py-2 text-xs font-medium text-slate-600 hover:text-slate-900 text-center cursor-pointer"
 								>
 									Reset
 								</button>
@@ -471,7 +471,7 @@ export const AccountPage: React.FC = () => {
 									type="button"
 									onClick={handleUpdatePlan}
 									disabled={isUpdatingPlan}
-									className="px-4 py-2 text-xs font-semibold text-white bg-[#1877F2] hover:bg-[#166FE5] rounded-lg transition-colors shadow-xs"
+									className="px-4 py-2 text-xs font-semibold text-white bg-[#1877F2] hover:bg-[#166FE5] rounded-lg transition-colors shadow-xs text-center cursor-pointer"
 								>
 									{isUpdatingPlan
 										? "Updating Plan..."
@@ -483,7 +483,7 @@ export const AccountPage: React.FC = () => {
 
 					{/* Team Members List */}
 					<div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
-						<div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+						<div className="px-4 sm:px-6 py-4 border-b border-slate-100 flex items-center justify-between">
 							<div className="flex items-center gap-2">
 								<Users className="w-4 h-4 text-[#1877F2]" />
 								<h3 className="text-sm font-semibold text-slate-900">
@@ -496,7 +496,7 @@ export const AccountPage: React.FC = () => {
 						</div>
 
 						<div className="overflow-x-auto">
-							<table className="w-full text-left text-xs text-slate-600">
+							<table className="w-full text-left text-xs text-slate-600 min-w-[540px]">
 								<thead className="bg-slate-50 border-b border-slate-200 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
 									<tr>
 										<th className="px-6 py-3.5">Name</th>

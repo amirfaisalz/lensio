@@ -250,7 +250,7 @@ export const APIKeysPage: React.FC = () => {
 	return (
 		<div className="space-y-6 animate-in fade-in duration-200">
 			{/* Top Banner */}
-			<div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+			<div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
 				<div>
 					<h2 className="text-xl font-bold text-slate-900 tracking-tight">
 						API Key Management
@@ -262,7 +262,7 @@ export const APIKeysPage: React.FC = () => {
 					</p>
 				</div>
 
-				<div className="flex items-center gap-2">
+				<div className="flex items-center gap-2 w-full sm:w-auto justify-end">
 					<button
 						type="button"
 						onClick={loadKeys}
@@ -278,7 +278,7 @@ export const APIKeysPage: React.FC = () => {
 					<button
 						type="button"
 						onClick={() => setIsCreateModalOpen(true)}
-						className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-[#1877F2] hover:bg-[#166FE5] rounded-lg shadow-xs transition-colors cursor-pointer"
+						className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-[#1877F2] hover:bg-[#166FE5] rounded-lg shadow-xs transition-colors cursor-pointer flex-1 sm:flex-initial"
 					>
 						<Plus className="w-4 h-4" />
 						<span>Create New Key</span>
@@ -292,7 +292,7 @@ export const APIKeysPage: React.FC = () => {
 					<button
 						type="button"
 						onClick={loadKeys}
-						className="font-semibold underline"
+						className="font-semibold underline cursor-pointer"
 					>
 						Retry
 					</button>
@@ -302,7 +302,7 @@ export const APIKeysPage: React.FC = () => {
 			{/* Keys Table Container */}
 			<div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
 				<div className="overflow-x-auto">
-					<table className="w-full text-left text-xs text-slate-600">
+					<table className="w-full text-left text-xs text-slate-600 min-w-[680px]">
 						<thead className="bg-slate-50 border-b border-slate-200 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
 							<tr>
 								<th className="px-6 py-3.5">Name</th>
@@ -571,18 +571,18 @@ export const APIKeysPage: React.FC = () => {
 					onClose={() => setCreatedKeyData(null)}
 					title="Save Your API Key"
 					footer={
-						<div className="flex items-center justify-between w-full">
+						<div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-2 w-full">
 							<button
 								type="button"
 								onClick={handleUseCreatedKey}
-								className="px-3 py-1.5 text-xs font-semibold text-[#1877F2] bg-[#E7F3FF] hover:bg-[#d5eaff] rounded-lg transition-colors cursor-pointer"
+								className="px-3.5 py-2 text-xs font-semibold text-[#1877F2] bg-[#E7F3FF] hover:bg-[#d5eaff] rounded-lg transition-colors cursor-pointer text-center"
 							>
 								Connect in Dashboard
 							</button>
 							<button
 								type="button"
 								onClick={() => setCreatedKeyData(null)}
-								className="px-4 py-2 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
+								className="px-4 py-2 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-lg transition-colors cursor-pointer text-center"
 							>
 								I Have Saved It
 							</button>

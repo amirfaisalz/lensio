@@ -192,4 +192,48 @@ describe("App & Dashboard Navigation with Routes", () => {
 			expect(screen.getByText("Masuk (Sign In)")).toBeDefined();
 		});
 	});
+
+	it("opens and closes mobile navigation drawer via hamburger button and close button", async () => {
+		window.history.pushState({}, "", "/login");
+		render(<App />);
+
+		// Log in
+		fireEvent.change(screen.getByLabelText("Email Kerja / Username"), {
+			target: { value: "dev@lensio.dev" },
+		});
+		fireEvent.change(screen.getByLabelText("Kata Sandi"), {
+			target: { value: "dev123" },
+		});
+		fireEvent.click(screen.getByText("Masuk ke Dashboard"));
+
+		await waitFor(() => {
+			expect(window.location.pathname).toBe("/dashboard");
+			expect(screen.getByText("System Overview")).toBeDefined();
+		});
+
+		// Find mobile hamburger button
+		const hamburgerBtn = await screen.findByLabelText("Buka menu navigasi");
+		expect(hamburgerBtn).toBeDefined();
+
+		// Initially drawer backdrop should not be present
+		expect(screen.queryByLabelText("Tutup menu navigasi")).toBeNull();
+
+		// Click hamburger menu to open drawer
+		fireEvent.click(hamburgerBtn);
+
+		// Now backdrop and close button in drawer should be in the document
+		expect(screen.getByLabelText("Tutup menu navigasi")).toBeDefined();
+		const closeDrawerBtn = screen.getByLabelText("Tutup navigasi");
+		expect(closeDrawerBtn).toBeDefined();
+
+		// Close drawer via close button
+		fireEvent.click(closeDrawerBtn);
+		expect(screen.queryByLabelText("Tutup menu navigasi")).toBeNull();
+
+		// Reopen and close via backdrop
+		fireEvent.click(hamburgerBtn);
+		expect(screen.getByLabelText("Tutup menu navigasi")).toBeDefined();
+		fireEvent.click(screen.getByLabelText("Tutup menu navigasi"));
+		expect(screen.queryByLabelText("Tutup menu navigasi")).toBeNull();
+	});
 });

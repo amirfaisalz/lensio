@@ -61,6 +61,7 @@ export const DashboardLayout: React.FC = () => {
 	const navigate = useNavigate();
 	const params = useParams<{ page?: string }>();
 	const [isHealthy, setIsHealthy] = useState(true);
+	const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
 
 	// Resolve active navigation page from route params or fallback to overview
 	const currentPage: NavigationPage =
@@ -84,6 +85,7 @@ export const DashboardLayout: React.FC = () => {
 	}, []);
 
 	const handleNavigate = (page: NavigationPage) => {
+		setIsMobileNavOpen(false);
 		navigate(`/dashboard/${page}`);
 	};
 
@@ -110,18 +112,24 @@ export const DashboardLayout: React.FC = () => {
 
 	return (
 		<div className="flex min-h-screen bg-[#F0F2F5] text-slate-900 font-sans antialiased">
-			{/* Sidebar navigation */}
+			{/* Sidebar navigation (responsive drawer on mobile, static on desktop) */}
 			<Sidebar
 				currentPage={currentPage}
 				onNavigate={handleNavigate}
 				isHealthy={isHealthy}
+				isOpenMobile={isMobileNavOpen}
+				onCloseMobile={() => setIsMobileNavOpen(false)}
 			/>
 
 			{/* Main Content Area */}
 			<div className="flex-1 flex flex-col min-w-0">
-				<Header title={meta.title} subtitle={meta.subtitle} />
+				<Header
+					title={meta.title}
+					subtitle={meta.subtitle}
+					onOpenMobileNav={() => setIsMobileNavOpen(true)}
+				/>
 
-				<main className="flex-1 p-6 sm:p-8 max-w-7xl w-full mx-auto">
+				<main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto">
 					{renderPage()}
 				</main>
 			</div>
