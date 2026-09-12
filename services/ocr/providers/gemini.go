@@ -186,12 +186,13 @@ func (g *GeminiOCREngine) Extract(ctx context.Context, imageBytes []byte) (*ocr.
 		return nil, fmt.Errorf("%w: failed marshaling gemini request: %v", ocr.ErrOCRFailed, err)
 	}
 
-	url := fmt.Sprintf("%s/v1beta/models/%s:generateContent?key=%s", g.baseURL, g.model, g.apiKey)
+	url := fmt.Sprintf("%s/v1beta/models/%s:generateContent", g.baseURL, g.model)
 	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(reqBody))
 	if err != nil {
 		return nil, fmt.Errorf("%w: failed creating gemini request: %v", ocr.ErrOCRFailed, err)
 	}
 	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("x-goog-api-key", g.apiKey)
 
 	resp, err := g.httpClient.Do(httpReq)
 	if err != nil {

@@ -62,6 +62,14 @@ func TestGeminiOCREngine(t *testing.T) {
 				http.Error(w, "bad method", http.StatusBadRequest)
 				return
 			}
+			if key := r.Header.Get("x-goog-api-key"); key != "test-api-key" {
+				http.Error(w, "missing or invalid x-goog-api-key header", http.StatusUnauthorized)
+				return
+			}
+			if r.URL.Query().Get("key") != "" {
+				http.Error(w, "api key must not be passed in query parameters", http.StatusBadRequest)
+				return
+			}
 			w.Header().Set("Content-Type", "application/json")
 			_ = json.NewEncoder(w).Encode(mockGeminiResponse)
 		}))
