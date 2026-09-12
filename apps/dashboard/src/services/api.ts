@@ -5,6 +5,7 @@ import type {
 	CreateKeyResponse,
 	CreateOrganizationRequest,
 	CreateOrganizationResponse,
+	CurrentUserResponse,
 	DailyUsage,
 	EndpointUsage,
 	KTPResponse,
@@ -65,6 +66,24 @@ class ApiClient {
 		return headers;
 	}
 
+	private async fetchWithAuth(
+		url: string,
+		init: RequestInit = {},
+	): Promise<Response> {
+		const isMultipart = init.body instanceof FormData;
+		const defaultHeaders = this.getHeaders(isMultipart);
+		const mergedHeaders = {
+			...defaultHeaders,
+			...(init.headers as Record<string, string> | undefined),
+		};
+
+		return fetch(url, {
+			...init,
+			credentials: "include",
+			headers: mergedHeaders,
+		});
+	}
+
 	private async handleResponse<T>(res: Response): Promise<T> {
 		if (!res.ok) {
 			let errorMessage = `Request failed with status ${res.status}`;
@@ -89,20 +108,32 @@ class ApiClient {
 	}
 
 	public async checkHealth(): Promise<{ status: string; timestamp: string }> {
-		const res = await fetch(`${API_BASE}/health`, {
+		const res = await this.fetchWithAuth(`${API_BASE}/health`, {
 			method: "GET",
-			headers: this.getHeaders(),
 		});
 		return this.handleResponse<{ status: string; timestamp: string }>(res);
+	}
+
+	public async fetchCurrentUser(): Promise<CurrentUserResponse> {
+		const res = await this.fetchWithAuth(`${API_BASE}/api/v1/auth/me`, {
+			method: "GET",
+		});
+		return this.handleResponse<CurrentUserResponse>(res);
+	}
+
+	public async logout(): Promise<{ status: string; message: string }> {
+		const res = await this.fetchWithAuth(`${API_BASE}/api/v1/auth/logout`, {
+			method: "POST",
+		});
+		return this.handleResponse<{ status: string; message: string }>(res);
 	}
 
 	public async fetchUsageSummary(orgId?: string): Promise<UsageSummary> {
 		const url = orgId
 			? `${API_BASE}/api/v1/usage?org_id=${encodeURIComponent(orgId)}`
 			: `${API_BASE}/api/v1/usage`;
-		const res = await fetch(url, {
+		const res = await this.fetchWithAuth(url, {
 			method: "GET",
-			headers: this.getHeaders(),
 		});
 		return this.handleResponse<UsageSummary>(res);
 	}
@@ -111,9 +142,8 @@ class ApiClient {
 		const url = orgId
 			? `${API_BASE}/api/v1/usage/daily?org_id=${encodeURIComponent(orgId)}`
 			: `${API_BASE}/api/v1/usage/daily`;
-		const res = await fetch(url, {
+		const res = await this.fetchWithAuth(url, {
 			method: "GET",
-			headers: this.getHeaders(),
 		});
 		const result = await this.handleResponse<{ data: DailyUsage[] }>(res);
 		return result.data || [];
@@ -123,9 +153,8 @@ class ApiClient {
 		const url = orgId
 			? `${API_BASE}/api/v1/usage/endpoints?org_id=${encodeURIComponent(orgId)}`
 			: `${API_BASE}/api/v1/usage/endpoints`;
-		const res = await fetch(url, {
+		const res = await this.fetchWithAuth(url, {
 			method: "GET",
-			headers: this.getHeaders(),
 		});
 		const result = await this.handleResponse<{ data: EndpointUsage[] }>(res);
 		return result.data || [];
@@ -149,26 +178,23 @@ class ApiClient {
 
 		const qs = query.toString();
 		const url = `${API_BASE}/api/v1/usage/records${qs ? `?${qs}` : ""}`;
-		const res = await fetch(url, {
+		const res = await this.fetchWithAuth(url, {
 			method: "GET",
-			headers: this.getHeaders(),
 		});
 		return this.handleResponse<UsageRecordsResponse>(res);
 	}
 
 	public async fetchAPIKeys(): Promise<APIKeyListItem[]> {
-		const res = await fetch(`${API_BASE}/api/v1/auth/api-keys`, {
+		const res = await this.fetchWithAuth(`${API_BASE}/api/v1/auth/api-keys`, {
 			method: "GET",
-			headers: this.getHeaders(),
 		});
 		const result = await this.handleResponse<{ data: APIKeyListItem[] }>(res);
 		return result.data || [];
 	}
 
 	public async createAPIKey(req: CreateKeyRequest): Promise<CreateKeyResponse> {
-		const res = await fetch(`${API_BASE}/api/v1/auth/api-keys`, {
+		const res = await this.fetchWithAuth(`${API_BASE}/api/v1/auth/api-keys`, {
 			method: "POST",
-			headers: this.getHeaders(),
 			body: JSON.stringify(req),
 		});
 		return this.handleResponse<CreateKeyResponse>(res);
@@ -177,25 +203,25 @@ class ApiClient {
 	public async revokeAPIKey(
 		id: string,
 	): Promise<{ message: string; id: string }> {
-		const res = await fetch(`${API_BASE}/api/v1/auth/api-keys/${id}`, {
-			method: "DELETE",
-			headers: this.getHeaders(),
-		});
+		const res = await this.fetchWithAuth(
+			`${API_BASE}/api/v1/auth/api-keys/${id}`,
+			{
+				method: "DELETE",
+			},
+		);
 		return this.handleResponse<{ message: string; id: string }>(res);
 	}
 
 	public async fetchAccount(): Promise<OrganizationDetails> {
-		const res = await fetch(`${API_BASE}/api/v1/account`, {
+		const res = await this.fetchWithAuth(`${API_BASE}/api/v1/account`, {
 			method: "GET",
-			headers: this.getHeaders(),
 		});
 		return this.handleResponse<OrganizationDetails>(res);
 	}
 
 	public async fetchAccountPlan(): Promise<PlanDetails> {
-		const res = await fetch(`${API_BASE}/api/v1/account/plan`, {
+		const res = await this.fetchWithAuth(`${API_BASE}/api/v1/account/plan`, {
 			method: "GET",
-			headers: this.getHeaders(),
 		});
 		return this.handleResponse<PlanDetails>(res);
 	}
@@ -203,18 +229,16 @@ class ApiClient {
 	public async updateAccountPlan(
 		planCode: string,
 	): Promise<{ message: string; plan_code: string }> {
-		const res = await fetch(`${API_BASE}/api/v1/account/plan`, {
+		const res = await this.fetchWithAuth(`${API_BASE}/api/v1/account/plan`, {
 			method: "PUT",
-			headers: this.getHeaders(),
 			body: JSON.stringify({ plan_code: planCode }),
 		});
 		return this.handleResponse<{ message: string; plan_code: string }>(res);
 	}
 
 	public async fetchAccountMembers(): Promise<UserMember[]> {
-		const res = await fetch(`${API_BASE}/api/v1/account/members`, {
+		const res = await this.fetchWithAuth(`${API_BASE}/api/v1/account/members`, {
 			method: "GET",
-			headers: this.getHeaders(),
 		});
 		const result = await this.handleResponse<{ data: UserMember[] }>(res);
 		return result.data || [];
@@ -224,18 +248,16 @@ class ApiClient {
 		const formData = new FormData();
 		formData.append("document", file);
 
-		const res = await fetch(`${API_BASE}/api/v1/ocr/ktp`, {
+		const res = await this.fetchWithAuth(`${API_BASE}/api/v1/ocr/ktp`, {
 			method: "POST",
-			headers: this.getHeaders(true),
 			body: formData,
 		});
 		return this.handleResponse<KTPResponse>(res);
 	}
 
 	public async register(req: RegisterRequest): Promise<RegisterResponse> {
-		const res = await fetch(`${API_BASE}/api/v1/auth/register`, {
+		const res = await this.fetchWithAuth(`${API_BASE}/api/v1/auth/register`, {
 			method: "POST",
-			headers: this.getHeaders(),
 			body: JSON.stringify(req),
 		});
 		return this.handleResponse<RegisterResponse>(res);
@@ -244,18 +266,19 @@ class ApiClient {
 	public async verifyEmail(
 		req: VerifyEmailRequest,
 	): Promise<VerifyEmailResponse> {
-		const res = await fetch(`${API_BASE}/api/v1/auth/verify-email`, {
-			method: "POST",
-			headers: this.getHeaders(),
-			body: JSON.stringify(req),
-		});
+		const res = await this.fetchWithAuth(
+			`${API_BASE}/api/v1/auth/verify-email`,
+			{
+				method: "POST",
+				body: JSON.stringify(req),
+			},
+		);
 		return this.handleResponse<VerifyEmailResponse>(res);
 	}
 
 	public async login(req: LoginRequest): Promise<LoginResponse> {
-		const res = await fetch(`${API_BASE}/api/v1/auth/login`, {
+		const res = await this.fetchWithAuth(`${API_BASE}/api/v1/auth/login`, {
 			method: "POST",
-			headers: this.getHeaders(),
 			body: JSON.stringify(req),
 		});
 		return this.handleResponse<LoginResponse>(res);
@@ -264,11 +287,13 @@ class ApiClient {
 	public async createOrganization(
 		req: CreateOrganizationRequest,
 	): Promise<CreateOrganizationResponse> {
-		const res = await fetch(`${API_BASE}/api/v1/account/organizations`, {
-			method: "POST",
-			headers: this.getHeaders(),
-			body: JSON.stringify(req),
-		});
+		const res = await this.fetchWithAuth(
+			`${API_BASE}/api/v1/account/organizations`,
+			{
+				method: "POST",
+				body: JSON.stringify(req),
+			},
+		);
 		return this.handleResponse<CreateOrganizationResponse>(res);
 	}
 }

@@ -212,6 +212,18 @@ func LoginHandler(accountStore store.AccountStore) http.HandlerFunc {
 			return
 		}
 
+		isSecure := r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https"
+		http.SetCookie(w, &http.Cookie{
+			Name:     "lensio_session",
+			Value:    token,
+			Path:     "/",
+			Expires:  time.Now().Add(7 * 24 * time.Hour),
+			MaxAge:   int((7 * 24 * time.Hour).Seconds()),
+			HttpOnly: true,
+			Secure:   isSecure,
+			SameSite: http.SameSiteLaxMode,
+		})
+
 		response.JSON(w, http.StatusOK, map[string]any{
 			"access_token": token,
 			"token_type":   "Bearer",
@@ -224,6 +236,88 @@ func LoginHandler(accountStore store.AccountStore) http.HandlerFunc {
 			},
 			"organization": orgContext,
 		})
+	}
+}
+
+// LogoutHandler handles POST /api/v1/auth/logout and clears the secure session cookie.
+func LogoutHandler() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		isSecure := r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https"
+		http.SetCookie(w, &http.Cookie{
+			Name:     "lensio_session",
+			Value:    "",
+			Path:     "/",
+			Expires:  time.Unix(0, 0),
+			MaxAge:   -1,
+			HttpOnly: true,
+			Secure:   isSecure,
+			SameSite: http.SameSiteLaxMode,
+		})
+
+		response.JSON(w, http.StatusOK, map[string]any{
+			"status":  "ok",
+			"message": "Berhasil keluar dari sesi.",
+		})
+	}
+}
+
+// MeHandler handles GET /api/v1/auth/me to return current authenticated user profile and organization.
+func MeHandler(accountStore store.AccountStore) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if oidcUser := middleware.GetOIDCUser(r.Context()); oidcUser != nil {
+			var orgContext map[string]any
+			if accountStore != nil {
+				org, err := accountStore.GetUserOrganization(r.Context(), oidcUser.Subject)
+				if err == nil && org != nil {
+					orgContext = map[string]any{
+						"id":        org.ID,
+						"name":      org.Name,
+						"slug":      org.Slug,
+						"plan_code": org.PlanCode,
+					}
+				}
+			}
+
+			response.JSON(w, http.StatusOK, map[string]any{
+				"user": map[string]any{
+					"id":        oidcUser.Subject,
+					"email":     oidcUser.Email,
+					"full_name": oidcUser.Name,
+					"roles":     oidcUser.Roles,
+				},
+				"organization": orgContext,
+			})
+			return
+		}
+
+		if key := middleware.GetAPIKey(r.Context()); key != nil {
+			var orgContext map[string]any
+			if accountStore != nil {
+				org, err := accountStore.GetOrganization(r.Context(), key.OrgID)
+				if err == nil && org != nil {
+					orgContext = map[string]any{
+						"id":        org.ID,
+						"name":      org.Name,
+						"slug":      org.Slug,
+						"plan_code": org.PlanCode,
+					}
+				}
+			}
+
+			response.JSON(w, http.StatusOK, map[string]any{
+				"api_key": map[string]any{
+					"id":          key.ID,
+					"name":        key.Name,
+					"prefix":      key.Prefix,
+					"environment": key.Environment,
+					"scopes":      key.Scopes,
+				},
+				"organization": orgContext,
+			})
+			return
+		}
+
+		response.ErrorWithRequest(w, r, http.StatusUnauthorized, response.CodeInvalidAPIKey, "Sesi tidak ditemukan")
 	}
 }
 

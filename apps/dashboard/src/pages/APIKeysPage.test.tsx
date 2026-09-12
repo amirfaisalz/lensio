@@ -11,8 +11,21 @@ const TEST_ORG = {
 	planCode: "free",
 };
 
-const renderWithAuth = (ui: React.ReactElement) => {
-	return render(<AuthProvider>{ui}</AuthProvider>);
+const renderWithAuth = (
+	ui: React.ReactElement,
+	options?: {
+		initialOrg?: typeof TEST_ORG | null;
+		initialApiKey?: string | null;
+	},
+) => {
+	return render(
+		<AuthProvider
+			initialOrg={options?.initialOrg}
+			initialApiKey={options?.initialApiKey}
+		>
+			{ui}
+		</AuthProvider>,
+	);
 };
 
 describe("APIKeysPage", () => {
@@ -56,14 +69,12 @@ describe("APIKeysPage", () => {
 	});
 
 	it("renders empty keys state when organization exists but no keys are generated", async () => {
-		localStorage.setItem("lensio_current_org", JSON.stringify(TEST_ORG));
-
 		vi.spyOn(globalThis, "fetch").mockResolvedValue({
 			ok: true,
 			json: async () => ({ data: [] }),
 		} as Response);
 
-		renderWithAuth(<APIKeysPage />);
+		renderWithAuth(<APIKeysPage />, { initialOrg: TEST_ORG });
 
 		await waitFor(() => {
 			expect(screen.getByText("Belum Ada API Key")).toBeDefined();
@@ -72,8 +83,6 @@ describe("APIKeysPage", () => {
 	});
 
 	it("renders list of API keys with badges and details", async () => {
-		localStorage.setItem("lensio_current_org", JSON.stringify(TEST_ORG));
-
 		const mockKeys = [
 			{
 				id: "key-1",
@@ -96,7 +105,7 @@ describe("APIKeysPage", () => {
 			json: async () => ({ data: mockKeys }),
 		} as Response);
 
-		renderWithAuth(<APIKeysPage />);
+		renderWithAuth(<APIKeysPage />, { initialOrg: TEST_ORG });
 
 		await waitFor(() => {
 			expect(screen.getByText("Backend Server Key")).toBeDefined();
@@ -108,8 +117,6 @@ describe("APIKeysPage", () => {
 	});
 
 	it("handles error when fetching API keys fails", async () => {
-		localStorage.setItem("lensio_current_org", JSON.stringify(TEST_ORG));
-
 		vi.spyOn(globalThis, "fetch").mockResolvedValue({
 			ok: false,
 			status: 500,
@@ -118,7 +125,7 @@ describe("APIKeysPage", () => {
 			}),
 		} as Response);
 
-		renderWithAuth(<APIKeysPage />);
+		renderWithAuth(<APIKeysPage />, { initialOrg: TEST_ORG });
 
 		await waitFor(() => {
 			expect(screen.getByText("Internal server database error")).toBeDefined();
@@ -126,8 +133,6 @@ describe("APIKeysPage", () => {
 	});
 
 	it("creates a new API key and reveals the plaintext secret token", async () => {
-		localStorage.setItem("lensio_current_org", JSON.stringify(TEST_ORG));
-
 		const createdKeyResponse = {
 			id: "key-2",
 			org_id: "org-1",
@@ -163,7 +168,10 @@ describe("APIKeysPage", () => {
 			const method = init?.method || "GET";
 			if (method === "POST") {
 				hasCreated = true;
-				return { ok: true, json: async () => createdKeyResponse } as Response;
+				return {
+					ok: true,
+					json: async () => createdKeyResponse,
+				} as Response;
 			}
 			return {
 				ok: true,
@@ -171,7 +179,7 @@ describe("APIKeysPage", () => {
 			} as Response;
 		});
 
-		renderWithAuth(<APIKeysPage />);
+		renderWithAuth(<APIKeysPage />, { initialOrg: TEST_ORG });
 
 		await waitFor(() => {
 			expect(screen.getByText("Create New Key")).toBeDefined();
@@ -213,8 +221,6 @@ describe("APIKeysPage", () => {
 	});
 
 	it("revokes an active API key after confirmation", async () => {
-		localStorage.setItem("lensio_current_org", JSON.stringify(TEST_ORG));
-
 		const activeKey = {
 			id: "key-to-delete",
 			org_id: "org-1",
@@ -254,7 +260,7 @@ describe("APIKeysPage", () => {
 			} as Response;
 		});
 
-		renderWithAuth(<APIKeysPage />);
+		renderWithAuth(<APIKeysPage />, { initialOrg: TEST_ORG });
 
 		await waitFor(() => {
 			expect(screen.getByText("Temporary Key")).toBeDefined();

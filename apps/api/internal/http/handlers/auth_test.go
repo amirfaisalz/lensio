@@ -363,6 +363,106 @@ func TestLoginHandler(t *testing.T) {
 	if loginResp["access_token"] == nil || loginResp["access_token"] == "" {
 		t.Errorf("expected access_token in login response")
 	}
+
+	// Verify secure cookie
+	cookies := rec.Result().Cookies()
+	var sessionCookie *http.Cookie
+	for _, c := range cookies {
+		if c.Name == "lensio_session" {
+			sessionCookie = c
+			break
+		}
+	}
+	if sessionCookie == nil {
+		t.Fatalf("expected lensio_session cookie to be set")
+	}
+	if !sessionCookie.HttpOnly {
+		t.Errorf("expected cookie to be HttpOnly")
+	}
+	if sessionCookie.SameSite != http.SameSiteLaxMode {
+		t.Errorf("expected SameSite Lax")
+	}
+	if sessionCookie.Value == "" {
+		t.Errorf("expected non-empty cookie value")
+	}
+}
+
+func TestLogoutHandler(t *testing.T) {
+	h := handlers.LogoutHandler()
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/logout", nil)
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Errorf("expected 200 for logout, got %d", rec.Code)
+	}
+
+	cookies := rec.Result().Cookies()
+	var sessionCookie *http.Cookie
+	for _, c := range cookies {
+		if c.Name == "lensio_session" {
+			sessionCookie = c
+			break
+		}
+	}
+	if sessionCookie == nil {
+		t.Fatalf("expected lensio_session cookie to be present in logout response")
+	}
+	if sessionCookie.MaxAge != -1 || sessionCookie.Value != "" {
+		t.Errorf("expected cookie to be cleared with MaxAge -1 and empty value")
+	}
+}
+
+func TestMeHandler(t *testing.T) {
+	mockStore := newMockAccountStore()
+	h := handlers.MeHandler(mockStore)
+
+	// Unauthenticated
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/auth/me", nil)
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+	if rec.Code != http.StatusUnauthorized {
+		t.Errorf("expected 401 when unauthenticated, got %d", rec.Code)
+	}
+
+	// Authenticated OIDC user
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/auth/me", nil)
+	ctx := middleware.WithOIDCUser(req.Context(), &middleware.OIDCUser{
+		Subject: "user-123",
+		Email:   "user@example.com",
+		Name:    "User Name",
+		Roles:   []string{"developer"},
+	})
+	req = req.WithContext(ctx)
+	rec = httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Errorf("expected 200 for authenticated user, got %d", rec.Code)
+	}
+	var resp map[string]any
+	_ = json.NewDecoder(rec.Body).Decode(&resp)
+	if resp["user"] == nil {
+		t.Errorf("expected user in response")
+	}
+
+	// Authenticated API key user
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/auth/me", nil)
+	ctx = middleware.WithAPIKey(req.Context(), &store.APIKey{
+		ID:          "key-1",
+		OrgID:       "org-1",
+		Name:        "Test Key",
+		Prefix:      "lensio_live_",
+		Environment: "live",
+		Scopes:      []string{"ocr:write"},
+	})
+	req = req.WithContext(ctx)
+	rec = httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Errorf("expected 200 for authenticated API key, got %d", rec.Code)
+	}
 }
 
 func TestCreateOrganizationHandler(t *testing.T) {

@@ -17,7 +17,7 @@ export interface OIDCUserSession {
 	preferredUsername: string;
 	name?: string;
 	roles?: string[];
-	token: string;
+	token?: string;
 	organization?: OrganizationContext;
 }
 
@@ -58,8 +58,6 @@ export interface AuthContextValue {
 }
 
 const STORAGE_KEY_AUTH_MODE = "lensio_auth_mode";
-const STORAGE_KEY_OIDC_USER = "lensio_oidc_user";
-const STORAGE_KEY_CURRENT_ORG = "lensio_current_org";
 
 export function createDevJwtToken(
 	sub: string,
@@ -89,53 +87,44 @@ export const AuthContext = createContext<AuthContextValue | undefined>(
 	undefined,
 );
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
+export interface AuthProviderProps {
+	children: React.ReactNode;
+	initialOrg?: OrganizationContext | null;
+	initialUser?: OIDCUserSession | null;
+	initialApiKey?: string | null;
+	initialAuthMode?: AuthMode;
+}
+
+export const AuthProvider: React.FC<AuthProviderProps> = ({
 	children,
+	initialOrg = null,
+	initialUser = null,
+	initialApiKey = null,
+	initialAuthMode,
 }) => {
 	const [apiKey, setApiKeyState] = useState<string | null>(() =>
-		api.getApiKey(),
+		initialApiKey !== null ? initialApiKey : api.getApiKey(),
 	);
 	const [authMode, setAuthMode] = useState<AuthMode>(() => {
+		if (initialAuthMode) return initialAuthMode;
+		if (initialApiKey) return "apikey";
+		if (initialUser) return "oidc";
 		if (typeof window !== "undefined") {
 			const saved = localStorage.getItem(STORAGE_KEY_AUTH_MODE);
 			if (saved === "oidc" || saved === "apikey") {
 				return saved;
 			}
-			if (localStorage.getItem(STORAGE_KEY_OIDC_USER)) {
-				return "oidc";
-			}
 		}
 		return "apikey";
 	});
-	const [oidcUser, setOidcUser] = useState<OIDCUserSession | null>(() => {
-		if (typeof window !== "undefined") {
-			const saved = localStorage.getItem(STORAGE_KEY_OIDC_USER);
-			if (saved) {
-				try {
-					return JSON.parse(saved);
-				} catch {
-					return null;
-				}
-			}
-		}
-		return null;
-	});
+	const [oidcUser, setOidcUser] = useState<OIDCUserSession | null>(initialUser);
 	const [currentOrg, setCurrentOrg] = useState<OrganizationContext | null>(
-		() => {
-			if (typeof window !== "undefined") {
-				const saved = localStorage.getItem(STORAGE_KEY_CURRENT_ORG);
-				if (saved) {
-					try {
-						return JSON.parse(saved);
-					} catch {
-						return null;
-					}
-				}
-			}
-			return null;
-		},
+		initialOrg,
 	);
-	const [environment, setEnvironment] = useState<"live" | "test">("live");
+	const [environment, setEnvironment] = useState<"live" | "test">(() => {
+		if (initialApiKey?.startsWith("lensio_test_")) return "test";
+		return "live";
+	});
 
 	useEffect(() => {
 		if (apiKey?.startsWith("lensio_test_")) {
@@ -145,14 +134,57 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 		}
 	}, [apiKey]);
 
-	// Keep API client header synchronized
+	// Initialize and verify cookie-backed session on mount if previously in OIDC mode
 	useEffect(() => {
-		if (authMode === "oidc" && oidcUser?.token) {
-			api.setApiKey(oidcUser.token);
-		} else if (authMode === "apikey" && apiKey) {
+		const restoreSession = async () => {
+			if (initialOrg || initialUser) return;
+			if (
+				typeof window !== "undefined" &&
+				localStorage.getItem(STORAGE_KEY_AUTH_MODE) === "oidc"
+			) {
+				try {
+					const res = await api.fetchCurrentUser();
+					if (res?.user) {
+						const username = res.user.email.split("@")[0];
+						const orgContext: OrganizationContext | null = res.organization
+							? {
+									id: res.organization.id,
+									name: res.organization.name,
+									slug: res.organization.slug,
+									planCode: res.organization.plan_code,
+								}
+							: null;
+						const session: OIDCUserSession = {
+							sub: res.user.id,
+							email: res.user.email,
+							preferredUsername: username,
+							name: res.user.full_name || username,
+							roles: res.user.roles || ["developer"],
+							token: "",
+							organization: orgContext ?? undefined,
+						};
+						setOidcUser(session);
+						setCurrentOrg(orgContext);
+					}
+				} catch {
+					// Cookie expired or unauthenticated; clear state
+					setOidcUser(null);
+					setCurrentOrg(null);
+				}
+			}
+		};
+
+		restoreSession();
+	}, [initialOrg, initialUser]);
+
+	// Keep API client header synchronized (in OIDC mode, rely purely on HttpOnly Cookie)
+	useEffect(() => {
+		if (authMode === "apikey" && apiKey) {
 			api.setApiKey(apiKey);
+		} else if (authMode === "oidc") {
+			api.setApiKey(null);
 		}
-	}, [authMode, oidcUser, apiKey]);
+	}, [authMode, apiKey]);
 
 	const handleSetApiKey = (key: string | null) => {
 		const trimmed = key ? key.trim() : null;
@@ -166,23 +198,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
 	const handleLoginOIDC = (session: OIDCUserSession) => {
 		const org = session.organization ?? null;
-		const fullSession: OIDCUserSession = {
+		const sanitizedSession: OIDCUserSession = {
 			...session,
+			token: "", // Zero secret tokens in localStorage
 			organization: org ?? undefined,
 		};
-		setOidcUser(fullSession);
+		setOidcUser(sanitizedSession);
 		setCurrentOrg(org);
 		setAuthMode("oidc");
 		if (typeof window !== "undefined") {
 			localStorage.setItem(STORAGE_KEY_AUTH_MODE, "oidc");
-			localStorage.setItem(STORAGE_KEY_OIDC_USER, JSON.stringify(fullSession));
-			if (org) {
-				localStorage.setItem(STORAGE_KEY_CURRENT_ORG, JSON.stringify(org));
-			} else {
-				localStorage.removeItem(STORAGE_KEY_CURRENT_ORG);
-			}
 		}
-		api.setApiKey(session.token);
+		api.setApiKey(null);
 	};
 
 	const loginWithPassword = async (
@@ -206,7 +233,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 			preferredUsername: username,
 			name: res.user.full_name,
 			roles: ["developer", "ocr:write", "ocr:read", "usage:read"],
-			token: res.access_token,
+			token: "",
 			organization: orgContext ?? undefined,
 		});
 	};
@@ -275,21 +302,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 				planCode: res.organization.plan_code,
 			};
 			setCurrentOrg(newOrg);
-			if (typeof window !== "undefined") {
-				localStorage.setItem(STORAGE_KEY_CURRENT_ORG, JSON.stringify(newOrg));
-			}
 			if (oidcUser) {
 				const updatedSession: OIDCUserSession = {
 					...oidcUser,
 					organization: newOrg,
 				};
 				setOidcUser(updatedSession);
-				if (typeof window !== "undefined") {
-					localStorage.setItem(
-						STORAGE_KEY_OIDC_USER,
-						JSON.stringify(updatedSession),
-					);
-				}
 			}
 			return newOrg;
 		} catch {
@@ -305,21 +323,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 				planCode: planCode || "free",
 			};
 			setCurrentOrg(newOrg);
-			if (typeof window !== "undefined") {
-				localStorage.setItem(STORAGE_KEY_CURRENT_ORG, JSON.stringify(newOrg));
-			}
 			if (oidcUser) {
 				const updatedSession: OIDCUserSession = {
 					...oidcUser,
 					organization: newOrg,
 				};
 				setOidcUser(updatedSession);
-				if (typeof window !== "undefined") {
-					localStorage.setItem(
-						STORAGE_KEY_OIDC_USER,
-						JSON.stringify(updatedSession),
-					);
-				}
 			}
 			return newOrg;
 		}
@@ -376,25 +385,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
 	const handleSwitchOrganization = (org: OrganizationContext | null) => {
 		setCurrentOrg(org);
-		if (typeof window !== "undefined") {
-			if (org) {
-				localStorage.setItem(STORAGE_KEY_CURRENT_ORG, JSON.stringify(org));
-			} else {
-				localStorage.removeItem(STORAGE_KEY_CURRENT_ORG);
-			}
-		}
 		if (oidcUser) {
 			const updatedSession: OIDCUserSession = {
 				...oidcUser,
 				organization: org ?? undefined,
 			};
 			setOidcUser(updatedSession);
-			if (typeof window !== "undefined") {
-				localStorage.setItem(
-					STORAGE_KEY_OIDC_USER,
-					JSON.stringify(updatedSession),
-				);
-			}
 		}
 	};
 
@@ -404,19 +400,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 			localStorage.setItem(STORAGE_KEY_AUTH_MODE, mode);
 		}
 		if (mode === "oidc") {
-			api.setApiKey(oidcUser?.token ?? null);
+			api.setApiKey(null);
 		} else {
 			api.setApiKey(apiKey);
 		}
 	};
 
 	const handleLogout = () => {
+		api.logout().catch(() => {});
 		setOidcUser(null);
 		setApiKeyState(null);
 		setCurrentOrg(null);
 		if (typeof window !== "undefined") {
-			localStorage.removeItem(STORAGE_KEY_OIDC_USER);
-			localStorage.removeItem(STORAGE_KEY_CURRENT_ORG);
 			localStorage.removeItem(STORAGE_KEY_AUTH_MODE);
 		}
 		api.setApiKey(null);

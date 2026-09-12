@@ -223,4 +223,41 @@ describe("ApiClient", () => {
 		expect(res.organization.id).toBe("org-acme");
 		expect(res.organization.name).toBe("Acme Corp");
 	});
+
+	it("fetches current user and handles logout", async () => {
+		vi.spyOn(globalThis, "fetch").mockResolvedValueOnce({
+			ok: true,
+			status: 200,
+			json: async () => ({
+				user: {
+					id: "u-1",
+					email: "user@example.com",
+					full_name: "Test User",
+					roles: ["developer"],
+				},
+				organization: {
+					id: "org-1",
+					name: "My Org",
+					slug: "my-org",
+					plan_code: "free",
+				},
+			}),
+		} as Response);
+
+		const userRes = await api.fetchCurrentUser();
+		expect(userRes.user?.email).toBe("user@example.com");
+		expect(userRes.organization?.name).toBe("My Org");
+
+		vi.spyOn(globalThis, "fetch").mockResolvedValueOnce({
+			ok: true,
+			status: 200,
+			json: async () => ({
+				status: "ok",
+				message: "Logged out",
+			}),
+		} as Response);
+
+		const logoutRes = await api.logout();
+		expect(logoutRes.status).toBe("ok");
+	});
 });

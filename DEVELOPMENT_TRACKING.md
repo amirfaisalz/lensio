@@ -143,8 +143,13 @@ Five core ADRs (`ADR-001` to `ADR-005`), production runbooks (`architecture.md`,
   - Extract identity claims (`sub`, `email`, `preferred_username`).
   - Unit tests with mock JWKS/JWT generator.
 - [x] Update Dashboard `AuthContext.tsx` to support both OIDC session login and API key switching.
+- [x] **OWASP Best Practice Session Security**:
+  - Secure `HttpOnly`, `SameSite=Lax`, `Secure` session cookies (`lensio_session`) eliminating JWT/token theft via XSS.
+  - Zero secrets and zero PII stored in `localStorage` or `sessionStorage` (100% ephemeral in-memory React state).
+  - Backend endpoints: `POST /api/v1/auth/logout` (cookie invalidation) and `GET /api/v1/auth/me` (session rehydration).
+  - DualAuth middleware accepting JWT from either `Authorization: Bearer <token>` or `Cookie: lensio_session`.
 - **Interview Narrative**:
-  > *"We strictly separate human identity from machine identity. Humans access the dashboard via Keycloak OIDC with short-lived JWTs, while external partner applications authenticate using scoped, hashed API keys."*
+  > *"We strictly separate human identity from machine identity and adhere to OWASP ASVS standards. Humans access the dashboard via Keycloak OIDC with HttpOnly Secure cookies and zero tokens stored in browser local storage, while external partner applications authenticate using scoped, hashed API keys."*
 
 ---
 

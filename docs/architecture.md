@@ -10,6 +10,7 @@
 Lensio is architected as an API-first B2B software platform. It ingests identity documents (specifically Indonesian KTP cards), classifies and validates document integrity, orchestrates multimodal vision AI inference (Google Gemini 2.0 Flash or deterministic mock engines), extracts structured identity fields (16-digit NIK, full legal name, date/place of birth, address, marital status, religion), and returns deterministic, validated JSON payloads.
 
 Surrounding the core OCR engine is a complete platform engineering lifecycle:
+
 - **Tenant Management & Authentication**: Bearer API keys with SHA-256 one-way hashing and scoped access control.
 - **Traffic Protection**: In-memory token bucket rate limiting and monthly quota enforcement.
 - **Asynchronous Telemetry**: Non-blocking usage metering, distributed tracing via OpenTelemetry, and Prometheus metrics.
@@ -61,7 +62,7 @@ C4Container
 
     Container_Boundary(aca, "Azure Container Apps (ACA)") {
         Container(api_gateway, "API Gateway & Engine", "Go 1.22+, Distroless Container", "Handles HTTP endpoints, rate limiting, OCR pipeline, and usage dispatch.")
-        Container(dashboard_app, "Dashboard Frontend", "Nginx + React 18, Alpine", "Static SPA providing developer portal UI.")
+        Container(dashboard_app, "Dashboard Frontend", "Nginx + React 19, Alpine", "Static SPA providing developer portal UI.")
     }
 
     ContainerDb(postgres, "PostgreSQL 16", "Azure Flexible Server", "Stores organizations, hashed API keys, plans, audit logs, and usage records.")
@@ -187,15 +188,15 @@ Lensio enforces strict decoupling between **Process Liveness** and **Dependency 
 
 ## 6. Technology Inventory
 
-| Component | Technology | Role |
-|---|---|---|
-| **API Runtime** | Go 1.22+ | HTTP routing, concurrency, business logic, validation |
-| **Relational Database** | PostgreSQL 16 | Tenant data, API keys, plans, usage metrics, audit trail |
-| **Database Driver** | `jackc/pgx/v5` | High-performance Go native PostgreSQL connection pool |
-| **Vision AI Provider** | Google Gemini 2.0 Flash | Upstream multimodal image extraction |
-| **Test Vision Engine** | `MockOCREngine` | Deterministic synthetic fixture engine for CI |
-| **Developer Dashboard** | React 18 + Vite + TypeScript | Frontend developer portal and usage analytics |
-| **Telemetry & Metrics** | OpenTelemetry Go SDK + Prometheus | Distributed tracing, RED metrics |
-| **Cloud Hosting** | Azure Container Apps (ACA) | Serverless container execution with KEDA autoscaling |
-| **Edge & Security** | Cloudflare | Edge CDN, WAF, DDoS protection, TLS 1.3 termination |
-| **IaC Orchestration** | OpenTofu + Terragrunt | Declarative multi-environment infrastructure as code |
+| Component               | Technology                        | Role                                                     |
+| ----------------------- | --------------------------------- | -------------------------------------------------------- |
+| **API Runtime**         | Go 1.22+                          | HTTP routing, concurrency, business logic, validation    |
+| **Relational Database** | PostgreSQL 16                     | Tenant data, API keys, plans, usage metrics, audit trail |
+| **Database Driver**     | `jackc/pgx/v5`                    | High-performance Go native PostgreSQL connection pool    |
+| **Vision AI Provider**  | Google Gemini 2.0 Flash           | Upstream multimodal image extraction                     |
+| **Test Vision Engine**  | `MockOCREngine`                   | Deterministic synthetic fixture engine for CI            |
+| **Developer Dashboard** | React 19 + Vite + TypeScript      | Frontend developer portal and usage analytics            |
+| **Telemetry & Metrics** | OpenTelemetry Go SDK + Prometheus | Distributed tracing, RED metrics                         |
+| **Cloud Hosting**       | Azure Container Apps (ACA)        | Serverless container execution with KEDA autoscaling     |
+| **Edge & Security**     | Cloudflare                        | Edge CDN, WAF, DDoS protection, TLS 1.3 termination      |
+| **IaC Orchestration**   | OpenTofu + Terragrunt             | Declarative multi-environment infrastructure as code     |

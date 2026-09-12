@@ -593,6 +593,26 @@ func TestDualAuthMiddleware(t *testing.T) {
 		}
 	})
 
+	t.Run("valid session cookie without Authorization header", func(t *testing.T) {
+		token := signJWT(t, priv, "key-1", "RS256", map[string]any{
+			"sub": "cookie-operator-456",
+			"exp": time.Now().Add(1 * time.Hour).Unix(),
+		})
+		req := httptest.NewRequest(http.MethodGet, "/test", nil)
+		req.AddCookie(&http.Cookie{
+			Name:  "lensio_session",
+			Value: token,
+		})
+		rec := httptest.NewRecorder()
+		dualHandler.ServeHTTP(rec, req)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("expected 200 via session cookie, got %d: %s", rec.Code, rec.Body.String())
+		}
+		if !strings.Contains(rec.Body.String(), "cookie-operator-456") {
+			t.Errorf("expected response to contain cookie-operator-456, got %s", rec.Body.String())
+		}
+	})
+
 	t.Run("valid machine API Key", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/test", nil)
 		req.Header.Set("Authorization", "Bearer "+validRawKey)

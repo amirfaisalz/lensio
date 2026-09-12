@@ -84,6 +84,12 @@ All AI agents must strictly follow these five non-negotiable rules on every task
 3. **Zero PII in Logs**: Never write NIK, full names, addresses, or dates of birth to application logs. Correlate using `request_id` and `trace_id` only.
 4. **Deterministic Validation First**: Validate NIK (16 digits, valid numeric structure) and dates deterministically. Do not rely solely on LLM output.
 5. **No Leaky Abstractions**: Keep OCR providers strictly behind the `OCREngine` interface. The HTTP API layer must never know provider details.
+6. **OWASP Best Practice for Session Security**:
+   - Web browser sessions must strictly use **Secure, HttpOnly, SameSite=Lax** cookies (`lensio_session`).
+   - **Zero Tokens & Zero PII in Browser Storage**: Never store JWT tokens, secrets, or user identity profiles (`email`, `full_name`, roles) in `localStorage` or `sessionStorage` (preventing XSS token theft and unauthorized disk inspection).
+   - Frontend user profile state must remain **100% ephemeral in-memory** (React state), verified on initial app load and refresh via `GET /api/v1/auth/me`.
+   - Logouts must explicitly invalidate cookies server-side with `Max-Age: -1`.
+
 
 ---
 

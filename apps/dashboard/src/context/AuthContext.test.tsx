@@ -1,6 +1,7 @@
-import { act, render, screen } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import type React from "react";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { api } from "../services/api";
 import { AuthProvider, useAuth } from "./AuthContext";
 
 const TestConsumer: React.FC = () => {
@@ -108,6 +109,7 @@ const TestConsumer: React.FC = () => {
 describe("AuthContext", () => {
 	beforeEach(() => {
 		localStorage.clear();
+		vi.restoreAllMocks();
 	});
 
 	it("provides default state and updates environment automatically", () => {
@@ -251,6 +253,56 @@ describe("AuthContext", () => {
 			screen.getByText("Logout").click();
 		});
 		expect(screen.getByTestId("org-name").textContent).toBe("none");
+	});
+
+	it("restores user session and organization from api.fetchCurrentUser on mount in oidc mode", async () => {
+		localStorage.setItem("lensio_auth_mode", "oidc");
+		vi.spyOn(api, "fetchCurrentUser").mockResolvedValue({
+			user: {
+				id: "u-session-1",
+				email: "session@lensio.dev",
+				full_name: "Session User",
+				roles: ["developer"],
+			},
+			organization: {
+				id: "org-session-1",
+				name: "Restored Org",
+				slug: "restored-org",
+				plan_code: "starter",
+			},
+		});
+
+		render(
+			<AuthProvider>
+				<TestConsumer />
+			</AuthProvider>,
+		);
+
+		await waitFor(() => {
+			expect(screen.getByTestId("mode").textContent).toBe("oidc");
+			expect(screen.getByTestId("oidc-email").textContent).toBe(
+				"session@lensio.dev",
+			);
+			expect(screen.getByTestId("org-name").textContent).toBe("Restored Org");
+		});
+	});
+
+	it("clears user session when api.fetchCurrentUser fails on mount in oidc mode", async () => {
+		localStorage.setItem("lensio_auth_mode", "oidc");
+		vi.spyOn(api, "fetchCurrentUser").mockRejectedValue(
+			new Error("Session expired or unauthorized"),
+		);
+
+		render(
+			<AuthProvider>
+				<TestConsumer />
+			</AuthProvider>,
+		);
+
+		await waitFor(() => {
+			expect(screen.getByTestId("oidc-email").textContent).toBe("none");
+			expect(screen.getByTestId("org-name").textContent).toBe("none");
+		});
 	});
 
 	it("throws error when useAuth is called outside AuthProvider", () => {

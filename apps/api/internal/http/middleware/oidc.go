@@ -399,30 +399,25 @@ func matchAudience(audClaim any, expected string) bool {
 	return false
 }
 
-// RequireOIDC returns a middleware enforcing valid OIDC JWT bearer tokens.
+// RequireOIDC returns a middleware enforcing valid OIDC JWT bearer tokens or secure session cookies.
 func RequireOIDC(validator TokenValidator) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			var token string
 			authHeader := r.Header.Get("Authorization")
-			if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
-				response.ErrorWithRequest(
-					w,
-					r,
-					http.StatusUnauthorized,
-					response.CodeInvalidAPIKey,
-					"Missing or malformed Authorization header. Expected 'Bearer <token>'",
-				)
-				return
+			if strings.HasPrefix(authHeader, "Bearer ") {
+				token = strings.TrimSpace(strings.TrimPrefix(authHeader, "Bearer "))
+			} else if cookie, err := r.Cookie("lensio_session"); err == nil && cookie.Value != "" {
+				token = strings.TrimSpace(cookie.Value)
 			}
 
-			token := strings.TrimSpace(strings.TrimPrefix(authHeader, "Bearer "))
 			if token == "" {
 				response.ErrorWithRequest(
 					w,
 					r,
 					http.StatusUnauthorized,
 					response.CodeInvalidAPIKey,
-					"Bearer token is empty",
+					"Missing or malformed Authorization header or session cookie",
 				)
 				return
 			}
@@ -457,31 +452,26 @@ func RequireOIDC(validator TokenValidator) func(http.Handler) http.Handler {
 }
 
 // DualAuth returns a middleware supporting dual authentication:
-// - Human operators authenticating via Keycloak OIDC JWTs
+// - Human operators authenticating via Keycloak OIDC JWTs or HttpOnly session cookies
 // - External machine services authenticating via scoped API keys
 func DualAuth(keyStore store.APIKeyStore, oidcValidator TokenValidator) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			var token string
 			authHeader := r.Header.Get("Authorization")
-			if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
-				response.ErrorWithRequest(
-					w,
-					r,
-					http.StatusUnauthorized,
-					response.CodeInvalidAPIKey,
-					"Missing or malformed Authorization header. Expected 'Bearer <token>'",
-				)
-				return
+			if strings.HasPrefix(authHeader, "Bearer ") {
+				token = strings.TrimSpace(strings.TrimPrefix(authHeader, "Bearer "))
+			} else if cookie, err := r.Cookie("lensio_session"); err == nil && cookie.Value != "" {
+				token = strings.TrimSpace(cookie.Value)
 			}
 
-			token := strings.TrimSpace(strings.TrimPrefix(authHeader, "Bearer "))
 			if token == "" {
 				response.ErrorWithRequest(
 					w,
 					r,
 					http.StatusUnauthorized,
 					response.CodeInvalidAPIKey,
-					"Authentication token is empty",
+					"Missing or malformed Authorization header or session cookie",
 				)
 				return
 			}

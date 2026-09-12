@@ -32,6 +32,10 @@ func TestCORS_PreflightOptions(t *testing.T) {
 		t.Errorf("expected Access-Control-Allow-Origin 'http://localhost:3000', got %q", origin)
 	}
 
+	if creds := rec.Header().Get("Access-Control-Allow-Credentials"); creds != "true" {
+		t.Errorf("expected Access-Control-Allow-Credentials 'true', got %q", creds)
+	}
+
 	if methods := rec.Header().Get("Access-Control-Allow-Methods"); methods == "" {
 		t.Errorf("expected Access-Control-Allow-Methods to be set")
 	}

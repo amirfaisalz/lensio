@@ -63,3 +63,24 @@ Every Pull Request must pass automated security audits:
 - **IaC Scanning**: `tfsec` or `checkov` validates OpenTofu code.
 
 Any finding graded **HIGH** or **CRITICAL** fails the CI pipeline.
+
+---
+
+## 5. OWASP Authentication, Session & Browser Storage Standards
+
+In alignment with **OWASP ASVS (Application Security Verification Standard)** and **OWASP Cheat Sheet Series (Session Management & HTML5 Storage)**:
+
+1. **Secure Session Cookies (`Set-Cookie: lensio_session`)**:
+   - `HttpOnly`: Strictly prevents client-side scripts from reading session credentials (`document.cookie`), mitigating Cross-Site Scripting (XSS) session hijacking.
+   - `Secure`: Ensures session tokens are only transmitted over TLS/HTTPS channels (with localhost allowance for local dev).
+   - `SameSite=Lax`: Defends against Cross-Site Request Forgery (CSRF) for cross-origin state-changing mutations.
+   - `Path=/`: Restricts scope to application boundaries.
+2. **Zero Storage Mandate for Browser Client**:
+   - **Zero Secrets in Storage**: Never store JWTs, access tokens, refresh tokens, API keys, or raw passwords in `localStorage` or `sessionStorage`.
+   - **Zero PII in Storage**: Never persist user identity profiles (`email`, `full_name`, citizen data, roles) in browser web storage.
+   - **Pure Ephemeral In-Memory State**: Maintain active user identity in React memory (`useState`/context) only. Rehydrate identity on page load/refresh by verifying the session cookie via `GET /api/v1/auth/me`.
+3. **Server-Side Session Invalidation**:
+   - Explicit logout (`POST /api/v1/auth/logout`) sets `Max-Age: -1` and expires the session cookie immediately.
+4. **CORS & Credential Isolation**:
+   - When handling authenticated cookie sessions, `Access-Control-Allow-Credentials: true` is strictly paired with explicit/reflected origins—wildcard (`*`) origins with credentials are strictly forbidden.
+

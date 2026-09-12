@@ -7,13 +7,14 @@
 ## 1. Ponytail Minimalist Engineering (YAGNI First)
 
 Always apply the **Ponytail** mindset:
+
 1. **The best code is the code never written**: If a feature, helper, or abstraction is speculative, do not build it.
 2. **Climb the Ladder**:
-   - *Rung 1: Does this need to exist at all?* Skip speculative needs.
-   - *Rung 2: Already in this codebase?* Reuse existing types/helpers.
-   - *Rung 3: Standard library does it?* Use Go stdlib (`net/http`, `crypto/sha256`, `log/slog`, `time`).
-   - *Rung 4: Native platform feature?* Database unique constraints over application locks.
-   - *Rung 5: Shortest working diff wins.*
+   - _Rung 1: Does this need to exist at all?_ Skip speculative needs.
+   - _Rung 2: Already in this codebase?_ Reuse existing types/helpers.
+   - _Rung 3: Standard library does it?_ Use Go stdlib (`net/http`, `crypto/sha256`, `log/slog`, `time`).
+   - _Rung 4: Native platform feature?_ Database unique constraints over application locks.
+   - _Rung 5: Shortest working diff wins._
 3. **No Unrequested Abstractions**: No interfaces with only one implementation (except `OCREngine` mandated by spec), no premature factories, no scaffolding for "future phases".
 
 ---
@@ -21,6 +22,7 @@ Always apply the **Ponytail** mindset:
 ## 2. Algorithmic Efficiency & Big O Benchmarking
 
 Every algorithm and processing routine must be engineered for performance and scalability:
+
 - **Time Complexity Benchmarks**:
   - Target $O(1)$ for lookups (hash maps, map indices) and $O(n)$ for single-pass stream processing (regex parsing, image decoding).
   - Strictly prohibit nested quadratic loops ($O(n^2)$) on hot API paths.
@@ -35,6 +37,7 @@ Every algorithm and processing routine must be engineered for performance and sc
 ## 3. Go Backend Conventions (`apps/api`)
 
 ### Error Handling & Propagation
+
 - Always check errors explicitly. Never ignore errors with `_ = fn()`.
 - Wrap errors with informative context using `%w`:
   ```go
@@ -45,6 +48,7 @@ Every algorithm and processing routine must be engineered for performance and sc
 - **Zero Panic Rule**: Never call `panic()` in HTTP request handlers, middleware, or background jobs. Return domain error types.
 
 ### Standardized Error Envelope
+
 Every non-2xx HTTP response must adhere to the standard error model:
 
 ```json
@@ -58,6 +62,7 @@ Every non-2xx HTTP response must adhere to the standard error model:
 ```
 
 Use only approved error codes:
+
 - `invalid_request`: Malformed body, missing form fields, invalid JSON.
 - `invalid_api_key`: Missing or unrecognized API key in `Authorization` header.
 - `insufficient_scope`: Key does not possess the required scope (e.g. `ocr:write`).
@@ -70,6 +75,7 @@ Use only approved error codes:
 - `internal_error`: Unhandled server exception (HTTP 500).
 
 ### Structured Logging (`log/slog`)
+
 - Use the standard library `log/slog` with JSON handler.
 - Always include `request_id` in logs within request contexts:
   ```go
@@ -82,6 +88,7 @@ Use only approved error codes:
 - **CRITICAL**: Never log PII (NIK, names, birth dates, full addresses) or raw file buffers.
 
 ### Zero Lint Errors
+
 - Code must pass `golangci-lint run ./...` cleanly with zero warnings or suppressed rules.
 
 ---
@@ -90,7 +97,7 @@ Use only approved error codes:
 
 - **Language**: TypeScript with strict mode enabled (`noImplicitAny: true`, `strictNullChecks: true`).
 - **Zero Type Errors**: Prohibit `any` types; define strict interfaces for all API payloads.
-- **Framework**: React 18+ with functional components and hooks.
+- **Framework**: React 19 with functional components and hooks.
 - **Styling**: Tailwind CSS utility classes.
 - **API Types**: Generate TypeScript interfaces directly from `openapi/openapi.yaml`. Do not hand-write duplicate DTO models.
 - **Component Design**: Co-locate component logic, types, and presentation in focused, self-contained files.

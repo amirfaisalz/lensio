@@ -12,8 +12,21 @@ const TEST_ORG = {
 	planCode: "free",
 };
 
-const renderWithAuth = (ui: React.ReactElement) => {
-	return render(<AuthProvider>{ui}</AuthProvider>);
+const renderWithAuth = (
+	ui: React.ReactElement,
+	options?: {
+		initialOrg?: typeof TEST_ORG | null;
+		initialApiKey?: string | null;
+	},
+) => {
+	return render(
+		<AuthProvider
+			initialOrg={options?.initialOrg}
+			initialApiKey={options?.initialApiKey}
+		>
+			{ui}
+		</AuthProvider>,
+	);
 };
 
 describe("OverviewPage", () => {
@@ -111,9 +124,6 @@ describe("OverviewPage", () => {
 	});
 
 	it("tests synthetic fixture OCR execution in playground when organization and apiKey exist", async () => {
-		localStorage.setItem("lensio_current_org", JSON.stringify(TEST_ORG));
-		api.setApiKey("lensio_live_testkey123");
-
 		const mockSummary = {
 			total_requests: 10,
 			success_count: 10,
@@ -163,7 +173,10 @@ describe("OverviewPage", () => {
 			.spyOn(api, "executeKTPOCR")
 			.mockResolvedValue(mockOcrResult);
 
-		renderWithAuth(<OverviewPage />);
+		renderWithAuth(<OverviewPage />, {
+			initialOrg: TEST_ORG,
+			initialApiKey: "lensio_live_testkey123",
+		});
 
 		await waitFor(() => {
 			expect(screen.getByText("System Overview")).toBeDefined();
@@ -186,9 +199,6 @@ describe("OverviewPage", () => {
 	});
 
 	it("shows warning and blocks execution when organization exists but apiKey is missing", async () => {
-		localStorage.setItem("lensio_current_org", JSON.stringify(TEST_ORG));
-		// No API key set in localStorage
-
 		const mockSummary = {
 			total_requests: 0,
 			success_count: 0,
@@ -210,7 +220,7 @@ describe("OverviewPage", () => {
 
 		const ocrSpy = vi.spyOn(api, "executeKTPOCR");
 
-		renderWithAuth(<OverviewPage />);
+		renderWithAuth(<OverviewPage />, { initialOrg: TEST_ORG });
 
 		await waitFor(() => {
 			expect(screen.getByText("Live KTP OCR Playground")).toBeDefined();
@@ -237,9 +247,6 @@ describe("OverviewPage", () => {
 	});
 
 	it("handles file upload error in playground", async () => {
-		localStorage.setItem("lensio_current_org", JSON.stringify(TEST_ORG));
-		api.setApiKey("lensio_live_testkey123");
-
 		const mockSummary = {
 			total_requests: 5,
 			success_count: 5,
@@ -263,7 +270,10 @@ describe("OverviewPage", () => {
 			new Error("Image blur score too low for OCR extraction"),
 		);
 
-		renderWithAuth(<OverviewPage />);
+		renderWithAuth(<OverviewPage />, {
+			initialOrg: TEST_ORG,
+			initialApiKey: "lensio_live_testkey123",
+		});
 
 		await waitFor(() => {
 			expect(screen.getByText("System Overview")).toBeDefined();

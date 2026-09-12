@@ -197,3 +197,25 @@ export interface CreateOrganizationResponse {
 		rate_limit_per_minute?: number;
 	};
 }
+
+export interface CurrentUserResponse {
+	user?: {
+		id: string;
+		email: string;
+		full_name: string;
+		roles?: string[];
+	};
+	api_key?: {
+		id: string;
+		name: string;
+		prefix: string;
+		environment: string;
+		scopes: string[];
+	};
+	organization?: {
+		id: string;
+		name: string;
+		slug: string;
+		plan_code: string;
+	} | null;
+}

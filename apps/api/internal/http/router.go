@@ -60,11 +60,12 @@ func NewRouterWithDeps(deps RouterDeps) http.Handler {
 	mux.HandleFunc("GET /openapi.yaml", handlers.OpenAPIHandler())
 	mux.HandleFunc("GET /docs", handlers.DocsHandler("/openapi.yaml"))
 
-	// Public Authentication Endpoints (Registration, Verification, Login)
+	// Public Authentication Endpoints (Registration, Verification, Login, Logout)
 	if deps.AccountStore != nil {
 		mux.HandleFunc("POST /api/v1/auth/register", handlers.RegisterHandler(deps.AccountStore))
 		mux.HandleFunc("POST /api/v1/auth/verify-email", handlers.VerifyEmailHandler(deps.AccountStore))
 		mux.HandleFunc("POST /api/v1/auth/login", handlers.LoginHandler(deps.AccountStore))
+		mux.HandleFunc("POST /api/v1/auth/logout", handlers.LogoutHandler())
 	}
 
 	// API v1 Routes (PRD Section 6)
@@ -92,6 +93,7 @@ func NewRouterWithDeps(deps RouterDeps) http.Handler {
 		mux.Handle("POST /api/v1/auth/api-keys", authMiddleware(createKeyHandler))
 		mux.Handle("DELETE /api/v1/auth/api-keys/{id}", authMiddleware(revokeKeyHandler))
 		mux.Handle("GET /api/v1/auth/api-keys", authMiddleware(listKeyHandler))
+		mux.Handle("GET /api/v1/auth/me", authMiddleware(handlers.MeHandler(deps.AccountStore)))
 
 		scopeWriteMiddleware := middleware.RequireScope("ocr:write")
 		scopeReadMiddleware := middleware.RequireScope("ocr:read")
