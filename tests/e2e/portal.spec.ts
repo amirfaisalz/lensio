@@ -15,12 +15,72 @@ test.describe.serial(
 	() => {
 		const apiBaseURL = process.env.API_URL || "http://localhost:8080";
 		let createdApiKey = "";
+		let sessionCookieVal = "";
+		let testEmail = "";
+		const testPassword = "TestPassword123!";
 
-		test.beforeEach(async ({ page }) => {
-			if (createdApiKey) {
-				await page.addInitScript((key) => {
-					window.localStorage.setItem("lensio_api_key", key);
-				}, createdApiKey);
+		test.beforeAll(async ({ request }) => {
+			testEmail = `e2e-${Date.now()}@lensio.dev`;
+			// 1. Register test user
+			const regRes = await request.post(`${apiBaseURL}/api/v1/auth/register`, {
+				data: {
+					full_name: "E2E Test User",
+					email: testEmail,
+					password: testPassword,
+				},
+			});
+			if (regRes.status() === 201) {
+				const body = await regRes.json();
+				if (body.verification_token) {
+					await request.post(`${apiBaseURL}/api/v1/auth/verify-email`, {
+						data: {
+							email: testEmail,
+							token: body.verification_token,
+						},
+					});
+				}
+			}
+
+			// 2. Login to obtain session cookie
+			const loginRes = await request.post(`${apiBaseURL}/api/v1/auth/login`, {
+				data: {
+					email: testEmail,
+					password: testPassword,
+				},
+			});
+			const cookies = loginRes.headers()["set-cookie"] || "";
+			const match = cookies.match(/lensio_session=([^;]+)/);
+			if (match) {
+				sessionCookieVal = match[1];
+			}
+
+			// 3. Create default Organization for the user
+			if (sessionCookieVal) {
+				await request.post(`${apiBaseURL}/api/v1/account/organizations`, {
+					headers: {
+						Authorization: `Bearer ${sessionCookieVal}`,
+						Cookie: `lensio_session=${sessionCookieVal}`,
+					},
+					data: {
+						name: "E2E Organization",
+						plan_code: "pro",
+					},
+				});
+			}
+		});
+
+		test.beforeEach(async ({ context }) => {
+			if (sessionCookieVal) {
+				await context.addCookies([
+					{
+						name: "lensio_session",
+						value: sessionCookieVal,
+						domain: "localhost",
+						path: "/",
+						httpOnly: true,
+						sameSite: "Lax",
+					},
+				]);
 			}
 		});
 
@@ -30,32 +90,16 @@ test.describe.serial(
 		test("Test 1: User opens and connects to Developer Portal", async ({
 			page,
 		}) => {
-			await page.goto("/");
+			await page.goto("/dashboard");
 
 			// Verify Developer Portal branding & status
 			await expect(page.getByText("Lensio", { exact: true })).toBeVisible();
 			await expect(page.getByText("Portal", { exact: true })).toBeVisible();
 			await expect(page.getByText("API Online")).toBeVisible();
-
-			// Open Connect API Key modal
-			const connectBtn = page.getByRole("button", {
-				name: /Connect Key|Change API Key/i,
-			});
-			await expect(connectBtn).toBeVisible();
-			await connectBtn.click();
-
-			// Verify Connect Key modal content
 			await expect(
-				page.getByRole("heading", { name: "Connect API Key" }),
+				page.getByRole("heading", { name: "System Overview" }),
 			).toBeVisible();
-			const inputField = page.locator("#api-key-input");
-			await expect(inputField).toBeVisible();
-
-			// Close modal
-			await page.getByRole("button", { name: "Cancel" }).click();
-			await expect(
-				page.getByRole("heading", { name: "Connect API Key" }),
-			).not.toBeVisible();
+			await expect(page.getByTestId("app-version-footer")).toBeVisible();
 		});
 
 		// -------------------------------------------------------------------------
@@ -64,7 +108,7 @@ test.describe.serial(
 		test("Test 2: User generates an API key and copies the plaintext token", async ({
 			page,
 		}) => {
-			await page.goto("/");
+			await page.goto("/dashboard");
 
 			// Navigate to API Keys page via sidebar
 			await page.getByRole("button", { name: "API Keys" }).click();
@@ -117,11 +161,6 @@ test.describe.serial(
 			await expect(
 				page.getByRole("heading", { name: "Save Your API Key" }),
 			).not.toBeVisible();
-
-			// Verify Header indicates connected key (shows "Change API Key")
-			await expect(
-				page.getByRole("button", { name: "Change API Key" }),
-			).toBeVisible();
 
 			// Verify the new key is rendered in the keys table
 			await expect(page.getByText(keyName)).toBeVisible();
@@ -197,7 +236,7 @@ test.describe.serial(
 			expect(json.processing.latency_ms).toBeGreaterThanOrEqual(0);
 
 			// 2. Also verify through Dashboard UI Live Playground
-			await page.goto("/");
+			await page.goto("/dashboard");
 			await page.getByRole("button", { name: "Overview" }).click();
 
 			// Click Load Synthetic Fixture in Playground
@@ -227,7 +266,7 @@ test.describe.serial(
 		test("Test 5: Verify usage count and metrics update in dashboard UI", async ({
 			page,
 		}) => {
-			await page.goto("/");
+			await page.goto("/dashboard");
 
 			// Check Overview metric cards
 			await expect(
@@ -262,7 +301,7 @@ test.describe.serial(
 			expect(createdApiKey).toBeTruthy();
 
 			// Navigate to API Keys page
-			await page.goto("/");
+			await page.goto("/dashboard");
 			await page.getByRole("button", { name: "API Keys" }).click();
 
 			// Locate the delete button for our created key
