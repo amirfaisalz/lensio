@@ -15,6 +15,7 @@
 | [`ADR-004`](./ADR-004-azure-container-apps-vs-kubernetes.md) | 2026-09-12 | Accepted | Azure Container Apps vs. Kubernetes (Deliberate Simplicity) | Selected serverless ACA over full AKS to eliminate cluster management overhead and enable sub-60-second revision rollbacks. |
 | [`ADR-005`](./ADR-005-data-minimization-and-pii-protection-in-ocr-pipelines.md) | 2026-09-12 | Accepted | Data Minimization and PII Protection in OCR Pipelines | Enforced ephemeral in-memory processing, zero permanent raw image storage, and strict PII log scrubbing to comply with Indonesian PDP Law. |
 | [`ADR-006`](./ADR-006-multi-instance-rate-limiting-tradeoffs.md) | 2026-09-12 | Accepted | Multi-Instance Rate Limiting Trade-offs (Distributed vs. Local) | Evaluated replica drift on Azure Container Apps; retained $O(1)$ in-memory token bucket for current scale ($N \le 3$) while defining pluggable `RateLimiter` interface and scaling triggers for future Redis adapter. |
+| [`ADR-007`](./ADR-007-api-versioning-and-contract-evolution.md) | 2026-09-12 | Accepted | API Versioning Strategy and Contract Evolution | Adopted explicit URL path versioning (`/api/v1/`), codified breaking vs non-breaking change taxonomy, standardized deprecation/sunset lifecycle (RFC 8594 / RFC 8288), and safe payload evolution patterns. |
 
 ---
 

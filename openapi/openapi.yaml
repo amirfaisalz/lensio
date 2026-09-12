@@ -5,6 +5,12 @@ info:
   description: |
     Indonesian KTP OCR API as a Service.
     Affordable, privacy-conscious, and production-grade identity data extraction.
+
+    ### API Versioning & Contract Evolution (ADR-007)
+    Lensio follows explicit URL path versioning (`/api/v1/`). All minor and patch evolutions are strictly
+    additive and backward-compatible (Postel's Law / Tolerant Reader Pattern). When an endpoint is deprecated,
+    Lensio provides a minimum 12-month notice window with standard `Deprecation`, `Sunset` (RFC 8594), and
+    `Link` (RFC 8288) HTTP response headers before decommissioning.
   contact:
     name: Lensio Engineering Team
     url: https://lensio.dev
@@ -611,6 +617,21 @@ components:
       schema:
         type: integer
       description: Seconds to wait before retrying after a 429 response
+    Deprecation:
+      schema:
+        type: string
+        example: "true"
+      description: Standard IETF deprecation indicator ('true' or date when the endpoint was marked deprecated)
+    Sunset:
+      schema:
+        type: string
+        example: "2027-09-12"
+      description: RFC 8594 sunset date indicating when the resource will be permanently decommissioned
+    Link:
+      schema:
+        type: string
+        example: '<https://docs.lensio.dev/migration/v1-to-v2>; rel="sunset"'
+      description: RFC 8288 web link header providing relations to migration guides or successor endpoints
 
   schemas:
     ErrorEnvelope:

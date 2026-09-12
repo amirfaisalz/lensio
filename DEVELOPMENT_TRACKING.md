@@ -30,7 +30,7 @@
 - [x] **Phase 11.6: Deep Incident Engineering & Circuit Breaker Code Fix**
 - [x] **Phase 11.7: Production SLOs & Actionable Alerting Rules**
 - [x] **Phase 11.8: Architectural Decision Record: Distributed vs Local Rate Limiting**
-- [ ] **Phase 11.9: API Versioning Strategy & Contract Evolution**
+- [x] **Phase 11.9: API Versioning Strategy & Contract Evolution**
 
 ---
 
@@ -215,7 +215,7 @@ Five core ADRs (`ADR-001` to `ADR-005`), production runbooks (`architecture.md`,
 ### Phase 11.9: API Versioning Strategy & Contract Evolution (Priority: MEDIUM)
 *Goal: Demonstrate client empathy and product engineering hygiene.*
 
-- [ ] Author `docs/decisions/ADR-007-api-versioning-and-contract-evolution.md`:
+- [x] Author `docs/decisions/ADR-007-api-versioning-and-contract-evolution.md`:
   - Clear rules for breaking vs non-breaking changes.
   - Contract lifecycle: Deprecation headers (`Deprecation: true`, `Sunset: <date>`).
   - Safe evolution of request/response payloads.
