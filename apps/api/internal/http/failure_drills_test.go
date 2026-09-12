@@ -356,3 +356,143 @@ func TestDrill_ScenarioD_ProductionRegressionMetrics(t *testing.T) {
 		t.Errorf("expected standard prometheus metrics in output, got: %s", metricsStr[:200])
 	}
 }
+
+// -----------------------------------------------------------------------------
+// Scenario E: OCR Provider Latency Cascade & Circuit Breaker Protection (PRD Phase 11.6)
+// -----------------------------------------------------------------------------
+func TestDrill_ScenarioE_CircuitBreakerTrippingAndFastFail(t *testing.T) {
+	validImage := synthetic.GenerateValidKTPImage()
+	rawKey := "lensio_live_testkey_scenario_e_12345678"
+	testKeyHash := apikey.Hash(rawKey)
+	keyStore := &mockStaticKeyStore{
+		key: &store.APIKey{
+			ID:          "key-scenario-e",
+			OrgID:       "org-drill-e",
+			KeyHash:     testKeyHash,
+			Prefix:      "lensio_live_",
+			Scopes:      []string{"ocr:write", "ocr:read"},
+			Environment: "live",
+			CreatedAt:   time.Now(),
+		},
+	}
+
+	mockEngine := providers.NewMockEngine()
+	cb := ocr.NewCircuitBreaker(mockEngine, ocr.CircuitBreakerConfig{
+		FailureThreshold: 3,
+		SuccessThreshold: 2,
+		Cooldown:         10 * time.Second,
+	})
+
+	router := internalhttp.NewRouterWithDeps(internalhttp.RouterDeps{
+		KeyStore:  keyStore,
+		OCREngine: cb,
+	})
+	ts := httptest.NewServer(router)
+	defer ts.Close()
+
+	client := &http.Client{Timeout: 5 * time.Second}
+
+	// 1. Inject upstream timeout into mock engine
+	mockEngine.SetCustomError(context.DeadlineExceeded)
+
+	for i := 1; i <= 3; i++ {
+		body, contentType, err := createMultipartUpload("document", "ktp.png", validImage)
+		if err != nil {
+			t.Fatalf("failed preparing multipart upload: %v", err)
+		}
+		req, err := http.NewRequest(http.MethodPost, ts.URL+"/api/v1/ocr/ktp", body)
+		if err != nil {
+			t.Fatalf("failed creating request %d: %v", i, err)
+		}
+		req.Header.Set("Authorization", "Bearer "+rawKey)
+		req.Header.Set("Content-Type", contentType)
+
+		resp, err := client.Do(req)
+		if err != nil {
+			t.Fatalf("request %d failed: %v", i, err)
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusGatewayTimeout {
+			t.Fatalf("request %d: expected 504 Gateway Timeout, got %d", i, resp.StatusCode)
+		}
+	}
+
+	// 2. Verify breaker has tripped to StateOpen
+	if cb.State() != ocr.StateOpen {
+		t.Fatalf("expected breaker to be in StateOpen after 3 consecutive failures, got %v", cb.State())
+	}
+
+	// 3. 4th request must fast-fail in < 50ms without hitting mock engine
+	initialEngineCalls := mockEngine.GetCallCount()
+	fastFailStart := time.Now()
+
+	body, contentType, err := createMultipartUpload("document", "ktp.png", validImage)
+	if err != nil {
+		t.Fatalf("failed preparing multipart upload: %v", err)
+	}
+	req, err := http.NewRequest(http.MethodPost, ts.URL+"/api/v1/ocr/ktp", body)
+	if err != nil {
+		t.Fatalf("failed creating 4th request: %v", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+rawKey)
+	req.Header.Set("Content-Type", contentType)
+
+	resp, err := client.Do(req)
+	if err != nil {
+		t.Fatalf("fast-fail request failed: %v", err)
+	}
+	defer resp.Body.Close()
+	fastFailDuration := time.Since(fastFailStart)
+
+	if resp.StatusCode != http.StatusGatewayTimeout {
+		t.Fatalf("expected HTTP 504 Gateway Timeout on fast-fail, got %d", resp.StatusCode)
+	}
+	if fastFailDuration > 50*time.Millisecond {
+		t.Errorf("expected fast-fail in < 50ms, took %v", fastFailDuration)
+	}
+
+	// Verify underlying engine was NOT called
+	if mockEngine.GetCallCount() != initialEngineCalls {
+		t.Errorf("expected mock engine call count to remain %d, but changed to %d",
+			initialEngineCalls, mockEngine.GetCallCount())
+	}
+
+	var errEnvelope response.ErrorEnvelope
+	if err := json.NewDecoder(resp.Body).Decode(&errEnvelope); err != nil {
+		t.Fatalf("failed decoding error response: %v", err)
+	}
+	if errEnvelope.Error.Code != response.CodeOCRFailed {
+		t.Errorf("expected error code %q, got %q", response.CodeOCRFailed, errEnvelope.Error.Code)
+	}
+	if !strings.Contains(errEnvelope.Error.Message, "circuit breaker is open") {
+		t.Errorf("expected circuit breaker message, got %q", errEnvelope.Error.Message)
+	}
+
+	// 4. Verify Prometheus metrics expose circuit breaker state
+	metricsResp, err := client.Get(ts.URL + "/metrics")
+	if err != nil {
+		t.Fatalf("failed fetching /metrics: %v", err)
+	}
+	defer metricsResp.Body.Close()
+
+	metricsBytes, err := io.ReadAll(metricsResp.Body)
+	if err != nil {
+		t.Fatalf("failed reading /metrics: %v", err)
+	}
+	metricsStr := string(metricsBytes)
+	if !strings.Contains(metricsStr, "lensio_ocr_circuit_breaker_state 2") {
+		t.Errorf("expected metrics to contain 'lensio_ocr_circuit_breaker_state 2', got:\n%s", metricsStr)
+	}
+	if !strings.Contains(metricsStr, "lensio_ocr_circuit_breaker_tripped_total") {
+		t.Errorf("expected metrics to contain 'lensio_ocr_circuit_breaker_tripped_total', got:\n%s", metricsStr)
+	}
+
+	// 5. Reset circuit breaker and restore mock engine
+	mockEngine.Reset()
+	cb.Reset()
+	if cb.State() != ocr.StateClosed {
+		t.Fatalf("expected breaker to be StateClosed after Reset, got %v", cb.State())
+	}
+}
+

@@ -20,6 +20,7 @@ type MockOCREngine struct {
 	mu           sync.RWMutex
 	customResult *ocr.OCRResult
 	customErr    error
+	callCount    int
 }
 
 // NewMockEngine creates a new MockOCREngine with default synthetic fixture responses.
@@ -47,6 +48,14 @@ func (m *MockOCREngine) Reset() {
 	defer m.mu.Unlock()
 	m.customResult = nil
 	m.customErr = nil
+	m.callCount = 0
+}
+
+// GetCallCount returns the total number of times Extract was called.
+func (m *MockOCREngine) GetCallCount() int {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.callCount
 }
 
 // Extract extracts KTP information from synthetic image bytes.
@@ -57,10 +66,11 @@ func (m *MockOCREngine) Extract(ctx context.Context, image []byte) (*ocr.OCRResu
 	default:
 	}
 
-	m.mu.RLock()
+	m.mu.Lock()
+	m.callCount++
 	customRes := m.customResult
 	customErr := m.customErr
-	m.mu.RUnlock()
+	m.mu.Unlock()
 
 	if customErr != nil {
 		return nil, customErr

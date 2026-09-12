@@ -27,7 +27,7 @@
 - [x] **Phase 11.3: Verifiable Deployment & Rollback Evidence Log**
 - [x] **Phase 11.4: Centralized Human Identity (Keycloak + OIDC / JWT)**
 - [x] **Phase 11.5: Fine-Grained Authorization (SpiceDB / ReBAC)**
-- [ ] **Phase 11.6: Deep Incident Engineering & Circuit Breaker Code Fix**
+- [x] **Phase 11.6: Deep Incident Engineering & Circuit Breaker Code Fix**
 - [ ] **Phase 11.7: Production SLOs & Actionable Alerting Rules**
 - [ ] **Phase 11.8: Architectural Decision Record: Distributed vs Local Rate Limiting**
 - [ ] **Phase 11.9: API Versioning Strategy & Contract Evolution**
@@ -169,12 +169,12 @@ Five core ADRs (`ADR-001` to `ADR-005`), production runbooks (`architecture.md`,
 ### Phase 11.6: Deep Incident Engineering & Circuit Breaker (Priority: HIGH)
 *Goal: Show senior-level incident mitigation, observability correlation, and code-level resilience.*
 
-- [ ] Implement Circuit Breaker in `services/ocr/circuit_breaker.go`:
+- [x] Implement Circuit Breaker in `services/ocr/circuit_breaker.go`:
   - Three states: Closed, Open, Half-Open.
   - Configurable failure threshold, cooldown timer, and adaptive context timeout.
   - Prometheus metrics: `lensio_ocr_circuit_breaker_state`, `lensio_ocr_circuit_breaker_tripped_total`.
-- [ ] Integrate Circuit Breaker into `services/ocr/engine.go`.
-- [ ] Write post-mortem document: `docs/incidents/INC-20260912-05-ocr-provider-latency-cascade.md`:
+- [x] Integrate Circuit Breaker into `services/ocr/engine.go`.
+- [x] Write post-mortem document: `docs/incidents/INC-20260912-05-ocr-provider-latency-cascade.md`:
   - Detection via Prometheus alert on P95 latency.
   - Trace span breakdown isolating Google Gemini external HTTP roundtrip.
   - Code fix, circuit breaker tripping demonstration, and graceful 504 degradation without worker pool exhaustion.
@@ -257,7 +257,7 @@ Lensio Product Ecosystem
 - [x] Deployment evidence log captures real CI test passes, security scans, and smoke test rollback.
 - [x] Keycloak OIDC JWT validation middleware works with unit tests and Docker Compose.
 - [x] SpiceDB ReBAC authorization model is defined and protects sensitive API key mutations.
-- [ ] Circuit breaker protects the OCR engine from upstream latency spikes and has an incident post-mortem.
+- [x] Circuit breaker protects the OCR engine from upstream latency spikes and has an incident post-mortem.
 - [ ] Prometheus alerting rules and SLO definition document are committed.
 - [ ] ADR-006 (Rate Limiting Trade-offs) and ADR-007 (API Versioning) are committed.
 - [ ] `go test -race ./...` and dashboard tests pass cleanly with zero failures.

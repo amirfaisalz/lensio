@@ -97,6 +97,13 @@ func main() {
 		ocrEngine = providers.NewMockEngine()
 	}
 
+	// Protect OCR engine with adaptive Circuit Breaker (PRD Phase 11.6)
+	ocrEngine = ocr.NewCircuitBreaker(ocrEngine, ocr.DefaultCircuitBreakerConfig())
+	logger.Info("initialized OCR circuit breaker protection",
+		slog.Int("failure_threshold", 5),
+		slog.Duration("cooldown", 10*time.Second),
+	)
+
 	rateLimiter := ratelimit.NewLimiter()
 
 	var usageRecorder *usage.Recorder

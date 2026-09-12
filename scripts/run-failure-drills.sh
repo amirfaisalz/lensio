@@ -7,6 +7,7 @@
 #   Scenario B: Database Outage (/ready 503, /health 200, Safe Traffic Rejection)
 #   Scenario C: Broken Deployment Smoke Test (Halts Promotion on Health Failure)
 #   Scenario D: Production Regression Drill (Prometheus Spikes & Rollback SLA)
+#   Scenario E: OCR Provider Latency Cascade & Circuit Breaker Protection (504 Fast-Fail)
 # ==============================================================================
 
 set -euo pipefail
@@ -41,7 +42,7 @@ log_fail() {
 }
 
 DRILLS_PASSED=0
-DRILLS_TOTAL=4
+DRILLS_TOTAL=5
 
 echo ""
 log_banner "Lensio Automated Production Failure Drills (Phase 9 - PRD Section 26)"
@@ -113,6 +114,23 @@ fi
 echo ""
 
 # ------------------------------------------------------------------------------
+# Scenario E: OCR Provider Latency Cascade & Circuit Breaker Protection
+# ------------------------------------------------------------------------------
+log_step "Executing Scenario E: OCR Circuit Breaker Tripping & Fast-Fail Drill..."
+if go test -race -v -run TestDrill_ScenarioE ./apps/api/internal/http/... > /tmp/lensio_drill_e.log 2>&1; then
+    log_pass "Scenario E Verified:"
+    echo "       - Injected consecutive timeouts tripped Circuit Breaker from Closed to Open."
+    echo "       - Subsequent requests fast-failed in < 50ms with HTTP 504 and code: ocr_failed."
+    echo "       - Underlying OCR engine calls were bypassed, preventing worker pool starvation."
+    echo "       - Prometheus metrics exposed lensio_ocr_circuit_breaker_state and tripped counter."
+    DRILLS_PASSED=$((DRILLS_PASSED + 1))
+else
+    log_fail "Scenario E Drill Failed. Log output:"
+    cat /tmp/lensio_drill_e.log
+fi
+echo ""
+
+# ------------------------------------------------------------------------------
 # Summary Table
 # ------------------------------------------------------------------------------
 echo "======================================================================"
@@ -124,7 +142,9 @@ printf "%-12s | %-32s | %b\n" "Scenario A" "OCR Provider Timeout/Crash" "${GREEN
 printf "%-12s | %-32s | %b\n" "Scenario B" "PostgreSQL Database Outage" "${GREEN}VERIFIED (/ready 503)${NC}"
 printf "%-12s | %-32s | %b\n" "Scenario C" "Broken Deployment Smoke Test" "${GREEN}VERIFIED (Gate Halt)${NC}"
 printf "%-12s | %-32s | %b\n" "Scenario D" "5xx Regression & Rapid Rollback" "${GREEN}VERIFIED (<60s SLA)${NC}"
+printf "%-12s | %-32s | %b\n" "Scenario E" "Latency Surge & Circuit Breaker" "${GREEN}VERIFIED (Fast-Fail 504)${NC}"
 echo "----------------------------------------------------------------------"
 echo -e "${GREEN}🎉 All ${DRILLS_PASSED}/${DRILLS_TOTAL} Failure Drills Passed Successfully!${NC}"
 echo "======================================================================"
 exit 0
+

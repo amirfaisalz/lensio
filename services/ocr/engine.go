@@ -17,6 +17,9 @@ var (
 
 	// ErrLowConfidence indicates extraction confidence score fell below acceptable threshold.
 	ErrLowConfidence = errors.New("ocr extraction confidence below threshold")
+
+	// ErrCircuitOpen indicates the circuit breaker is open and fast-failing incoming requests.
+	ErrCircuitOpen = errors.New("ocr circuit breaker is open: upstream service unavailable")
 )
 
 // KTPData represents structured fields extracted from an Indonesian KTP.
@@ -48,3 +51,9 @@ type OCRResult struct {
 type OCREngine interface {
 	Extract(ctx context.Context, image []byte) (*OCRResult, error)
 }
+
+// WithCircuitBreaker wraps an existing OCREngine with circuit breaking capabilities.
+func WithCircuitBreaker(engine OCREngine, cfg ...CircuitBreakerConfig) OCREngine {
+	return NewCircuitBreaker(engine, cfg...)
+}
+

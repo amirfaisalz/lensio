@@ -213,6 +213,18 @@ func KTPOCRHandler(engine ocr.OCREngine, ocrStore store.OCRRequestStore, quotaCh
 				)
 				return
 			}
+			if errors.Is(err, ocr.ErrCircuitOpen) {
+				telemetry.RecordOCRError(r.Context(), "circuit_breaker", response.CodeOCRFailed)
+				telemetry.RecordOCRRequest(r.Context(), "ktp", "failure", 0, time.Since(startTime).Seconds())
+				response.ErrorWithRequest(
+					w,
+					r,
+					http.StatusGatewayTimeout,
+					response.CodeOCRFailed,
+					"OCR circuit breaker is open: upstream service temporarily unavailable",
+				)
+				return
+			}
 			if errors.Is(err, context.DeadlineExceeded) {
 				telemetry.RecordOCRError(r.Context(), "ocr_engine", response.CodeOCRFailed)
 				telemetry.RecordOCRRequest(r.Context(), "ktp", "failure", 0, time.Since(startTime).Seconds())
