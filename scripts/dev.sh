@@ -18,14 +18,19 @@ KEYCLOAK_PORT="${KEYCLOAK_PORT:-8082}"
 KEYCLOAK_JWKS_URL="${KEYCLOAK_JWKS_URL:-http://localhost:${KEYCLOAK_PORT}/realms/lensio/protocol/openid-connect/certs}"
 
 # Ensure PostgreSQL and Keycloak containers are running if docker is available
-if command -v docker >/dev/null 2>&1; then
+if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
     if ! docker compose ps --status running --format '{{.Service}}' 2>/dev/null | grep -q "postgres"; then
         echo "⏳ Starting PostgreSQL container with Docker Compose..."
-        docker compose up -d postgres >/dev/null 2>&1 || true
+        docker compose up -d postgres
+        echo "⏳ Waiting for PostgreSQL to be ready..."
+        until docker compose exec -T postgres pg_isready -U lensio -d lensio >/dev/null 2>&1; do
+            sleep 1
+        done
+        echo "✅ PostgreSQL is ready."
     fi
     if ! docker compose ps --status running --format '{{.Service}}' 2>/dev/null | grep -q "keycloak"; then
         echo "⏳ Starting Keycloak container with Docker Compose..."
-        docker compose up -d keycloak >/dev/null 2>&1 || true
+        docker compose up -d keycloak
     fi
 fi
 
@@ -54,7 +59,7 @@ PORT="${API_PORT}" DATABASE_URL="${DATABASE_URL}" KEYCLOAK_JWKS_URL="${KEYCLOAK_
 API_PID=$!
 
 # Start React Dashboard with bun
-(cd apps/dashboard && bun run dev --port "${DASHBOARD_PORT}") &
+(cd apps/dashboard && bun run dev --port "${DASHBOARD_PORT}" --clearScreen false) &
 DASH_PID=$!
 
 # Allow a moment for initial server binding
