@@ -22,7 +22,7 @@
 - [x] **Phase 10: Documentation, ADRs, Demo Consumers & Portfolio Polish**
 
 ### Active V2 Platform Maturity & Enterprise Alignment (Phase 11)
-- [ ] **Phase 11.1: Real Load Testing & RED Metrics Analysis (`k6`)**
+- [x] **Phase 11.1: Real Load Testing & RED Metrics Analysis (`k6`)**
 - [ ] **Phase 11.2: API Idempotency Subsystem (`Idempotency-Key`)**
 - [ ] **Phase 11.3: Verifiable Deployment & Rollback Evidence Log**
 - [ ] **Phase 11.4: Centralized Human Identity (Keycloak + OIDC / JWT)**
@@ -76,16 +76,16 @@ Five core ADRs (`ADR-001` to `ADR-005`), production runbooks (`architecture.md`,
 ### Phase 11.1: Real Load Testing & RED Metrics Analysis (Priority: VERY HIGH)
 *Goal: Provide empirical proof of system throughput, latency percentiles, and bottleneck limits.*
 
-- [ ] Create `tests/load/k6-baseline.js`:
+- [x] Create `tests/load/k6-baseline.js`:
   - 100 concurrent Virtual Users (VUs) over 2 minutes.
   - Test targets: `/health`, `/api/v1/auth/verify`, `/api/v1/usage`, synthetic OCR payload.
-- [ ] Create `tests/load/k6-stress.js`:
+- [x] Create `tests/load/k6-stress.js`:
   - Ramp-up load to 500 rps and 1,000 rps.
   - Stress test rate limiter, token refill contention, and DB connection pool.
-- [ ] Run benchmarks against local instance and capture raw metrics:
+- [x] Run benchmarks against local instance and capture raw metrics:
   - Baseline: P50, P90, P95, P99, error rate %.
   - Stress: Saturation point, 429 rate limit distribution, DB pool wait time.
-- [ ] Author `docs/benchmarks/load-test-report.md`:
+- [x] Author `docs/benchmarks/load-test-report.md`:
   - Graph/table of RED metrics under varying load.
   - Identified bottleneck & code explanation (e.g. sync.Mutex lock contention vs DB pool sizing).
 - **Interview Narrative**:

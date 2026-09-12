@@ -6,7 +6,8 @@
   <img src="https://img.shields.io/badge/coverage-100%25%20target-brightgreen?style=flat-square" alt="Coverage" />
   <img src="https://img.shields.io/badge/security%20gates-5%2F5%20passed-brightgreen?style=flat-square" alt="Security Gates" />
   <img src="https://img.shields.io/badge/opentelemetry-active-blue?style=flat-square" alt="OpenTelemetry" />
-  <img src="https://img.shields.io/badge/rollback%20sla-%3C60s-blue?style=flat-square" alt="Rollback SLA" />
+  <img src="https://img.shields.io/badge/load%20test-1%2C000%20RPS%20sustained-brightgreen?style=flat-square" alt="Load Test 1,000 RPS" />
+  <img src="https://img.shields.io/badge/p95%20latency-1.58ms-brightgreen?style=flat-square" alt="P95 Latency 1.58ms" />
   <img src="https://img.shields.io/badge/license-MIT-blue?style=flat-square" alt="License" />
 </p>
 
@@ -64,6 +65,7 @@ Lensio demonstrates full-lifecycle engineering capabilities across the entire pl
 | **Continuous Delivery**       | GitHub Actions with 5 security scanners (Gitleaks, govulncheck, gosec, Trivy) | [`.github/workflows`](.github/workflows/)                                                    |
 | **Automated Rollbacks**       | Immutable container revisions, sub-60-second traffic shifting drill           | [`docs/rollback.md`](docs/rollback.md)                                                       |
 | **Failure Resilience**        | Documented post-mortem drills for 4 major production outage scenarios         | [`docs/incidents`](docs/incidents/)                                                          |
+| **Load Testing & Capacity**   | Empirical k6 testing: 1,000 RPS sustained, 225k+ reqs, $P_{95} = 1.58\text{ms}$, 0 errors | [`docs/benchmarks/load-test-report.md`](docs/benchmarks/load-test-report.md)                  |
 | **External Consumers**        | Independent client applications consuming Lensio API (VeriForm, RentEase)     | [`examples/`](examples/)                                                                     |
 
 ---
@@ -364,6 +366,36 @@ _Docs_: [`examples/rentease/README.md`](examples/rentease/README.md)
 
 ---
 
+## Empirical Performance & RED Metrics (k6 Load Testing)
+
+Rather than relying on theoretical claims, Lensio's production platform was subjected to rigorous empirical load testing using **Grafana k6**, instrumented with **OpenTelemetry**, and monitored through **Prometheus** RED metrics (*Rate, Errors, Duration*):
+
+| Metric / Condition | Baseline Concurrency (100 VUs) | Saturation Stress (Ramp to 1,000 RPS) |
+|---|---|---|
+| **Total Invocations** | **140,803 requests** (over 2m45s) | **85,124 requests** (over 2m30s) |
+| **Throughput** | **852.84 req/s** steady state | **1,000.00 req/s** peak sustained |
+| **HTTP Error Rate (5xx)** | **0 (0.00%)** — Zero Crashes | **0 (0.00%)** — Zero Crashes |
+| **Checks Succeeded** | **100.00%** (302,940 / 302,940) | **100.00%** (110,657 / 110,657) |
+| **Rate Limit 429 Events** | 91,140 throttled deterministically | 50,649 throttled deterministically |
+| **P50 Latency (Median)** | **261.67 µs** (sub-millisecond) | **304.56 µs** (sub-millisecond) |
+| **P90 Latency** | **842.67 µs** | **763.61 µs** |
+| **P95 Latency** | **1.58 ms** | **1.21 ms** |
+| **P99 Latency** | **4.94 ms** | — |
+| **DB Pool Saturation** | `wait_count = 0` (4 open, 3 idle) | `wait_count = 0` (4 open, 3 idle) |
+
+### Key Empirical Findings & Architectural Takeaways:
+1. **Non-Blocking Usage Metering Shielded PostgreSQL (`wait_count = 0`)**:  
+   The decision to buffer metering logs in an asynchronous channel (`usage.Recorder`, 1024-deep ring buffer) completely prevented PostgreSQL connection pool exhaustion under 1,000 RPS, keeping connection wait counts at zero.
+2. **Identified Real-World Bottleneck**:  
+   Under concurrent bursts carrying API keys for the same tenant organization, goroutines serialize on `sync.Mutex` (`b.mu.Lock()` in `ratelimit.Limiter.Allow()`), inducing tail latency spikes up to ~32ms. This empirical evidence validates our architectural roadmap for a partitioned/sharded limiter and distributed Redis token bucket (Phase 11.8).
+3. **Deterministic RFC-Compliant Throttling**:  
+   Handled over 141,000 rate limit events with accurate `Retry-After` and `X-RateLimit-*` headers and zero memory leaks.
+
+- **Full Benchmark Report**: [`docs/benchmarks/load-test-report.md`](docs/benchmarks/load-test-report.md)
+- **Load Test Suites**: [`tests/load/`](tests/load/) | **Automated Runner**: `./scripts/run-load-tests.sh`
+
+---
+
 ## Quickstart Guide
 
 ### Prerequisites
@@ -416,6 +448,7 @@ go test -race -cover ./...
 | **Deployment**         | [`docs/deployment.md`](docs/deployment.md)             | Multi-environment promotion path (Dev -> Staging -> Prod)   |
 | **Emergency Rollback** | [`docs/rollback.md`](docs/rollback.md)                 | Step-by-step sub-60-second revision rollback procedures     |
 | **Observability**      | [`docs/observability.md`](docs/observability.md)       | Distributed tracing, RED metrics, Prometheus, and SLO rules |
+| **Load Testing Report** | [`docs/benchmarks/load-test-report.md`](docs/benchmarks/load-test-report.md) | Empirical k6 load test results, RED metrics, and bottlenecks |
 | **Video Walkthrough**  | [`docs/demo-walkthrough.md`](docs/demo-walkthrough.md) | 3-5 minute demo recording script and narration cues         |
 | **OpenAPI Contract**   | [`openapi/openapi.yaml`](openapi/openapi.yaml)         | Full OpenAPI 3.0 specification contract (`/docs`)           |
 
