@@ -249,6 +249,14 @@ paths:
         - OCR
       security:
         - BearerAuth: []
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: false
+          schema:
+            type: string
+            maxLength: 256
+          description: Unique client token to guarantee safe retries without duplicate processing or billing.
       requestBody:
         required: true
         content:
@@ -266,6 +274,10 @@ paths:
         '200':
           description: Successfully extracted and validated KTP data
           headers:
+            Idempotent-Replayed:
+              schema:
+                type: boolean
+              description: True if the response was served from the idempotency cache without re-processing.
             X-RateLimit-Limit:
               $ref: '#/components/headers/X-RateLimit-Limit'
             X-RateLimit-Remaining:
@@ -282,6 +294,8 @@ paths:
           $ref: '#/components/responses/InvalidAPIKey'
         '403':
           $ref: '#/components/responses/InsufficientScope'
+        '409':
+          $ref: '#/components/responses/RequestInProgress'
         '422':
           $ref: '#/components/responses/UnsupportedDocument'
         '429':
@@ -623,6 +637,8 @@ components:
                 - ocr_failed
                 - low_confidence
                 - internal_error
+                - request_in_progress
+                - idempotency_key_mismatch
               example: invalid_document
             message:
               type: string
@@ -879,3 +895,28 @@ components:
               code: invalid_request
               message: Resource not found
               request_id: req_01JABC12345
+
+    RequestInProgress:
+      description: A request with this Idempotency-Key is currently being processed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+          example:
+            error:
+              code: request_in_progress
+              message: A request with this Idempotency-Key is currently in progress
+              request_id: req_01JABC12345
+
+    IdempotencyKeyMismatch:
+      description: Idempotency-Key was previously used with a different request payload
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+          example:
+            error:
+              code: idempotency_key_mismatch
+              message: Idempotency-Key was previously used with a different request payload
+              request_id: req_01JABC12345
+

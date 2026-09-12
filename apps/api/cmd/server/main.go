@@ -13,6 +13,7 @@ import (
 
 	"github.com/amirfaisalz/lensio/apps/api/internal/config"
 	internalhttp "github.com/amirfaisalz/lensio/apps/api/internal/http"
+	"github.com/amirfaisalz/lensio/apps/api/internal/idempotency"
 	"github.com/amirfaisalz/lensio/apps/api/internal/ratelimit"
 	"github.com/amirfaisalz/lensio/apps/api/internal/store"
 	"github.com/amirfaisalz/lensio/apps/api/internal/telemetry"
@@ -101,16 +102,24 @@ func main() {
 		usageRecorder = usage.NewRecorder(db, 1024)
 	}
 
+	var idempotencyStore idempotency.Store
+	if db != nil {
+		idempotencyStore = idempotency.NewPostgresStore(db.DB, 24*time.Hour)
+	} else {
+		idempotencyStore = idempotency.NewMemoryStore(24 * time.Hour)
+	}
+
 	router := internalhttp.NewRouterWithDeps(internalhttp.RouterDeps{
-		Pinger:        pinger,
-		KeyStore:      db,
-		OCREngine:     ocrEngine,
-		OCRStore:      db,
-		UsageStore:    db,
-		AccountStore:  db,
-		AuditStore:    db,
-		RateLimiter:   rateLimiter,
-		UsageRecorder: usageRecorder,
+		Pinger:           pinger,
+		KeyStore:         db,
+		OCREngine:        ocrEngine,
+		OCRStore:         db,
+		UsageStore:       db,
+		AccountStore:     db,
+		AuditStore:       db,
+		RateLimiter:      rateLimiter,
+		UsageRecorder:    usageRecorder,
+		IdempotencyStore: idempotencyStore,
 	})
 
 	srv := &http.Server{

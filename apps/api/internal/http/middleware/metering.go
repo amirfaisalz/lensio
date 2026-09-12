@@ -59,6 +59,11 @@ func UsageMetering(recorder *usage.Recorder, defaultOrgID string) func(http.Hand
 				return
 			}
 
+			// Exclude idempotently replayed responses from creating duplicate usage records / consuming quota
+			if sw.Header().Get("Idempotent-Replayed") == "true" {
+				return
+			}
+
 			orgID := defaultOrgID
 			var apiKeyID *string
 

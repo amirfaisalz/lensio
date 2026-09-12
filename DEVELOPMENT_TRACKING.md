@@ -23,7 +23,7 @@
 
 ### Active V2 Platform Maturity & Enterprise Alignment (Phase 11)
 - [x] **Phase 11.1: Real Load Testing & RED Metrics Analysis (`k6`)**
-- [ ] **Phase 11.2: API Idempotency Subsystem (`Idempotency-Key`)**
+- [x] **Phase 11.2: API Idempotency Subsystem (`Idempotency-Key`)**
 - [ ] **Phase 11.3: Verifiable Deployment & Rollback Evidence Log**
 - [ ] **Phase 11.4: Centralized Human Identity (Keycloak + OIDC / JWT)**
 - [ ] **Phase 11.5: Fine-Grained Authorization (SpiceDB / ReBAC)**
@@ -96,15 +96,15 @@ Five core ADRs (`ADR-001` to `ADR-005`), production runbooks (`architecture.md`,
 ### Phase 11.2: API Idempotency Subsystem (Priority: MEDIUM-HIGH)
 *Goal: Guarantee safe client retries over unreliable networks without duplicate processing or duplicate quota deduction.*
 
-- [ ] Implement `apps/api/internal/idempotency/`:
+- [x] Implement `apps/api/internal/idempotency/`:
   - In-memory / DB idempotency store with TTL (24h).
   - SHA-256 payload hash verification (prevent key reuse with differing payloads).
-- [ ] Implement middleware `apps/api/internal/http/middleware/idempotency.go`:
+- [x] Implement middleware `apps/api/internal/http/middleware/idempotency.go`:
   - Intercept `Idempotency-Key` header.
   - Return HTTP 409 `request_in_progress` if identical request is currently processing.
   - Return cached status, headers, and body with `Idempotent-Replayed: true` if completed.
-- [ ] Attach idempotency middleware to `POST /api/v1/ocr/ktp` in `router.go`.
-- [ ] Unit & Integration tests:
+- [x] Attach idempotency middleware to `POST /api/v1/ocr/ktp` in `router.go`.
+- [x] Unit & Integration tests:
   - Test replay returns identical result.
   - Test altered body with same key returns 422 Unprocessable Entity.
   - Test concurrent requests return 409 Conflict.
@@ -253,7 +253,7 @@ Lensio Product Ecosystem
 ## Definition of Done for V2 Release
 
 - [ ] `k6` baseline and stress test scripts exist, executed, and benchmark report is committed.
-- [ ] `Idempotency-Key` header is supported on `POST /api/v1/ocr/ktp` with 100% test coverage.
+- [x] `Idempotency-Key` header is supported on `POST /api/v1/ocr/ktp` with 100% test coverage.
 - [ ] Deployment evidence log captures real CI test passes, security scans, and smoke test rollback.
 - [ ] Keycloak OIDC JWT validation middleware works with unit tests and Docker Compose.
 - [ ] SpiceDB ReBAC authorization model is defined and protects sensitive API key mutations.

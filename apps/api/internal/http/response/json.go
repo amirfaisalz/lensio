@@ -18,6 +18,8 @@ const (
 	CodeOCRFailed           = "ocr_failed"
 	CodeLowConfidence       = "low_confidence"
 	CodeInternalError       = "internal_error"
+	CodeRequestInProgress   = "request_in_progress"
+	CodeIdempotencyMismatch = "idempotency_key_mismatch"
 )
 
 type ctxKeyRequestID struct{}

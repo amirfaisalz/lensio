@@ -3,9 +3,12 @@ package http
 import (
 	"net/http"
 
+	"time"
+
 	"github.com/amirfaisalz/lensio/apps/api/internal/http/handlers"
 	"github.com/amirfaisalz/lensio/apps/api/internal/http/middleware"
 	"github.com/amirfaisalz/lensio/apps/api/internal/http/response"
+	"github.com/amirfaisalz/lensio/apps/api/internal/idempotency"
 	"github.com/amirfaisalz/lensio/apps/api/internal/quota"
 	"github.com/amirfaisalz/lensio/apps/api/internal/ratelimit"
 	"github.com/amirfaisalz/lensio/apps/api/internal/store"
@@ -17,15 +20,16 @@ import (
 
 // RouterDeps encapsulates optional and required dependencies for the HTTP API router.
 type RouterDeps struct {
-	Pinger        store.Pinger
-	KeyStore      store.APIKeyStore
-	OCREngine     ocr.OCREngine
-	OCRStore      store.OCRRequestStore
-	UsageStore    store.UsageStore
-	AccountStore  store.AccountStore
-	AuditStore    store.AuditStore
-	RateLimiter   *ratelimit.Limiter
-	UsageRecorder *usage.Recorder
+	Pinger           store.Pinger
+	KeyStore         store.APIKeyStore
+	OCREngine        ocr.OCREngine
+	OCRStore         store.OCRRequestStore
+	UsageStore       store.UsageStore
+	AccountStore     store.AccountStore
+	AuditStore       store.AuditStore
+	RateLimiter      *ratelimit.Limiter
+	UsageRecorder    *usage.Recorder
+	IdempotencyStore idempotency.Store
 }
 
 // NewRouter constructs the root HTTP handler for backward compatibility.
@@ -87,8 +91,13 @@ func NewRouterWithDeps(deps RouterDeps) http.Handler {
 			quotaChecker = quota.NewEnforcer(deps.AccountStore, deps.UsageStore)
 		}
 
+		if deps.IdempotencyStore == nil {
+			deps.IdempotencyStore = idempotency.NewMemoryStore(24 * time.Hour)
+		}
+		idempotencyMiddleware := middleware.Idempotency(deps.IdempotencyStore)
+
 		ktpHandler := handlers.KTPOCRHandler(deps.OCREngine, deps.OCRStore, quotaChecker)
-		mux.Handle("POST /api/v1/ocr/ktp", authMiddleware(scopeWriteMiddleware(ktpHandler)))
+		mux.Handle("POST /api/v1/ocr/ktp", authMiddleware(scopeWriteMiddleware(idempotencyMiddleware(ktpHandler))))
 
 		if deps.OCRStore != nil {
 			getOcrHandler := handlers.GetOCRRequestHandler(deps.OCRStore)
