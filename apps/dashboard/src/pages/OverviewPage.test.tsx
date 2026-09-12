@@ -5,14 +5,60 @@ import { AuthProvider } from "../context/AuthContext";
 import { api } from "../services/api";
 import { OverviewPage } from "./OverviewPage";
 
+const TEST_ORG = {
+	id: "org-test-uuid",
+	name: "Acme Corp",
+	slug: "acme",
+	planCode: "free",
+};
+
 const renderWithAuth = (ui: React.ReactElement) => {
 	return render(<AuthProvider>{ui}</AuthProvider>);
 };
 
 describe("OverviewPage", () => {
 	beforeEach(() => {
+		api.setApiKey(null);
 		localStorage.clear();
 		vi.restoreAllMocks();
+	});
+
+	it("does not render the playground when currentOrg is null", async () => {
+		const mockSummary = {
+			total_requests: 0,
+			success_count: 0,
+			error_count: 0,
+			quota_limit: 100,
+			quota_remaining: 100,
+			p95_latency_ms: 0,
+			rate_limit_violations: 0,
+			billing_cycle_reset: "2026-10-01T00:00:00Z",
+		};
+
+		vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+			const url = String(input);
+			if (url.includes("/api/v1/usage")) {
+				return { ok: true, json: async () => mockSummary } as Response;
+			}
+			return { ok: true, json: async () => ({}) } as Response;
+		});
+
+		renderWithAuth(<OverviewPage />);
+
+		await waitFor(() => {
+			expect(screen.getByText("System Overview")).toBeDefined();
+		});
+
+		// Playground must be hidden when there is no organization
+		expect(screen.queryByText("Live KTP OCR Playground")).toBeNull();
+		expect(
+			screen.queryByRole("button", { name: /Load Synthetic Fixture/i }),
+		).toBeNull();
+		expect(
+			screen.getByText(
+				"Selamat Datang di Lensio! Buat organisasi Anda terlebih dahulu",
+			),
+		).toBeDefined();
 	});
 
 	it("renders loading skeleton and then metric cards", async () => {
@@ -64,7 +110,10 @@ describe("OverviewPage", () => {
 		});
 	});
 
-	it("tests synthetic fixture OCR execution in playground", async () => {
+	it("tests synthetic fixture OCR execution in playground when organization and apiKey exist", async () => {
+		localStorage.setItem("lensio_current_org", JSON.stringify(TEST_ORG));
+		api.setApiKey("lensio_live_testkey123");
+
 		const mockSummary = {
 			total_requests: 10,
 			success_count: 10,
@@ -110,12 +159,15 @@ describe("OverviewPage", () => {
 			return { ok: true, json: async () => ({}) } as Response;
 		});
 
-		vi.spyOn(api, "executeKTPOCR").mockResolvedValue(mockOcrResult);
+		const ocrSpy = vi
+			.spyOn(api, "executeKTPOCR")
+			.mockResolvedValue(mockOcrResult);
 
 		renderWithAuth(<OverviewPage />);
 
 		await waitFor(() => {
 			expect(screen.getByText("System Overview")).toBeDefined();
+			expect(screen.getByText("Live KTP OCR Playground")).toBeDefined();
 		});
 
 		// Click "Load Synthetic Fixture"
@@ -125,6 +177,7 @@ describe("OverviewPage", () => {
 		fireEvent.click(fixtureBtn);
 
 		await waitFor(() => {
+			expect(ocrSpy).toHaveBeenCalledTimes(1);
 			expect(screen.getByText("Normalized Field Verification")).toBeDefined();
 			expect(screen.getByText("3273012345670001")).toBeDefined();
 			expect(screen.getByText("JOKO WIDODO SYNTHETIC")).toBeDefined();
@@ -132,7 +185,61 @@ describe("OverviewPage", () => {
 		});
 	});
 
+	it("shows warning and blocks execution when organization exists but apiKey is missing", async () => {
+		localStorage.setItem("lensio_current_org", JSON.stringify(TEST_ORG));
+		// No API key set in localStorage
+
+		const mockSummary = {
+			total_requests: 0,
+			success_count: 0,
+			error_count: 0,
+			quota_limit: 100,
+			quota_remaining: 100,
+			p95_latency_ms: 0,
+			rate_limit_violations: 0,
+			billing_cycle_reset: "2026-10-01T00:00:00Z",
+		};
+
+		vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+			const url = String(input);
+			if (url.includes("/api/v1/usage")) {
+				return { ok: true, json: async () => mockSummary } as Response;
+			}
+			return { ok: true, json: async () => ({}) } as Response;
+		});
+
+		const ocrSpy = vi.spyOn(api, "executeKTPOCR");
+
+		renderWithAuth(<OverviewPage />);
+
+		await waitFor(() => {
+			expect(screen.getByText("Live KTP OCR Playground")).toBeDefined();
+			expect(
+				screen.getByText(
+					/API Key diperlukan untuk menguji OCR di playground ini/,
+				),
+			).toBeDefined();
+		});
+
+		// Try clicking "Load Synthetic Fixture"
+		const fixtureBtn = screen.getByRole("button", {
+			name: /Load Synthetic Fixture/i,
+		});
+		fireEvent.click(fixtureBtn);
+
+		// Must NOT call api.executeKTPOCR and must display error banner
+		await waitFor(() => {
+			expect(ocrSpy).not.toHaveBeenCalled();
+			expect(
+				screen.getByText(/API Key aktif diperlukan untuk menjalankan OCR/),
+			).toBeDefined();
+		});
+	});
+
 	it("handles file upload error in playground", async () => {
+		localStorage.setItem("lensio_current_org", JSON.stringify(TEST_ORG));
+		api.setApiKey("lensio_live_testkey123");
+
 		const mockSummary = {
 			total_requests: 5,
 			success_count: 5,
@@ -160,6 +267,7 @@ describe("OverviewPage", () => {
 
 		await waitFor(() => {
 			expect(screen.getByText("System Overview")).toBeDefined();
+			expect(screen.getByText("Live KTP OCR Playground")).toBeDefined();
 		});
 
 		const fileInput = document.getElementById(

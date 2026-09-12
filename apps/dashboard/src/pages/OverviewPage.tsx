@@ -70,6 +70,13 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({ onNavigate }) => {
 	}, [loadMetrics]);
 
 	const handleFileUpload = async (file: File) => {
+		if (!apiKey) {
+			setOcrError(
+				"API Key aktif diperlukan untuk menjalankan OCR. Silakan buat atau aktifkan API Key di menu API Keys.",
+			);
+			return;
+		}
+
 		try {
 			setSelectedFileName(file.name || "ktp_document.jpg");
 			setOcrLoading(true);
@@ -419,173 +426,201 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({ onNavigate }) => {
 				</div>
 			</div>
 
-			{/* Quick-Test Playground Widget */}
-			<div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
-				<div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-					<div>
-						<div className="flex items-center gap-2">
-							<Sparkles className="w-4 h-4 text-[#1877F2]" />
-							<h3 className="text-sm font-bold text-slate-900">
-								Live KTP OCR Playground
-							</h3>
+			{/* Quick-Test Playground Widget (Requires active organization) */}
+			{currentOrg && (
+				<div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
+					<div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+						<div>
+							<div className="flex items-center gap-2">
+								<Sparkles className="w-4 h-4 text-[#1877F2]" />
+								<h3 className="text-sm font-bold text-slate-900">
+									Live KTP OCR Playground
+								</h3>
+							</div>
+							<p className="text-xs text-slate-500">
+								Upload an Indonesian KTP image or test with synthetic fixtures.
+							</p>
 						</div>
-						<p className="text-xs text-slate-500">
-							Upload an Indonesian KTP image or test with synthetic fixtures.
-						</p>
-					</div>
-					<button
-						type="button"
-						onClick={handleLoadSyntheticSample}
-						disabled={ocrLoading}
-						className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-[#1877F2] bg-[#E7F3FF] hover:bg-[#d5eaff] rounded-lg transition-colors"
-					>
-						<FileCheck className="w-3.5 h-3.5" />
-						<span>Load Synthetic Fixture</span>
-					</button>
-				</div>
-
-				<div className="p-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
-					{/* File drop zone */}
-					<div>
-						<label
-							htmlFor="ktp-file-input"
-							className="border-2 border-dashed border-slate-300 hover:border-[#1877F2] rounded-xl p-8 flex flex-col items-center justify-center text-center cursor-pointer transition-colors bg-slate-50/50 hover:bg-[#F0F2F5]/50"
+						<button
+							type="button"
+							onClick={handleLoadSyntheticSample}
+							disabled={ocrLoading}
+							className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-[#1877F2] bg-[#E7F3FF] hover:bg-[#d5eaff] rounded-lg transition-colors cursor-pointer"
 						>
-							<Upload className="w-8 h-8 text-slate-400 mb-3" />
-							<p className="text-sm font-semibold text-slate-700">
-								Click to upload or drag & drop
-							</p>
-							<p className="text-xs text-slate-500 mt-1">
-								JPEG, PNG, or WebP up to 5MB
-							</p>
-							<input
-								id="ktp-file-input"
-								type="file"
-								accept="image/jpeg,image/png,image/webp"
-								className="hidden"
-								onChange={(e) => {
-									if (e.target.files?.[0]) {
-										handleFileUpload(e.target.files[0]);
+							<FileCheck className="w-3.5 h-3.5" />
+							<span>Load Synthetic Fixture</span>
+						</button>
+					</div>
+
+					{!apiKey && (
+						<div className="mx-6 mt-4 p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+							<span>
+								API Key diperlukan untuk menguji OCR di playground ini. Silakan
+								buat atau aktifkan API Key organisasi Anda.
+							</span>
+							<button
+								type="button"
+								onClick={() => {
+									if (onNavigate) {
+										onNavigate("keys");
+									} else {
+										const keysTab = document.querySelector(
+											'button[data-page="keys"]',
+										) as HTMLButtonElement | null;
+										if (keysTab) keysTab.click();
 									}
 								}}
-							/>
-						</label>
+								className="font-semibold text-[#1877F2] hover:underline cursor-pointer shrink-0"
+							>
+								Kelola API Key
+							</button>
+						</div>
+					)}
 
-						{selectedFileName && (
-							<div className="mt-3 flex items-center justify-between px-3 py-2 bg-slate-50 rounded-lg border border-slate-200 text-xs text-slate-600">
-								<span className="truncate font-mono">{selectedFileName}</span>
-								{ocrLoading && (
-									<RefreshCw className="w-3.5 h-3.5 animate-spin text-[#1877F2]" />
+					<div className="p-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
+						{/* File drop zone */}
+						<div>
+							<label
+								htmlFor="ktp-file-input"
+								className="border-2 border-dashed border-slate-300 hover:border-[#1877F2] rounded-xl p-8 flex flex-col items-center justify-center text-center cursor-pointer transition-colors bg-slate-50/50 hover:bg-[#F0F2F5]/50"
+							>
+								<Upload className="w-8 h-8 text-slate-400 mb-3" />
+								<p className="text-sm font-semibold text-slate-700">
+									Click to upload or drag & drop
+								</p>
+								<p className="text-xs text-slate-500 mt-1">
+									JPEG, PNG, or WebP up to 5MB
+								</p>
+								<input
+									id="ktp-file-input"
+									type="file"
+									accept="image/jpeg,image/png,image/webp"
+									className="hidden"
+									onChange={(e) => {
+										if (e.target.files?.[0]) {
+											handleFileUpload(e.target.files[0]);
+										}
+									}}
+								/>
+							</label>
+
+							{selectedFileName && (
+								<div className="mt-3 flex items-center justify-between px-3 py-2 bg-slate-50 rounded-lg border border-slate-200 text-xs text-slate-600">
+									<span className="truncate font-mono">{selectedFileName}</span>
+									{ocrLoading && (
+										<RefreshCw className="w-3.5 h-3.5 animate-spin text-[#1877F2]" />
+									)}
+								</div>
+							)}
+
+							{ocrError && (
+								<div className="mt-3 p-3 bg-rose-50 border border-rose-200 rounded-lg text-xs text-rose-700">
+									<strong>Error:</strong> {ocrError}
+								</div>
+							)}
+						</div>
+
+						{/* Results viewer */}
+						<div className="bg-slate-900 text-slate-100 rounded-xl p-4 flex flex-col font-mono text-xs overflow-hidden max-h-[380px]">
+							<div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-800 text-slate-400 text-[11px]">
+								<span>RESPONSE PAYLOAD</span>
+								{ocrResult && (
+									<span className="text-emerald-400">
+										{ocrResult.latency_ms}ms ·{" "}
+										{Math.round(ocrResult.confidence * 100)}% Confidence
+									</span>
 								)}
 							</div>
-						)}
 
-						{ocrError && (
-							<div className="mt-3 p-3 bg-rose-50 border border-rose-200 rounded-lg text-xs text-rose-700">
-								<strong>Error:</strong> {ocrError}
+							<div className="flex-1 overflow-y-auto">
+								{ocrLoading ? (
+									<div className="h-full flex items-center justify-center text-slate-500 py-12">
+										<RefreshCw className="w-5 h-5 animate-spin mr-2 text-[#1877F2]" />
+										<span>Processing KTP OCR extraction...</span>
+									</div>
+								) : ocrResult ? (
+									<pre className="text-xs leading-relaxed text-slate-200 whitespace-pre-wrap">
+										{JSON.stringify(ocrResult, null, 2)}
+									</pre>
+								) : (
+									<div className="h-full flex flex-col items-center justify-center text-slate-500 py-12 text-center">
+										<p>No document submitted yet.</p>
+										<p className="text-[11px] text-slate-600 mt-1">
+											Upload a KTP image or click "Load Synthetic Fixture"
+											above.
+										</p>
+									</div>
+								)}
 							</div>
-						)}
-					</div>
-
-					{/* Results viewer */}
-					<div className="bg-slate-900 text-slate-100 rounded-xl p-4 flex flex-col font-mono text-xs overflow-hidden max-h-[380px]">
-						<div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-800 text-slate-400 text-[11px]">
-							<span>RESPONSE PAYLOAD</span>
-							{ocrResult && (
-								<span className="text-emerald-400">
-									{ocrResult.latency_ms}ms ·{" "}
-									{Math.round(ocrResult.confidence * 100)}% Confidence
-								</span>
-							)}
-						</div>
-
-						<div className="flex-1 overflow-y-auto">
-							{ocrLoading ? (
-								<div className="h-full flex items-center justify-center text-slate-500 py-12">
-									<RefreshCw className="w-5 h-5 animate-spin mr-2 text-[#1877F2]" />
-									<span>Processing KTP OCR extraction...</span>
-								</div>
-							) : ocrResult ? (
-								<pre className="text-xs leading-relaxed text-slate-200 whitespace-pre-wrap">
-									{JSON.stringify(ocrResult, null, 2)}
-								</pre>
-							) : (
-								<div className="h-full flex flex-col items-center justify-center text-slate-500 py-12 text-center">
-									<p>No document submitted yet.</p>
-									<p className="text-[11px] text-slate-600 mt-1">
-										Upload a KTP image or click "Load Synthetic Fixture" above.
-									</p>
-								</div>
-							)}
 						</div>
 					</div>
+
+					{/* Extracted Structured Field Inspector */}
+					{ocrResult?.data && (
+						<div className="px-6 py-4 bg-slate-50/80 border-t border-slate-100">
+							<h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-3">
+								Normalized Field Verification
+							</h4>
+							<div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 text-xs">
+								<div className="bg-white p-2.5 rounded border border-slate-200">
+									<span className="text-slate-400 block text-[10px] uppercase font-semibold">
+										NIK
+									</span>
+									<span className="font-mono font-bold text-slate-900">
+										{ocrResult.data.nik}
+									</span>
+								</div>
+								<div className="bg-white p-2.5 rounded border border-slate-200">
+									<span className="text-slate-400 block text-[10px] uppercase font-semibold">
+										Nama
+									</span>
+									<span className="font-semibold text-slate-900 truncate block">
+										{ocrResult.data.nama}
+									</span>
+								</div>
+								<div className="bg-white p-2.5 rounded border border-slate-200">
+									<span className="text-slate-400 block text-[10px] uppercase font-semibold">
+										Tanggal Lahir
+									</span>
+									<span className="font-mono text-slate-900">
+										{ocrResult.data.tanggal_lahir}
+									</span>
+								</div>
+								<div className="bg-white p-2.5 rounded border border-slate-200">
+									<span className="text-slate-400 block text-[10px] uppercase font-semibold">
+										Jenis Kelamin
+									</span>
+									<span className="text-slate-900">
+										{ocrResult.data.jenis_kelamin}
+									</span>
+								</div>
+								<div className="bg-white p-2.5 rounded border border-slate-200 col-span-2">
+									<span className="text-slate-400 block text-[10px] uppercase font-semibold">
+										Alamat
+									</span>
+									<span className="text-slate-900 truncate block">
+										{ocrResult.data.alamat}
+									</span>
+								</div>
+								<div className="bg-white p-2.5 rounded border border-slate-200">
+									<span className="text-slate-400 block text-[10px] uppercase font-semibold">
+										Agama
+									</span>
+									<span className="text-slate-900">{ocrResult.data.agama}</span>
+								</div>
+								<div className="bg-white p-2.5 rounded border border-slate-200">
+									<span className="text-slate-400 block text-[10px] uppercase font-semibold">
+										Status Perkawinan
+									</span>
+									<span className="text-slate-900">
+										{ocrResult.data.status_perkawinan}
+									</span>
+								</div>
+							</div>
+						</div>
+					)}
 				</div>
-
-				{/* Extracted Structured Field Inspector */}
-				{ocrResult?.data && (
-					<div className="px-6 py-4 bg-slate-50/80 border-t border-slate-100">
-						<h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-3">
-							Normalized Field Verification
-						</h4>
-						<div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 text-xs">
-							<div className="bg-white p-2.5 rounded border border-slate-200">
-								<span className="text-slate-400 block text-[10px] uppercase font-semibold">
-									NIK
-								</span>
-								<span className="font-mono font-bold text-slate-900">
-									{ocrResult.data.nik}
-								</span>
-							</div>
-							<div className="bg-white p-2.5 rounded border border-slate-200">
-								<span className="text-slate-400 block text-[10px] uppercase font-semibold">
-									Nama
-								</span>
-								<span className="font-semibold text-slate-900 truncate block">
-									{ocrResult.data.nama}
-								</span>
-							</div>
-							<div className="bg-white p-2.5 rounded border border-slate-200">
-								<span className="text-slate-400 block text-[10px] uppercase font-semibold">
-									Tanggal Lahir
-								</span>
-								<span className="font-mono text-slate-900">
-									{ocrResult.data.tanggal_lahir}
-								</span>
-							</div>
-							<div className="bg-white p-2.5 rounded border border-slate-200">
-								<span className="text-slate-400 block text-[10px] uppercase font-semibold">
-									Jenis Kelamin
-								</span>
-								<span className="text-slate-900">
-									{ocrResult.data.jenis_kelamin}
-								</span>
-							</div>
-							<div className="bg-white p-2.5 rounded border border-slate-200 col-span-2">
-								<span className="text-slate-400 block text-[10px] uppercase font-semibold">
-									Alamat
-								</span>
-								<span className="text-slate-900 truncate block">
-									{ocrResult.data.alamat}
-								</span>
-							</div>
-							<div className="bg-white p-2.5 rounded border border-slate-200">
-								<span className="text-slate-400 block text-[10px] uppercase font-semibold">
-									Agama
-								</span>
-								<span className="text-slate-900">{ocrResult.data.agama}</span>
-							</div>
-							<div className="bg-white p-2.5 rounded border border-slate-200">
-								<span className="text-slate-400 block text-[10px] uppercase font-semibold">
-									Status Perkawinan
-								</span>
-								<span className="text-slate-900">
-									{ocrResult.data.status_perkawinan}
-								</span>
-							</div>
-						</div>
-					</div>
-				)}
-			</div>
+			)}
 		</div>
 	);
 };
