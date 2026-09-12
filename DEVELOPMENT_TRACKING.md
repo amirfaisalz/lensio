@@ -26,7 +26,7 @@
 - [x] **Phase 11.2: API Idempotency Subsystem (`Idempotency-Key`)**
 - [x] **Phase 11.3: Verifiable Deployment & Rollback Evidence Log**
 - [x] **Phase 11.4: Centralized Human Identity (Keycloak + OIDC / JWT)**
-- [ ] **Phase 11.5: Fine-Grained Authorization (SpiceDB / ReBAC)**
+- [x] **Phase 11.5: Fine-Grained Authorization (SpiceDB / ReBAC)**
 - [ ] **Phase 11.6: Deep Incident Engineering & Circuit Breaker Code Fix**
 - [ ] **Phase 11.7: Production SLOs & Actionable Alerting Rules**
 - [ ] **Phase 11.8: Architectural Decision Record: Distributed vs Local Rate Limiting**
@@ -151,15 +151,15 @@ Five core ADRs (`ADR-001` to `ADR-005`), production runbooks (`architecture.md`,
 ### Phase 11.5: SpiceDB Fine-Grained Authorization / ReBAC (Priority: HIGH)
 *Goal: Implement Zanzibar-style fine-grained relationship-based access control.*
 
-- [ ] Author Zanzibar schema `infra/spicedb/schema.zed`:
+- [x] Author Zanzibar schema `infra/spicedb/schema.zed`:
   - Definitions: `user`, `organization`, `project`, `api_key`.
   - Permissions: `project->manage_api_keys`, `api_key->revoke`, `api_key->use`.
-- [ ] Add SpiceDB container to `docker-compose.yml` (`authzed/spicedb`).
-- [ ] Implement Go client adapter in `apps/api/internal/authz/spicedb.go`:
+- [x] Add SpiceDB container to `docker-compose.yml` (`authzed/spicedb`).
+- [x] Implement Go client adapter in `apps/api/internal/authz/spicedb.go`:
   - `CheckPermission(ctx, resource, permission, subject) (bool, error)`.
   - `WriteRelationship(ctx, relation) error`.
   - `MockAuthorizer` for zero-dependency unit tests.
-- [ ] Enforce SpiceDB authorization in API key handlers:
+- [x] Enforce SpiceDB authorization in API key handlers:
   - Verify actor has `manage_api_keys` before creating or revoking keys.
 - **Interview Narrative**:
   > *"Authentication answers 'WHO are you?' via Keycloak. Authorization answers 'WHAT are you allowed to do?' via SpiceDB. We use SpiceDB's ReBAC model to enforce organizational boundaries and project-level API key delegation."*
@@ -256,7 +256,7 @@ Lensio Product Ecosystem
 - [x] `Idempotency-Key` header is supported on `POST /api/v1/ocr/ktp` with 100% test coverage.
 - [x] Deployment evidence log captures real CI test passes, security scans, and smoke test rollback.
 - [x] Keycloak OIDC JWT validation middleware works with unit tests and Docker Compose.
-- [ ] SpiceDB ReBAC authorization model is defined and protects sensitive API key mutations.
+- [x] SpiceDB ReBAC authorization model is defined and protects sensitive API key mutations.
 - [ ] Circuit breaker protects the OCR engine from upstream latency spikes and has an incident post-mortem.
 - [ ] Prometheus alerting rules and SLO definition document are committed.
 - [ ] ADR-006 (Rate Limiting Trade-offs) and ADR-007 (API Versioning) are committed.

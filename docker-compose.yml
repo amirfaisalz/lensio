@@ -43,6 +43,8 @@ services:
       OCR_PROVIDER: "${OCR_PROVIDER:-mock}"
       GEMINI_API_KEY: "${GEMINI_API_KEY:-}"
       GEMINI_MODEL: "${GEMINI_MODEL:-gemini-3.6-flash}"
+      SPICEDB_ENDPOINT: "${SPICEDB_ENDPOINT:-http://spicedb:8443}"
+      SPICEDB_PRESHARED_KEY: "${SPICEDB_PRESHARED_KEY:-lensio_spicedb_key}"
     depends_on:
       postgres:
         condition: service_healthy
@@ -90,6 +92,17 @@ services:
       - "8082:8080"
     volumes:
       - ./infra/keycloak:/opt/keycloak/data/import:ro
+
+  spicedb:
+    image: authzed/spicedb:latest
+    container_name: lensio-spicedb
+    restart: unless-stopped
+    command: serve-testing --http-enabled
+    ports:
+      - "50051:50051"
+      - "8443:8443"
+    environment:
+      - SPICEDB_GRPC_PRESHARED_KEY=lensio_spicedb_key
 
 volumes:
   postgres_data:

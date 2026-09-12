@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/amirfaisalz/lensio/apps/api/internal/apikey"
+	"github.com/amirfaisalz/lensio/apps/api/internal/authz"
 	"github.com/amirfaisalz/lensio/apps/api/internal/http/handlers"
 	"github.com/amirfaisalz/lensio/apps/api/internal/http/middleware"
 	"github.com/amirfaisalz/lensio/apps/api/internal/http/response"
@@ -99,7 +100,7 @@ func (m *mockAuditStore) ListAuditLogsByOrg(ctx context.Context, orgID string) (
 func TestCreateAPIKeyHandler_Success(t *testing.T) {
 	s := newMockStore()
 	audit := &mockAuditStore{}
-	handler := handlers.CreateAPIKeyHandler(s, audit, handlers.DefaultOrgID)
+	handler := handlers.CreateAPIKeyHandler(s, audit, nil, handlers.DefaultOrgID)
 
 	payload := map[string]any{
 		"name": "Production Service",
@@ -139,7 +140,7 @@ func TestCreateAPIKeyHandler_Success(t *testing.T) {
 
 func TestCreateAPIKeyHandler_CustomScopesAndEnv(t *testing.T) {
 	s := newMockStore()
-	handler := handlers.CreateAPIKeyHandler(s, nil, handlers.DefaultOrgID)
+	handler := handlers.CreateAPIKeyHandler(s, nil, nil, handlers.DefaultOrgID)
 
 	payload := map[string]any{
 		"name":        "Test Runner",
@@ -174,7 +175,7 @@ func TestCreateAPIKeyHandler_CustomScopesAndEnv(t *testing.T) {
 
 func TestCreateAPIKeyHandler_AuthKeyOrgResolution(t *testing.T) {
 	s := newMockStore()
-	handler := handlers.CreateAPIKeyHandler(s, nil, handlers.DefaultOrgID)
+	handler := handlers.CreateAPIKeyHandler(s, nil, nil, handlers.DefaultOrgID)
 
 	payload := map[string]any{
 		"name": "Service Key",
@@ -204,7 +205,7 @@ func TestCreateAPIKeyHandler_AuthKeyOrgResolution(t *testing.T) {
 
 func TestCreateAPIKeyHandler_ValidationErrors(t *testing.T) {
 	s := newMockStore()
-	handler := handlers.CreateAPIKeyHandler(s, nil, handlers.DefaultOrgID)
+	handler := handlers.CreateAPIKeyHandler(s, nil, nil, handlers.DefaultOrgID)
 
 	tests := []struct {
 		name       string
@@ -254,7 +255,7 @@ func TestCreateAPIKeyHandler_ValidationErrors(t *testing.T) {
 func TestCreateAPIKeyHandler_StoreError(t *testing.T) {
 	s := newMockStore()
 	s.createErr = errors.New("db disk full")
-	handler := handlers.CreateAPIKeyHandler(s, nil, handlers.DefaultOrgID)
+	handler := handlers.CreateAPIKeyHandler(s, nil, nil, handlers.DefaultOrgID)
 
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/api-keys", bytes.NewBufferString(`{"name": "test"}`))
@@ -333,7 +334,7 @@ func TestRevokeAPIKeyHandler_Success(t *testing.T) {
 
 	mux := http.NewServeMux()
 	audit := &mockAuditStore{}
-	mux.HandleFunc("DELETE /api/v1/auth/api-keys/{id}", handlers.RevokeAPIKeyHandler(s, audit, handlers.DefaultOrgID))
+	mux.HandleFunc("DELETE /api/v1/auth/api-keys/{id}", handlers.RevokeAPIKeyHandler(s, audit, nil, handlers.DefaultOrgID))
 
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodDelete, "/api/v1/auth/api-keys/k-revoke-me", nil)
@@ -351,7 +352,7 @@ func TestRevokeAPIKeyHandler_Success(t *testing.T) {
 func TestRevokeAPIKeyHandler_NotFound(t *testing.T) {
 	s := newMockStore()
 	mux := http.NewServeMux()
-	mux.HandleFunc("DELETE /api/v1/auth/api-keys/{id}", handlers.RevokeAPIKeyHandler(s, nil, handlers.DefaultOrgID))
+	mux.HandleFunc("DELETE /api/v1/auth/api-keys/{id}", handlers.RevokeAPIKeyHandler(s, nil, nil, handlers.DefaultOrgID))
 
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodDelete, "/api/v1/auth/api-keys/non-existent-id", nil)
@@ -366,7 +367,7 @@ func TestRevokeAPIKeyHandler_NotFound(t *testing.T) {
 func TestRevokeAPIKeyHandler_Errors(t *testing.T) {
 	t.Run("missing path value", func(t *testing.T) {
 		s := newMockStore()
-		handler := handlers.RevokeAPIKeyHandler(s, nil, handlers.DefaultOrgID)
+		handler := handlers.RevokeAPIKeyHandler(s, nil, nil, handlers.DefaultOrgID)
 
 		rec := httptest.NewRecorder()
 		req := httptest.NewRequest(http.MethodDelete, "/api/v1/auth/api-keys/", nil)
@@ -382,7 +383,7 @@ func TestRevokeAPIKeyHandler_Errors(t *testing.T) {
 		s := newMockStore()
 		s.revokeErr = errors.New("db error")
 		mux := http.NewServeMux()
-		mux.HandleFunc("DELETE /api/v1/auth/api-keys/{id}", handlers.RevokeAPIKeyHandler(s, nil, handlers.DefaultOrgID))
+		mux.HandleFunc("DELETE /api/v1/auth/api-keys/{id}", handlers.RevokeAPIKeyHandler(s, nil, nil, handlers.DefaultOrgID))
 
 		rec := httptest.NewRecorder()
 		req := httptest.NewRequest(http.MethodDelete, "/api/v1/auth/api-keys/some-id", nil)
@@ -394,3 +395,275 @@ func TestRevokeAPIKeyHandler_Errors(t *testing.T) {
 		}
 	})
 }
+
+func TestCreateAPIKeyHandler_SpiceDBAuthorization(t *testing.T) {
+	orgID := "00000000-0000-0000-0000-000000000001"
+	projRes := authz.NewResource("project", orgID)
+
+	t.Run("missing actor returns 401", func(t *testing.T) {
+		s := newMockStore()
+		authorizer := authz.NewMockAuthorizer()
+		handler := handlers.CreateAPIKeyHandler(s, nil, authorizer, orgID)
+
+		body, _ := json.Marshal(map[string]any{"name": "No Actor Key"})
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/api-keys", bytes.NewReader(body))
+
+		handler.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusUnauthorized {
+			t.Fatalf("expected 401 Unauthorized, got %d. Body: %s", rec.Code, rec.Body.String())
+		}
+		var env response.ErrorEnvelope
+		_ = json.NewDecoder(rec.Body).Decode(&env)
+		if env.Error.Code != response.CodeInvalidAPIKey {
+			t.Errorf("expected code %s, got %s", response.CodeInvalidAPIKey, env.Error.Code)
+		}
+	})
+
+	t.Run("unauthorized actor returns 403", func(t *testing.T) {
+		s := newMockStore()
+		authorizer := authz.NewMockAuthorizer()
+		authorizer.SetDefaultAllow(false)
+		handler := handlers.CreateAPIKeyHandler(s, nil, authorizer, orgID)
+
+		body, _ := json.Marshal(map[string]any{"name": "Unauthorized Key"})
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/api-keys", bytes.NewReader(body))
+		req.Header.Set("X-Actor-ID", "unauthorized-user")
+
+		handler.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusForbidden {
+			t.Fatalf("expected 403 Forbidden, got %d. Body: %s", rec.Code, rec.Body.String())
+		}
+		var env response.ErrorEnvelope
+		_ = json.NewDecoder(rec.Body).Decode(&env)
+		if env.Error.Code != response.CodePermissionDenied {
+			t.Errorf("expected code %s, got %s", response.CodePermissionDenied, env.Error.Code)
+		}
+	})
+
+	t.Run("authorizer failure returns 500", func(t *testing.T) {
+		s := newMockStore()
+		authorizer := authz.NewMockAuthorizer()
+		authorizer.SetCheckError(errors.New("spicedb connection timeout"))
+		handler := handlers.CreateAPIKeyHandler(s, nil, authorizer, orgID)
+
+		body, _ := json.Marshal(map[string]any{"name": "Error Key"})
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/api-keys", bytes.NewReader(body))
+		req.Header.Set("X-Actor-ID", "admin")
+
+		handler.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusInternalServerError {
+			t.Fatalf("expected 500 Internal Error, got %d", rec.Code)
+		}
+	})
+
+	t.Run("authorized actor via OIDC user succeeds and writes relationships", func(t *testing.T) {
+		s := newMockStore()
+		audit := &mockAuditStore{}
+		authorizer := authz.NewMockAuthorizer()
+
+		adminSubject := authz.NewSubject("user", "admin_lensio_dev")
+		authorizer.Allow(projRes, "manage_api_keys", adminSubject)
+
+		handler := handlers.CreateAPIKeyHandler(s, audit, authorizer, orgID)
+
+		body, _ := json.Marshal(map[string]any{
+			"name":        "Production Service Key",
+			"environment": "live",
+			"scopes":      []string{"ocr:write"},
+		})
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/api-keys", bytes.NewReader(body))
+		req = req.WithContext(middleware.WithOIDCUser(req.Context(), &middleware.OIDCUser{
+			Subject: "admin_lensio_dev",
+			Email:   "admin@lensio.dev",
+			Roles:   []string{"admin"},
+		}))
+
+		handler.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusCreated {
+			t.Fatalf("expected 201 Created, got %d. Body: %s", rec.Code, rec.Body.String())
+		}
+
+		var resp handlers.CreateKeyResponse
+		if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
+			t.Fatalf("failed decoding create key response: %v", err)
+		}
+		if resp.ID == "" || resp.Key == "" {
+			t.Fatalf("expected valid id and key in response: %+v", resp)
+		}
+
+		// Verify SpiceDB relationships were written
+		relationships := authorizer.GetWrittenRelationships()
+		if len(relationships) != 2 {
+			t.Fatalf("expected 2 relationships written to SpiceDB, got %d: %+v", len(relationships), relationships)
+		}
+
+		var foundProject, foundCreator bool
+		for _, rel := range relationships {
+			if rel.Resource.Type == "api_key" && rel.Resource.ID == resp.ID {
+				if rel.Relation == "project" && rel.Subject.Type == "project" && rel.Subject.ID == orgID {
+					foundProject = true
+				}
+				if rel.Relation == "creator" && rel.Subject.Type == "user" && rel.Subject.ID == "admin_lensio_dev" {
+					foundCreator = true
+				}
+			}
+		}
+		if !foundProject {
+			t.Error("expected api_key->project relationship recorded in SpiceDB")
+		}
+		if !foundCreator {
+			t.Error("expected api_key->creator relationship recorded in SpiceDB")
+		}
+
+		// Verify audit log recorded actor
+		if len(audit.recorded) != 1 || audit.recorded[0].ActorID != "user:admin_lensio_dev" {
+			t.Errorf("expected audit actor 'user:admin_lensio_dev', got %+v", audit.recorded)
+		}
+	})
+
+	t.Run("authorized actor via X-User-ID header succeeds", func(t *testing.T) {
+		s := newMockStore()
+		authorizer := authz.NewMockAuthorizer()
+		authorizer.Allow(projRes, "manage_api_keys", authz.NewSubject("user", "lead_dev"))
+		handler := handlers.CreateAPIKeyHandler(s, nil, authorizer, orgID)
+
+		body, _ := json.Marshal(map[string]any{"name": "Dev Key"})
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/api-keys", bytes.NewReader(body))
+		req.Header.Set("X-User-ID", "lead_dev")
+
+		handler.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusCreated {
+			t.Fatalf("expected 201 Created, got %d", rec.Code)
+		}
+	})
+}
+
+func TestRevokeAPIKeyHandler_SpiceDBAuthorization(t *testing.T) {
+	orgID := "00000000-0000-0000-0000-000000000001"
+	keyID := "key-rebac-to-revoke"
+
+	setupKey := func() *mockAPIKeyStore {
+		s := newMockStore()
+		_ = s.CreateAPIKey(context.Background(), &store.APIKey{
+			ID:          keyID,
+			OrgID:       orgID,
+			Name:        "Key to Revoke",
+			KeyHash:     "hash_rebac",
+			Prefix:      "lensio_live_test",
+			Environment: "live",
+		})
+		return s
+	}
+
+	t.Run("missing actor returns 401", func(t *testing.T) {
+		s := setupKey()
+		authorizer := authz.NewMockAuthorizer()
+		mux := http.NewServeMux()
+		mux.HandleFunc("DELETE /api/v1/auth/api-keys/{id}", handlers.RevokeAPIKeyHandler(s, nil, authorizer, orgID))
+
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodDelete, "/api/v1/auth/api-keys/"+keyID, nil)
+		mux.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusUnauthorized {
+			t.Fatalf("expected 401 Unauthorized, got %d", rec.Code)
+		}
+	})
+
+	t.Run("unauthorized actor returns 403", func(t *testing.T) {
+		s := setupKey()
+		authorizer := authz.NewMockAuthorizer()
+		authorizer.SetDefaultAllow(false)
+		mux := http.NewServeMux()
+		mux.HandleFunc("DELETE /api/v1/auth/api-keys/{id}", handlers.RevokeAPIKeyHandler(s, nil, authorizer, orgID))
+
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodDelete, "/api/v1/auth/api-keys/"+keyID, nil)
+		req.Header.Set("X-Actor-ID", "intruder")
+		mux.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusForbidden {
+			t.Fatalf("expected 403 Forbidden, got %d", rec.Code)
+		}
+	})
+
+	t.Run("authorizer failure returns 500", func(t *testing.T) {
+		s := setupKey()
+		authorizer := authz.NewMockAuthorizer()
+		authorizer.SetCheckError(errors.New("spicedb network error"))
+		mux := http.NewServeMux()
+		mux.HandleFunc("DELETE /api/v1/auth/api-keys/{id}", handlers.RevokeAPIKeyHandler(s, nil, authorizer, orgID))
+
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodDelete, "/api/v1/auth/api-keys/"+keyID, nil)
+		req.Header.Set("X-Actor-ID", "admin")
+		mux.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusInternalServerError {
+			t.Fatalf("expected 500 Internal Error, got %d", rec.Code)
+		}
+	})
+
+	t.Run("key creator has revoke permission and succeeds", func(t *testing.T) {
+		s := setupKey()
+		audit := &mockAuditStore{}
+		authorizer := authz.NewMockAuthorizer()
+
+		creatorSubject := authz.NewSubject("user", "creator-uuid-1")
+		_ = authorizer.WriteRelationship(context.Background(), authz.NewRelationship(
+			authz.NewResource("api_key", keyID),
+			"creator",
+			creatorSubject,
+		))
+
+		mux := http.NewServeMux()
+		mux.HandleFunc("DELETE /api/v1/auth/api-keys/{id}", handlers.RevokeAPIKeyHandler(s, audit, authorizer, orgID))
+
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodDelete, "/api/v1/auth/api-keys/"+keyID, nil)
+		req = req.WithContext(middleware.WithOIDCUser(req.Context(), &middleware.OIDCUser{
+			Subject: "creator-uuid-1",
+			Email:   "creator@lensio.dev",
+		}))
+		mux.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Fatalf("expected 200 OK, got %d. Body: %s", rec.Code, rec.Body.String())
+		}
+		if len(audit.recorded) != 1 || audit.recorded[0].ActorID != "user:creator-uuid-1" {
+			t.Errorf("unexpected audit log: %+v", audit.recorded)
+		}
+	})
+
+	t.Run("project admin fallback succeeds", func(t *testing.T) {
+		s := setupKey()
+		authorizer := authz.NewMockAuthorizer()
+
+		adminSubject := authz.NewSubject("user", "admin-user")
+		// Project admin has manage_api_keys on the parent project
+		authorizer.Allow(authz.NewResource("project", orgID), "manage_api_keys", adminSubject)
+
+		mux := http.NewServeMux()
+		mux.HandleFunc("DELETE /api/v1/auth/api-keys/{id}", handlers.RevokeAPIKeyHandler(s, nil, authorizer, orgID))
+
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodDelete, "/api/v1/auth/api-keys/"+keyID, nil)
+		req.Header.Set("X-Actor-ID", "admin-user")
+		mux.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Fatalf("expected 200 OK via project admin fallback, got %d", rec.Code)
+		}
+	})
+}
+

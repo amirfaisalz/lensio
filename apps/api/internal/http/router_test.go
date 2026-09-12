@@ -12,7 +12,9 @@ import (
 	"time"
 
 	"github.com/amirfaisalz/lensio/apps/api/internal/apikey"
+	"github.com/amirfaisalz/lensio/apps/api/internal/authz"
 	internalhttp "github.com/amirfaisalz/lensio/apps/api/internal/http"
+	"github.com/amirfaisalz/lensio/apps/api/internal/http/handlers"
 	"github.com/amirfaisalz/lensio/apps/api/internal/http/middleware"
 	"github.com/amirfaisalz/lensio/apps/api/internal/ratelimit"
 	"github.com/amirfaisalz/lensio/apps/api/internal/store"
@@ -563,6 +565,59 @@ func TestNewRouterWithDeps_Phase4(t *testing.T) {
 
 		if recKey.Code != http.StatusOK {
 			t.Fatalf("expected 200 for API key under dualRouter, got %d", recKey.Code)
+		}
+	})
+
+	// 11. Test SpiceDB ReBAC Authorization with Authorizer (Phase 11.5)
+	t.Run("Router with Authorizer enforces SpiceDB ReBAC", func(t *testing.T) {
+		mockValidator := &testOIDCValidator{
+			user: &middleware.OIDCUser{
+				Subject:           "oidc-admin-1",
+				Email:             "admin@lensio.dev",
+				PreferredUsername: "admin",
+				Roles:             []string{"admin"},
+			},
+		}
+		mockAuthz := authz.NewMockAuthorizer()
+		// Grant manage_api_keys to oidc-admin-1 on project org-1
+		mockAuthz.Allow(authz.NewResource("project", "org-1"), "manage_api_keys", authz.NewSubject("user", "oidc-admin-1"))
+
+		rebacRouter := internalhttp.NewRouterWithDeps(internalhttp.RouterDeps{
+			KeyStore:      kStore,
+			OIDCValidator: mockValidator,
+			Authorizer:    mockAuthz,
+		})
+
+		// 1. Unauthenticated request to POST /api/v1/auth/api-keys returns 401
+		unauthReq := httptest.NewRequest(http.MethodPost, "/api/v1/auth/api-keys", bytes.NewBufferString(`{"name":"test"}`))
+		unauthRec := httptest.NewRecorder()
+		rebacRouter.ServeHTTP(unauthRec, unauthReq)
+		if unauthRec.Code != http.StatusUnauthorized {
+			t.Fatalf("expected 401 Unauthorized, got %d", unauthRec.Code)
+		}
+
+		// 2. Authenticated request with valid permission creates key and returns 201
+		authReq := httptest.NewRequest(http.MethodPost, "/api/v1/auth/api-keys", bytes.NewBufferString(`{"name":"Authorized ReBAC Key","org_id":"org-1"}`))
+		authReq.Header.Set("Authorization", "Bearer eyJhbGci.eyJzdWIi.c2ln")
+		authRec := httptest.NewRecorder()
+		rebacRouter.ServeHTTP(authRec, authReq)
+		if authRec.Code != http.StatusCreated {
+			t.Fatalf("expected 201 Created for permitted actor, got %d: %s", authRec.Code, authRec.Body.String())
+		}
+
+		var createdKey handlers.CreateKeyResponse
+		_ = json.NewDecoder(authRec.Body).Decode(&createdKey)
+		if createdKey.ID == "" {
+			t.Fatal("expected non-empty key ID")
+		}
+
+		// 3. Creator can revoke key
+		revokeReq := httptest.NewRequest(http.MethodDelete, "/api/v1/auth/api-keys/"+createdKey.ID+"?org_id=org-1", nil)
+		revokeReq.Header.Set("Authorization", "Bearer eyJhbGci.eyJzdWIi.c2ln")
+		revokeRec := httptest.NewRecorder()
+		rebacRouter.ServeHTTP(revokeRec, revokeReq)
+		if revokeRec.Code != http.StatusOK {
+			t.Fatalf("expected 200 OK on key revocation, got %d: %s", revokeRec.Code, revokeRec.Body.String())
 		}
 	})
 }

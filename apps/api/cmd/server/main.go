@@ -11,6 +11,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/amirfaisalz/lensio/apps/api/internal/authz"
 	"github.com/amirfaisalz/lensio/apps/api/internal/config"
 	internalhttp "github.com/amirfaisalz/lensio/apps/api/internal/http"
 	"github.com/amirfaisalz/lensio/apps/api/internal/http/middleware"
@@ -116,6 +117,25 @@ func main() {
 		oidcValidator = middleware.NewOIDCValidator(cfg.KeycloakJWKSURL, nil)
 	}
 
+	var authorizer authz.Authorizer
+	if cfg.SpiceDBEndpoint != "" {
+		logger.Info("initializing SpiceDB authorizer", slog.String("endpoint", cfg.SpiceDBEndpoint))
+		spicedbClient := authz.NewClient(cfg.SpiceDBEndpoint, cfg.SpiceDBPresharedKey, nil)
+		authorizer = spicedbClient
+
+		// Bootstrap Zanzibar schema if schema file is readable
+		schemaPath := "infra/spicedb/schema.zed"
+		if schemaBytes, err := os.ReadFile(schemaPath); err == nil {
+			initCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			if err := spicedbClient.WriteSchema(initCtx, string(schemaBytes)); err != nil {
+				logger.Warn("could not bootstrap SpiceDB schema", slog.String("error", err.Error()))
+			} else {
+				logger.Info("bootstrapped SpiceDB Zanzibar schema successfully")
+			}
+			cancel()
+		}
+	}
+
 	router := internalhttp.NewRouterWithDeps(internalhttp.RouterDeps{
 		Pinger:           pinger,
 		KeyStore:         db,
@@ -128,6 +148,7 @@ func main() {
 		UsageRecorder:    usageRecorder,
 		IdempotencyStore: idempotencyStore,
 		OIDCValidator:    oidcValidator,
+		Authorizer:       authorizer,
 	})
 
 	srv := &http.Server{

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/amirfaisalz/lensio/apps/api/internal/apikey"
+	"github.com/amirfaisalz/lensio/apps/api/internal/authz"
 	"github.com/amirfaisalz/lensio/apps/api/internal/http/middleware"
 	"github.com/amirfaisalz/lensio/apps/api/internal/http/response"
 	"github.com/amirfaisalz/lensio/apps/api/internal/store"
@@ -54,7 +55,8 @@ type APIKeyListItem struct {
 }
 
 // CreateAPIKeyHandler handles POST /api/v1/auth/api-keys.
-func CreateAPIKeyHandler(keyStore store.APIKeyStore, auditStore store.AuditStore, defaultOrgID string) http.HandlerFunc {
+// Enforces SpiceDB ReBAC authorization (project->manage_api_keys) when authorizer is configured.
+func CreateAPIKeyHandler(keyStore store.APIKeyStore, auditStore store.AuditStore, authorizer authz.Authorizer, defaultOrgID string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req CreateKeyRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -86,6 +88,27 @@ func CreateAPIKeyHandler(keyStore store.APIKeyStore, auditStore store.AuditStore
 		// Resolve org ID
 		orgID := resolveOrgID(r, req.OrgID, defaultOrgID)
 
+		// Enforce SpiceDB ReBAC authorization if authorizer is configured
+		var actorSubject authz.Subject
+		if authorizer != nil {
+			var hasActor bool
+			actorSubject, hasActor = resolveActorSubject(r)
+			if !hasActor {
+				response.ErrorWithRequest(w, r, http.StatusUnauthorized, response.CodeInvalidAPIKey, "Authentication required to manage API keys")
+				return
+			}
+
+			allowed, err := authorizer.CheckPermission(r.Context(), authz.NewResource("project", orgID), "manage_api_keys", actorSubject)
+			if err != nil {
+				response.ErrorWithRequest(w, r, http.StatusInternalServerError, response.CodeInternalError, "Failed checking authorization")
+				return
+			}
+			if !allowed {
+				response.ErrorWithRequest(w, r, http.StatusForbidden, response.CodePermissionDenied, fmt.Sprintf("Actor %q lacks permission 'manage_api_keys' on project %q", actorSubject.ID, orgID))
+				return
+			}
+		}
+
 		// Generate high-entropy API key
 		gen, err := apikey.Generate(req.Environment)
 		if err != nil {
@@ -108,9 +131,25 @@ func CreateAPIKeyHandler(keyStore store.APIKeyStore, auditStore store.AuditStore
 			return
 		}
 
+		// Record Zanzibar relationships in SpiceDB
+		if authorizer != nil {
+			_ = authorizer.WriteRelationship(r.Context(), authz.NewRelationship(
+				authz.NewResource("api_key", keyModel.ID),
+				"project",
+				authz.Subject{Type: "project", ID: authz.SanitizeID(keyModel.OrgID)},
+			))
+			_ = authorizer.WriteRelationship(r.Context(), authz.NewRelationship(
+				authz.NewResource("api_key", keyModel.ID),
+				"creator",
+				actorSubject,
+			))
+		}
+
 		if auditStore != nil {
 			actorID := "system"
-			if authKey := middleware.GetAPIKey(r.Context()); authKey != nil && authKey.ID != "" {
+			if actorSubject.ID != "" {
+				actorID = actorSubject.String()
+			} else if authKey := middleware.GetAPIKey(r.Context()); authKey != nil && authKey.ID != "" {
 				actorID = "api_key:" + authKey.ID
 			}
 			_ = auditStore.RecordAuditLog(r.Context(), &store.AuditLog{
@@ -175,7 +214,8 @@ func ListAPIKeysHandler(keyStore store.APIKeyStore, defaultOrgID string) http.Ha
 }
 
 // RevokeAPIKeyHandler handles DELETE /api/v1/auth/api-keys/{id}.
-func RevokeAPIKeyHandler(keyStore store.APIKeyStore, auditStore store.AuditStore, defaultOrgID string) http.HandlerFunc {
+// Enforces SpiceDB ReBAC authorization (api_key->revoke or project->manage_api_keys) when authorizer is configured.
+func RevokeAPIKeyHandler(keyStore store.APIKeyStore, auditStore store.AuditStore, authorizer authz.Authorizer, defaultOrgID string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		keyID := strings.TrimSpace(r.PathValue("id"))
 		if keyID == "" {
@@ -184,6 +224,35 @@ func RevokeAPIKeyHandler(keyStore store.APIKeyStore, auditStore store.AuditStore
 		}
 
 		orgID := resolveOrgID(r, r.URL.Query().Get("org_id"), defaultOrgID)
+
+		var actorSubject authz.Subject
+		if authorizer != nil {
+			var hasActor bool
+			actorSubject, hasActor = resolveActorSubject(r)
+			if !hasActor {
+				response.ErrorWithRequest(w, r, http.StatusUnauthorized, response.CodeInvalidAPIKey, "Authentication required to manage API keys")
+				return
+			}
+
+			// Check if actor has 'revoke' permission on the api_key
+			allowed, err := authorizer.CheckPermission(r.Context(), authz.NewResource("api_key", keyID), "revoke", actorSubject)
+			if err != nil {
+				response.ErrorWithRequest(w, r, http.StatusInternalServerError, response.CodeInternalError, "Failed checking authorization")
+				return
+			}
+			if !allowed {
+				// Fallback: check if actor has 'manage_api_keys' on the parent project
+				allowedOnProject, errProj := authorizer.CheckPermission(r.Context(), authz.NewResource("project", orgID), "manage_api_keys", actorSubject)
+				if errProj != nil {
+					response.ErrorWithRequest(w, r, http.StatusInternalServerError, response.CodeInternalError, "Failed checking authorization")
+					return
+				}
+				if !allowedOnProject {
+					response.ErrorWithRequest(w, r, http.StatusForbidden, response.CodePermissionDenied, fmt.Sprintf("Actor %q lacks permission to revoke api_key %q", actorSubject.ID, keyID))
+					return
+				}
+			}
+		}
 
 		if err := keyStore.RevokeAPIKey(r.Context(), orgID, keyID); err != nil {
 			if errors.Is(err, store.ErrNotFound) {
@@ -196,7 +265,9 @@ func RevokeAPIKeyHandler(keyStore store.APIKeyStore, auditStore store.AuditStore
 
 		if auditStore != nil {
 			actorID := "system"
-			if authKey := middleware.GetAPIKey(r.Context()); authKey != nil && authKey.ID != "" {
+			if actorSubject.ID != "" {
+				actorID = actorSubject.String()
+			} else if authKey := middleware.GetAPIKey(r.Context()); authKey != nil && authKey.ID != "" {
 				actorID = "api_key:" + authKey.ID
 			}
 			_ = auditStore.RecordAuditLog(r.Context(), &store.AuditLog{
@@ -215,6 +286,32 @@ func RevokeAPIKeyHandler(keyStore store.APIKeyStore, auditStore store.AuditStore
 	}
 }
 
+func resolveActorSubject(r *http.Request) (authz.Subject, bool) {
+	if user := middleware.GetOIDCUser(r.Context()); user != nil {
+		id := strings.TrimSpace(user.Subject)
+		if id == "" {
+			id = strings.TrimSpace(user.Email)
+		}
+		if id != "" {
+			return authz.NewSubject("user", authz.SanitizeID(id)), true
+		}
+	}
+
+	if authKey := middleware.GetAPIKey(r.Context()); authKey != nil && authKey.ID != "" {
+		return authz.NewSubject("user", "api_key_"+authz.SanitizeID(authKey.ID)), true
+	}
+
+	if actorHeader := strings.TrimSpace(r.Header.Get("X-Actor-ID")); actorHeader != "" {
+		return authz.NewSubject("user", authz.SanitizeID(actorHeader)), true
+	}
+
+	if userHeader := strings.TrimSpace(r.Header.Get("X-User-ID")); userHeader != "" {
+		return authz.NewSubject("user", authz.SanitizeID(userHeader)), true
+	}
+
+	return authz.Subject{}, false
+}
+
 func resolveOrgID(r *http.Request, explicit string, fallback string) string {
 	if authKey := middleware.GetAPIKey(r.Context()); authKey != nil && authKey.OrgID != "" {
 		return authKey.OrgID
@@ -227,3 +324,4 @@ func resolveOrgID(r *http.Request, explicit string, fallback string) string {
 	}
 	return DefaultOrgID
 }
+

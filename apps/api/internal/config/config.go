@@ -14,7 +14,9 @@ type Config struct {
 	OCRProvider  string
 	GeminiAPIKey    string
 	GeminiModel     string
-	KeycloakJWKSURL string
+	KeycloakJWKSURL     string
+	SpiceDBEndpoint     string
+	SpiceDBPresharedKey string
 }
 
 // Load reads configuration from environment variables with sensible defaults.
@@ -50,14 +52,19 @@ func Load() *Config {
 
 	keycloakJWKSURL := strings.TrimSpace(os.Getenv("KEYCLOAK_JWKS_URL"))
 
+	spiceDBEndpoint := strings.TrimSpace(os.Getenv("SPICEDB_ENDPOINT"))
+	spiceDBPresharedKey := strings.TrimSpace(os.Getenv("SPICEDB_PRESHARED_KEY"))
+
 	return &Config{
-		Port:            port,
-		Env:             env,
-		DatabaseURL:     dbURL,
-		LogLevel:        logLevel,
-		OCRProvider:     ocrProvider,
-		GeminiAPIKey:    geminiAPIKey,
-		GeminiModel:     geminiModel,
-		KeycloakJWKSURL: keycloakJWKSURL,
+		Port:                port,
+		Env:                 env,
+		DatabaseURL:         dbURL,
+		LogLevel:            logLevel,
+		OCRProvider:         ocrProvider,
+		GeminiAPIKey:        geminiAPIKey,
+		GeminiModel:         geminiModel,
+		KeycloakJWKSURL:     keycloakJWKSURL,
+		SpiceDBEndpoint:     spiceDBEndpoint,
+		SpiceDBPresharedKey: spiceDBPresharedKey,
 	}
 }

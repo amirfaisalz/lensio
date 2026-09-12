@@ -5,6 +5,7 @@ import (
 
 	"time"
 
+	"github.com/amirfaisalz/lensio/apps/api/internal/authz"
 	"github.com/amirfaisalz/lensio/apps/api/internal/http/handlers"
 	"github.com/amirfaisalz/lensio/apps/api/internal/http/middleware"
 	"github.com/amirfaisalz/lensio/apps/api/internal/http/response"
@@ -31,6 +32,7 @@ type RouterDeps struct {
 	UsageRecorder    *usage.Recorder
 	IdempotencyStore idempotency.Store
 	OIDCValidator    middleware.TokenValidator
+	Authorizer       authz.Authorizer
 }
 
 // NewRouter constructs the root HTTP handler for backward compatibility.
@@ -60,17 +62,26 @@ func NewRouterWithDeps(deps RouterDeps) http.Handler {
 
 	// API v1 Routes (PRD Section 6)
 	if deps.KeyStore != nil {
-		// API Key Lifecycle (PRD Section 7 & 8)
-		mux.HandleFunc("POST /api/v1/auth/api-keys", handlers.CreateAPIKeyHandler(deps.KeyStore, deps.AuditStore, handlers.DefaultOrgID))
-		mux.HandleFunc("GET /api/v1/auth/api-keys", handlers.ListAPIKeysHandler(deps.KeyStore, handlers.DefaultOrgID))
-		mux.HandleFunc("DELETE /api/v1/auth/api-keys/{id}", handlers.RevokeAPIKeyHandler(deps.KeyStore, deps.AuditStore, handlers.DefaultOrgID))
-
 		var authMiddleware func(http.Handler) http.Handler
 		if deps.OIDCValidator != nil {
 			authMiddleware = middleware.DualAuth(deps.KeyStore, deps.OIDCValidator)
 		} else {
 			authMiddleware = middleware.Authenticate(deps.KeyStore)
 		}
+
+		// API Key Lifecycle (PRD Section 7 & 8; Phase 11.5 ReBAC)
+		createKeyHandler := handlers.CreateAPIKeyHandler(deps.KeyStore, deps.AuditStore, deps.Authorizer, handlers.DefaultOrgID)
+		revokeKeyHandler := handlers.RevokeAPIKeyHandler(deps.KeyStore, deps.AuditStore, deps.Authorizer, handlers.DefaultOrgID)
+		listKeyHandler := handlers.ListAPIKeysHandler(deps.KeyStore, handlers.DefaultOrgID)
+
+		if deps.Authorizer != nil {
+			mux.Handle("POST /api/v1/auth/api-keys", authMiddleware(createKeyHandler))
+			mux.Handle("DELETE /api/v1/auth/api-keys/{id}", authMiddleware(revokeKeyHandler))
+		} else {
+			mux.Handle("POST /api/v1/auth/api-keys", createKeyHandler)
+			mux.Handle("DELETE /api/v1/auth/api-keys/{id}", revokeKeyHandler)
+		}
+		mux.Handle("GET /api/v1/auth/api-keys", listKeyHandler)
 
 		scopeWriteMiddleware := middleware.RequireScope("ocr:write")
 		scopeReadMiddleware := middleware.RequireScope("ocr:read")

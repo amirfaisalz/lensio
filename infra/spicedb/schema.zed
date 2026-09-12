@@ -1,0 +1,29 @@
+// Zanzibar fine-grained relationship-based access control (ReBAC) schema for Lensio.
+// Defines relations and permissions across users, organizations, projects, and API keys.
+
+definition user {}
+
+definition organization {
+    relation admin: user
+    relation member: user
+
+    permission manage = admin
+    permission view = member + admin
+}
+
+definition project {
+    relation organization: organization
+    relation admin: user
+    relation member: user
+
+    permission manage_api_keys = admin + organization->manage
+    permission view = member + admin + organization->view
+}
+
+definition api_key {
+    relation project: project
+    relation creator: user
+
+    permission use = project->view
+    permission revoke = creator + project->manage_api_keys
+}

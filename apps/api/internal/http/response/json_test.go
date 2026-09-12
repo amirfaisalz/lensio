@@ -113,6 +113,21 @@ func TestErrorWithRequest(t *testing.T) {
 			t.Errorf("expected empty request_id, got %q", envelope.Error.RequestID)
 		}
 	})
+
+	t.Run("permission denied error", func(t *testing.T) {
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodPost, "/test", nil)
+		response.ErrorWithRequest(rec, req, http.StatusForbidden, response.CodePermissionDenied, "Actor lacks permission")
+
+		if rec.Code != http.StatusForbidden {
+			t.Fatalf("expected status 403, got %d", rec.Code)
+		}
+		var envelope response.ErrorEnvelope
+		_ = json.NewDecoder(rec.Body).Decode(&envelope)
+		if envelope.Error.Code != response.CodePermissionDenied {
+			t.Errorf("expected code %q, got %q", response.CodePermissionDenied, envelope.Error.Code)
+		}
+	})
 }
 
 func TestGetRequestID_EdgeCases(t *testing.T) {

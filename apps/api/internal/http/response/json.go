@@ -20,6 +20,7 @@ const (
 	CodeInternalError       = "internal_error"
 	CodeRequestInProgress   = "request_in_progress"
 	CodeIdempotencyMismatch = "idempotency_key_mismatch"
+	CodePermissionDenied    = "permission_denied"
 )
 
 type ctxKeyRequestID struct{}
