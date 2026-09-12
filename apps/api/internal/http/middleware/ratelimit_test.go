@@ -138,3 +138,62 @@ func TestRateLimitMiddleware_WithAPIKeyContext(t *testing.T) {
 		t.Fatalf("expected 200, got %d", rec.Code)
 	}
 }
+
+func TestRateLimitMiddleware_OIDCUserBypass(t *testing.T) {
+	limiter := ratelimit.NewLimiter()
+	mw := middleware.NewRateLimitMiddleware(limiter, nil, "org-test-1")
+
+	nextCalled := 0
+	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		nextCalled++
+		w.WriteHeader(http.StatusOK)
+	})
+
+	handler := mw.Handler(next)
+
+	// Exhaust limiter for this org
+	for i := 0; i < 15; i++ {
+		limiter.Allow("org-test-1", 1)
+	}
+
+	// Request with OIDCUser should bypass rate limit even when exhausted
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	user := &middleware.OIDCUser{Subject: "sub-operator-1", Email: "operator@lensio.dev"}
+	req = req.WithContext(middleware.WithOIDCUser(req.Context(), user))
+
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", rec.Code)
+	}
+	if nextCalled != 1 {
+		t.Errorf("expected next called 1, got %d", nextCalled)
+	}
+}
+
+func TestRateLimitMiddleware_AuthMeAndLogoutBypass(t *testing.T) {
+	limiter := ratelimit.NewLimiter()
+	mw := middleware.NewRateLimitMiddleware(limiter, nil, "org-test-1")
+
+	nextCalled := 0
+	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		nextCalled++
+		w.WriteHeader(http.StatusOK)
+	})
+
+	handler := mw.Handler(next)
+
+	for _, path := range []string{"/api/v1/auth/me", "/api/v1/auth/logout"} {
+		req := httptest.NewRequest(http.MethodGet, path, nil)
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Errorf("expected 200 for %s, got %d", path, rec.Code)
+		}
+	}
+	if nextCalled != 2 {
+		t.Errorf("expected next called 2 times, got %d", nextCalled)
+	}
+}

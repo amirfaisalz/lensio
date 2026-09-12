@@ -546,11 +546,17 @@ func TestDualAuthMiddleware(t *testing.T) {
 	})
 
 	dualHandler := middleware.DualAuth(keyStore, oidcValidator)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if user := middleware.GetOIDCUser(r.Context()); user != nil {
+		user := middleware.GetOIDCUser(r.Context())
+		key := middleware.GetAPIKey(r.Context())
+		if user != nil && key != nil {
+			response.JSON(w, http.StatusOK, map[string]any{"type": "dual", "sub": user.Subject, "id": key.ID})
+			return
+		}
+		if user != nil {
 			response.JSON(w, http.StatusOK, map[string]any{"type": "oidc", "sub": user.Subject})
 			return
 		}
-		if key := middleware.GetAPIKey(r.Context()); key != nil {
+		if key != nil {
 			response.JSON(w, http.StatusOK, map[string]any{"type": "apikey", "id": key.ID})
 			return
 		}
@@ -623,6 +629,27 @@ func TestDualAuthMiddleware(t *testing.T) {
 		}
 		if !strings.Contains(rec.Body.String(), "key-valid") {
 			t.Errorf("expected response to contain key-valid, got %s", rec.Body.String())
+		}
+	})
+
+	t.Run("API Key with companion valid session cookie attaches both", func(t *testing.T) {
+		token := signJWT(t, priv, "key-1", "RS256", map[string]any{
+			"sub": "cookie-operator-789",
+			"exp": time.Now().Add(1 * time.Hour).Unix(),
+		})
+		req := httptest.NewRequest(http.MethodGet, "/test", nil)
+		req.Header.Set("Authorization", "Bearer "+validRawKey)
+		req.AddCookie(&http.Cookie{
+			Name:  "lensio_session",
+			Value: token,
+		})
+		rec := httptest.NewRecorder()
+		dualHandler.ServeHTTP(rec, req)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+		}
+		if !strings.Contains(rec.Body.String(), "cookie-operator-789") || !strings.Contains(rec.Body.String(), "key-valid") {
+			t.Errorf("expected response to contain both cookie-operator-789 and key-valid, got %s", rec.Body.String())
 		}
 	})
 

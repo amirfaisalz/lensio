@@ -261,13 +261,23 @@ class ApiClient {
 		return result.data || [];
 	}
 
-	public async executeKTPOCR(file: File | Blob): Promise<KTPResponse> {
+	public async executeKTPOCR(
+		file: File | Blob,
+		apiKeyOverride?: string,
+	): Promise<KTPResponse> {
 		const formData = new FormData();
 		formData.append("document", file);
+
+		const headers: Record<string, string> = {};
+		const keyToUse = apiKeyOverride || this.activeApiKey;
+		if (keyToUse) {
+			headers.Authorization = `Bearer ${keyToUse}`;
+		}
 
 		const res = await this.fetchWithAuth(`${API_BASE}/api/v1/ocr/ktp`, {
 			method: "POST",
 			body: formData,
+			headers,
 		});
 		return this.handleResponse<KTPResponse>(res);
 	}

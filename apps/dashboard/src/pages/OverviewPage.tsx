@@ -81,7 +81,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({ onNavigate }) => {
 			setSelectedFileName(file.name || "ktp_document.jpg");
 			setOcrLoading(true);
 			setOcrError(null);
-			const res = await api.executeKTPOCR(file);
+			const res = await api.executeKTPOCR(file, apiKey);
 			setOcrResult(res);
 			// Refresh summary metrics after request
 			loadMetrics();

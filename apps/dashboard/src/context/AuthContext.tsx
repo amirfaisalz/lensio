@@ -221,6 +221,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
 							organization: orgContext ?? undefined,
 						};
 						setOidcUser(session);
+						setAuthMode("oidc");
+						if (typeof window !== "undefined") {
+							localStorage.setItem(STORAGE_KEY_AUTH_MODE, "oidc");
+						}
+						api.setApiKey(null);
 						if (orgContext) {
 							setOrganizations((prev) => {
 								const next = prev.some((o) => o.id === orgContext.id)
@@ -260,11 +265,21 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
 	const handleSetApiKey = (key: string | null) => {
 		const trimmed = key ? key.trim() : null;
 		setApiKeyState(trimmed);
-		setAuthMode("apikey");
-		if (typeof window !== "undefined") {
-			localStorage.setItem(STORAGE_KEY_AUTH_MODE, "apikey");
+		if (trimmed) {
+			setAuthMode("apikey");
+			if (typeof window !== "undefined") {
+				localStorage.setItem(STORAGE_KEY_AUTH_MODE, "apikey");
+			}
+			api.setApiKey(trimmed);
+		} else {
+			if (oidcUser) {
+				setAuthMode("oidc");
+				if (typeof window !== "undefined") {
+					localStorage.setItem(STORAGE_KEY_AUTH_MODE, "oidc");
+				}
+			}
+			api.setApiKey(null);
 		}
-		api.setApiKey(trimmed);
 	};
 
 	const handleLoginOIDC = (session: OIDCUserSession) => {
@@ -494,6 +509,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
 				}
 				return prev;
 			});
+		}
+		// Reset active API key when switching organizations to prevent cross-tenant key pollution
+		setApiKeyState(null);
+		api.setApiKey(null);
+		if (oidcUser) {
+			setAuthMode("oidc");
+			if (typeof window !== "undefined") {
+				localStorage.setItem(STORAGE_KEY_AUTH_MODE, "oidc");
+			}
 		}
 		updateActiveOrg(org);
 		if (oidcUser) {

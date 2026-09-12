@@ -531,6 +531,22 @@ func DualAuth(keyStore store.APIKeyStore, oidcValidator TokenValidator) func(htt
 					touchKeyAsync(r.Context(), keyStore, key.ID)
 
 					ctx := WithAPIKey(r.Context(), key)
+
+					// If a companion valid session cookie exists, also attach OIDCUser so dashboard sessions are recognized
+					if cookie, err := r.Cookie("lensio_session"); err == nil && cookie.Value != "" {
+						cToken := strings.TrimSpace(cookie.Value)
+						if oidcValidator != nil {
+							if u, err := oidcValidator.ValidateToken(r.Context(), cToken); err == nil && u != nil {
+								ctx = WithOIDCUser(ctx, u)
+							}
+						}
+						if GetOIDCUser(ctx) == nil {
+							if u, err := devVal.ValidateToken(r.Context(), cToken); err == nil && u != nil {
+								ctx = WithOIDCUser(ctx, u)
+							}
+						}
+					}
+
 					if car, ok := w.(interface{ SetRequestContext(context.Context) }); ok {
 						car.SetRequestContext(ctx)
 					}
