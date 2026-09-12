@@ -16,7 +16,7 @@ import (
 
 const (
 	defaultGeminiBaseURL = "https://generativelanguage.googleapis.com"
-	defaultGeminiModel   = "gemini-2.0-flash"
+	defaultGeminiModel   = "gemini-3.6-flash"
 )
 
 // GeminiOCREngine implements ocr.OCREngine using Google AI Studio's Gemini Flash Vision API.
@@ -44,6 +44,15 @@ func WithHTTPClient(client *http.Client) GeminiOption {
 	}
 }
 
+// WithTimeout sets a custom HTTP client timeout.
+func WithTimeout(timeout time.Duration) GeminiOption {
+	return func(g *GeminiOCREngine) {
+		if g.httpClient != nil {
+			g.httpClient.Timeout = timeout
+		}
+	}
+}
+
 // NewGeminiEngine constructs an engine adapter for Google Gemini Flash Vision AI.
 func NewGeminiEngine(apiKey string, model string, opts ...GeminiOption) *GeminiOCREngine {
 	if model == "" {
@@ -55,7 +64,7 @@ func NewGeminiEngine(apiKey string, model string, opts ...GeminiOption) *GeminiO
 		model:   model,
 		baseURL: defaultGeminiBaseURL,
 		httpClient: &http.Client{
-			Timeout: 20 * time.Second,
+			Timeout: 25 * time.Second,
 		},
 	}
 
@@ -198,13 +207,13 @@ func (g *GeminiOCREngine) Extract(ctx context.Context, imageBytes []byte) (*ocr.
 
 	resp, err := g.httpClient.Do(httpReq)
 	if err != nil {
-		return nil, fmt.Errorf("%w: gemini request failed: %v", ocr.ErrOCRFailed, err)
+		return nil, fmt.Errorf("%w: gemini request failed: %w", ocr.ErrOCRFailed, err)
 	}
 	defer resp.Body.Close()
 
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("%w: failed reading gemini response: %v", ocr.ErrOCRFailed, err)
+		return nil, fmt.Errorf("%w: failed reading gemini response: %w", ocr.ErrOCRFailed, err)
 	}
 
 	if resp.StatusCode != http.StatusOK {
@@ -213,7 +222,7 @@ func (g *GeminiOCREngine) Extract(ctx context.Context, imageBytes []byte) (*ocr.
 
 	var geminiResp geminiResponse
 	if err := json.Unmarshal(bodyBytes, &geminiResp); err != nil {
-		return nil, fmt.Errorf("%w: failed unmarshaling gemini response: %v", ocr.ErrOCRFailed, err)
+		return nil, fmt.Errorf("%w: failed unmarshaling gemini response: %w", ocr.ErrOCRFailed, err)
 	}
 
 	if geminiResp.Error != nil {

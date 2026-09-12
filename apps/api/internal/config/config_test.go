@@ -41,8 +41,8 @@ func TestLoad_Defaults(t *testing.T) {
 	if cfg.GeminiAPIKey != "" {
 		t.Fatalf("expected empty GeminiAPIKey, got '%s'", cfg.GeminiAPIKey)
 	}
-	if cfg.GeminiModel != "gemini-2.0-flash" {
-		t.Fatalf("expected GeminiModel 'gemini-2.0-flash', got '%s'", cfg.GeminiModel)
+	if cfg.GeminiModel != "gemini-3.6-flash" {
+		t.Fatalf("expected GeminiModel 'gemini-3.6-flash', got '%s'", cfg.GeminiModel)
 	}
 	if cfg.KeycloakJWKSURL != "" {
 		t.Fatalf("expected empty KeycloakJWKSURL, got '%s'", cfg.KeycloakJWKSURL)

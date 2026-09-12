@@ -49,7 +49,7 @@ func Load() *Config {
 
 	geminiModel := strings.TrimSpace(os.Getenv("GEMINI_MODEL"))
 	if geminiModel == "" {
-		geminiModel = "gemini-2.0-flash"
+		geminiModel = "gemini-3.6-flash"
 	}
 
 	keycloakJWKSURL := strings.TrimSpace(os.Getenv("KEYCLOAK_JWKS_URL"))

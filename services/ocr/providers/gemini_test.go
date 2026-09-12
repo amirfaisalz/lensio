@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/amirfaisalz/lensio/services/ocr"
 	"github.com/amirfaisalz/lensio/services/ocr/providers"
@@ -314,6 +315,15 @@ func TestGeminiOCREngine(t *testing.T) {
 		_, err := engine.Extract(ctx, validImg)
 		if !errors.Is(err, ocr.ErrOCRFailed) {
 			t.Fatalf("expected ErrOCRFailed, got %v", err)
+		}
+	})
+
+	t.Run("with custom timeout option", func(t *testing.T) {
+		engine := providers.NewGeminiEngine("test-api-key", "",
+			providers.WithTimeout(10*time.Second),
+		)
+		if engine == nil {
+			t.Fatal("expected engine instance")
 		}
 	})
 }

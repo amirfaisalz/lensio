@@ -8,6 +8,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/amirfaisalz/lensio/apps/api/internal/http/middleware"
@@ -225,7 +226,7 @@ func KTPOCRHandler(engine ocr.OCREngine, ocrStore store.OCRRequestStore, quotaCh
 				)
 				return
 			}
-			if errors.Is(err, context.DeadlineExceeded) {
+			if errors.Is(err, context.DeadlineExceeded) || strings.Contains(err.Error(), "context deadline exceeded") {
 				telemetry.RecordOCRError(r.Context(), "ocr_engine", response.CodeOCRFailed)
 				telemetry.RecordOCRRequest(r.Context(), "ktp", "failure", 0, time.Since(startTime).Seconds())
 				response.ErrorWithRequest(

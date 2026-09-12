@@ -98,10 +98,16 @@ func main() {
 	}
 
 	// Protect OCR engine with adaptive Circuit Breaker (PRD Phase 11.6)
-	ocrEngine = ocr.NewCircuitBreaker(ocrEngine, ocr.DefaultCircuitBreakerConfig())
+	cbCfg := ocr.DefaultCircuitBreakerConfig()
+	if isGemini {
+		// Multimodal Vision AI network roundtrips require adequate headroom
+		cbCfg.Timeout = 25 * time.Second
+	}
+	ocrEngine = ocr.NewCircuitBreaker(ocrEngine, cbCfg)
 	logger.Info("initialized OCR circuit breaker protection",
-		slog.Int("failure_threshold", 5),
-		slog.Duration("cooldown", 10*time.Second),
+		slog.Int("failure_threshold", cbCfg.FailureThreshold),
+		slog.Duration("cooldown", cbCfg.Cooldown),
+		slog.Duration("timeout", cbCfg.Timeout),
 	)
 
 	rateLimiter := ratelimit.NewLimiter()
@@ -171,8 +177,8 @@ func main() {
 	srv := &http.Server{
 		Addr:         ":" + cfg.Port,
 		Handler:      router,
-		ReadTimeout:  15 * time.Second,
-		WriteTimeout: 15 * time.Second,
+		ReadTimeout:  30 * time.Second,
+		WriteTimeout: 45 * time.Second,
 		IdleTimeout:  60 * time.Second,
 	}
 
