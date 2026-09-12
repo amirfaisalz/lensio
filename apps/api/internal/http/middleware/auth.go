@@ -109,7 +109,7 @@ func Authenticate(keyStore store.APIKeyStore) func(http.Handler) http.Handler {
 			// Asynchronously touch last_used_at without blocking the critical path
 			// ponytail: unbuffered async DB touch per request; upgrade to batched channel / worker pool in Phase 4 if throughput exceeds 500 QPS
 			go func(id string) {
-				ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+				ctx, cancel := context.WithTimeout(context.WithoutCancel(r.Context()), 2*time.Second)
 				defer cancel()
 				_ = keyStore.TouchAPIKeyLastUsed(ctx, id, time.Now())
 			}(key.ID)

@@ -24,7 +24,7 @@
 ### Active V2 Platform Maturity & Enterprise Alignment (Phase 11)
 - [x] **Phase 11.1: Real Load Testing & RED Metrics Analysis (`k6`)**
 - [x] **Phase 11.2: API Idempotency Subsystem (`Idempotency-Key`)**
-- [ ] **Phase 11.3: Verifiable Deployment & Rollback Evidence Log**
+- [x] **Phase 11.3: Verifiable Deployment & Rollback Evidence Log**
 - [ ] **Phase 11.4: Centralized Human Identity (Keycloak + OIDC / JWT)**
 - [ ] **Phase 11.5: Fine-Grained Authorization (SpiceDB / ReBAC)**
 - [ ] **Phase 11.6: Deep Incident Engineering & Circuit Breaker Code Fix**
@@ -116,15 +116,15 @@ Five core ADRs (`ADR-001` to `ADR-005`), production runbooks (`architecture.md`,
 ### Phase 11.3: Verifiable Deployment & Rollback Evidence (Priority: VERY HIGH)
 *Goal: Turn documented CI/CD promises into concrete, undeniable operational proof.*
 
-- [ ] Execute clean end-to-end CI pipeline run:
+- [x] Execute clean end-to-end CI pipeline run:
   - Capture linters, `go test -race`, `govulncheck`, `gosec`, `spectral`, and `biome` logs.
-- [ ] Execute simulated broken staging smoke test:
+- [x] Execute simulated broken staging smoke test:
   - Deploy revision with broken health probe.
   - Capture smoke test failure output and proof of deployment gate halting promotion.
-- [ ] Execute production traffic shift and instant rollback:
+- [x] Execute production traffic shift and instant rollback:
   - Deploy v1.4.1 -> trigger regression -> rollback to v1.4.0 in < 60s.
   - Capture CLI and container logs.
-- [ ] Create `docs/deployment/evidence-log.md` with terminal logs, commit SHAs, and timestamped traces.
+- [x] Create `docs/deployment/evidence-log.md` with terminal logs, commit SHAs, and timestamped traces.
 - **Interview Narrative**:
   > *"I don't just say we have automated rollback; here is the deployment audit trace where an unhealthy revision failed the post-deploy smoke test, halted the promotion gate, and safely kept traffic on the previous stable revision."*
 
