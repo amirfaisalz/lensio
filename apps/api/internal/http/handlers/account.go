@@ -21,10 +21,15 @@ type UpdatePlanRequest struct {
 // AccountDetailsHandler handles GET /api/v1/account.
 func AccountDetailsHandler(accountStore store.AccountStore, defaultOrgID string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		orgID := resolveOrgID(r, r.URL.Query().Get("org_id"), defaultOrgID)
+		orgID := resolveOrgIDWithAccount(r, r.URL.Query().Get("org_id"), accountStore, defaultOrgID)
 
 		if accountStore == nil {
 			response.ErrorWithRequest(w, r, http.StatusInternalServerError, response.CodeInternalError, "Account store unavailable")
+			return
+		}
+
+		if orgID == "" {
+			response.ErrorWithRequest(w, r, http.StatusNotFound, response.CodeInvalidRequest, "Organization not found")
 			return
 		}
 
@@ -53,10 +58,15 @@ func AccountDetailsHandler(accountStore store.AccountStore, defaultOrgID string)
 // AccountPlanHandler handles GET /api/v1/account/plan.
 func AccountPlanHandler(accountStore store.AccountStore, defaultOrgID string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		orgID := resolveOrgID(r, r.URL.Query().Get("org_id"), defaultOrgID)
+		orgID := resolveOrgIDWithAccount(r, r.URL.Query().Get("org_id"), accountStore, defaultOrgID)
 
 		if accountStore == nil {
 			response.ErrorWithRequest(w, r, http.StatusInternalServerError, response.CodeInternalError, "Account store unavailable")
+			return
+		}
+
+		if orgID == "" {
+			response.ErrorWithRequest(w, r, http.StatusNotFound, response.CodeInvalidRequest, "Organization not found")
 			return
 		}
 
@@ -85,7 +95,7 @@ func AccountPlanHandler(accountStore store.AccountStore, defaultOrgID string) ht
 // UpdatePlanHandler handles PUT /api/v1/account/plan.
 func UpdatePlanHandler(accountStore store.AccountStore, auditStore store.AuditStore, defaultOrgID string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		orgID := resolveOrgID(r, r.URL.Query().Get("org_id"), defaultOrgID)
+		orgID := resolveOrgIDWithAccount(r, r.URL.Query().Get("org_id"), accountStore, defaultOrgID)
 
 		var req UpdatePlanRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -101,6 +111,11 @@ func UpdatePlanHandler(accountStore store.AccountStore, auditStore store.AuditSt
 
 		if accountStore == nil {
 			response.ErrorWithRequest(w, r, http.StatusInternalServerError, response.CodeInternalError, "Account store unavailable")
+			return
+		}
+
+		if orgID == "" {
+			response.ErrorWithRequest(w, r, http.StatusNotFound, response.CodeInvalidRequest, "Organization not found")
 			return
 		}
 
@@ -148,9 +163,14 @@ func UpdatePlanHandler(accountStore store.AccountStore, auditStore store.AuditSt
 // AccountMembersHandler handles GET /api/v1/account/members.
 func AccountMembersHandler(accountStore store.AccountStore, defaultOrgID string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		orgID := resolveOrgID(r, r.URL.Query().Get("org_id"), defaultOrgID)
+		orgID := resolveOrgIDWithAccount(r, r.URL.Query().Get("org_id"), accountStore, defaultOrgID)
 
 		if accountStore == nil {
+			response.JSON(w, http.StatusOK, map[string]any{"data": []store.User{}})
+			return
+		}
+
+		if orgID == "" {
 			response.JSON(w, http.StatusOK, map[string]any{"data": []store.User{}})
 			return
 		}

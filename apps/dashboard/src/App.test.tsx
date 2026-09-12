@@ -236,4 +236,71 @@ describe("App & Dashboard Navigation with Routes", () => {
 		fireEvent.click(screen.getByLabelText("Tutup menu navigasi"));
 		expect(screen.queryByLabelText("Tutup menu navigasi")).toBeNull();
 	});
+
+	it("switches organizations and creates new organization from bottom-left sidebar dropdown", async () => {
+		window.history.pushState({}, "", "/login");
+		render(<App />);
+
+		// Log in
+		fireEvent.change(screen.getByLabelText("Email Kerja / Username"), {
+			target: { value: "dev@lensio.dev" },
+		});
+		fireEvent.change(screen.getByLabelText("Kata Sandi"), {
+			target: { value: "dev123" },
+		});
+		fireEvent.click(screen.getByText("Masuk ke Dashboard"));
+
+		await waitFor(() => {
+			expect(window.location.pathname).toBe("/dashboard");
+			expect(screen.getByText("System Overview")).toBeDefined();
+		});
+
+		// Find bottom-left organization switcher trigger button
+		const orgDropdownBtn = screen.getByLabelText("Ganti organisasi");
+		expect(orgDropdownBtn).toBeDefined();
+		expect(screen.getByText("Default Organization")).toBeDefined();
+
+		// Click to open dropdown
+		fireEvent.click(orgDropdownBtn);
+
+		// Dropdown menu should show organization header and create new org button
+		expect(screen.getByText("Organisasi", { selector: "span" })).toBeDefined();
+		const createOrgBtn = screen.getByText("Buat Organisasi Baru");
+		expect(createOrgBtn).toBeDefined();
+
+		// Click "+ Buat Organisasi Baru" to open modal
+		fireEvent.click(createOrgBtn);
+
+		// Modal should open
+		expect(screen.getByLabelText("Nama Organisasi / Perusahaan")).toBeDefined();
+
+		// Fill in new organization name
+		fireEvent.change(screen.getByLabelText("Nama Organisasi / Perusahaan"), {
+			target: { value: "PT Fintek Cemerlang" },
+		});
+
+		// Submit creation
+		fireEvent.click(screen.getByText("Buat Organisasi & Lanjutkan"));
+
+		// Active organization should now be PT Fintek Cemerlang
+		await waitFor(() => {
+			expect(screen.getByText("PT Fintek Cemerlang")).toBeDefined();
+		});
+
+		// Re-open dropdown to verify multiple organizations in list and switch back
+		fireEvent.click(screen.getByLabelText("Ganti organisasi"));
+		await waitFor(() => {
+			expect(screen.getByText("Default Organization")).toBeDefined();
+		});
+
+		// Switch back to Default Organization from dropdown list
+		const defaultOrgItems = screen.getAllByText("Default Organization");
+		fireEvent.click(defaultOrgItems[defaultOrgItems.length - 1]);
+
+		// Active organization is now switched back
+		await waitFor(() => {
+			expect(screen.getByText("Default Organization")).toBeDefined();
+		});
+	});
 });
+

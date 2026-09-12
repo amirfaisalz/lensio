@@ -55,9 +55,9 @@ export const AccountPage: React.FC = () => {
 			setIsLoading(true);
 			setError(null);
 			const [orgRes, planRes, membersRes] = await Promise.all([
-				api.fetchAccount(),
-				api.fetchAccountPlan(),
-				api.fetchAccountMembers(),
+				api.fetchAccount(currentOrg?.id),
+				api.fetchAccountPlan(currentOrg?.id),
+				api.fetchAccountMembers(currentOrg?.id),
 			]);
 			setOrg(orgRes);
 			setPlan(planRes);
@@ -113,7 +113,7 @@ export const AccountPage: React.FC = () => {
 		try {
 			setIsUpdatingPlan(true);
 			setPlanUpdateSuccess(false);
-			await api.updateAccountPlan(selectedPlan);
+			await api.updateAccountPlan(selectedPlan, currentOrg?.id);
 			setPlanUpdateSuccess(true);
 			await loadData();
 			setTimeout(() => setPlanUpdateSuccess(false), 3000);

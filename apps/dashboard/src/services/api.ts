@@ -212,15 +212,21 @@ class ApiClient {
 		return this.handleResponse<{ message: string; id: string }>(res);
 	}
 
-	public async fetchAccount(): Promise<OrganizationDetails> {
-		const res = await this.fetchWithAuth(`${API_BASE}/api/v1/account`, {
+	public async fetchAccount(orgId?: string): Promise<OrganizationDetails> {
+		const url = orgId
+			? `${API_BASE}/api/v1/account?org_id=${encodeURIComponent(orgId)}`
+			: `${API_BASE}/api/v1/account`;
+		const res = await this.fetchWithAuth(url, {
 			method: "GET",
 		});
 		return this.handleResponse<OrganizationDetails>(res);
 	}
 
-	public async fetchAccountPlan(): Promise<PlanDetails> {
-		const res = await this.fetchWithAuth(`${API_BASE}/api/v1/account/plan`, {
+	public async fetchAccountPlan(orgId?: string): Promise<PlanDetails> {
+		const url = orgId
+			? `${API_BASE}/api/v1/account/plan?org_id=${encodeURIComponent(orgId)}`
+			: `${API_BASE}/api/v1/account/plan`;
+		const res = await this.fetchWithAuth(url, {
 			method: "GET",
 		});
 		return this.handleResponse<PlanDetails>(res);
@@ -228,16 +234,23 @@ class ApiClient {
 
 	public async updateAccountPlan(
 		planCode: string,
+		orgId?: string,
 	): Promise<{ message: string; plan_code: string }> {
-		const res = await this.fetchWithAuth(`${API_BASE}/api/v1/account/plan`, {
+		const url = orgId
+			? `${API_BASE}/api/v1/account/plan?org_id=${encodeURIComponent(orgId)}`
+			: `${API_BASE}/api/v1/account/plan`;
+		const res = await this.fetchWithAuth(url, {
 			method: "PUT",
 			body: JSON.stringify({ plan_code: planCode }),
 		});
 		return this.handleResponse<{ message: string; plan_code: string }>(res);
 	}
 
-	public async fetchAccountMembers(): Promise<UserMember[]> {
-		const res = await this.fetchWithAuth(`${API_BASE}/api/v1/account/members`, {
+	public async fetchAccountMembers(orgId?: string): Promise<UserMember[]> {
+		const url = orgId
+			? `${API_BASE}/api/v1/account/members?org_id=${encodeURIComponent(orgId)}`
+			: `${API_BASE}/api/v1/account/members`;
+		const res = await this.fetchWithAuth(url, {
 			method: "GET",
 		});
 		const result = await this.handleResponse<{ data: UserMember[] }>(res);

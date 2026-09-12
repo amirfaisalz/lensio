@@ -1,5 +1,11 @@
 import type React from "react";
-import { createContext, useContext, useEffect, useState } from "react";
+import {
+	createContext,
+	useCallback,
+	useContext,
+	useEffect,
+	useState,
+} from "react";
 import { api } from "../services/api";
 
 export type AuthMode = "apikey" | "oidc";
@@ -28,6 +34,7 @@ export interface AuthContextValue {
 	authMode: AuthMode;
 	oidcUser: OIDCUserSession | null;
 	currentOrg: OrganizationContext | null;
+	organizations: OrganizationContext[];
 	setApiKey: (key: string | null) => void;
 	setEnvironment: (env: "live" | "test") => void;
 	loginOIDC: (session: OIDCUserSession) => void;
@@ -58,6 +65,8 @@ export interface AuthContextValue {
 }
 
 const STORAGE_KEY_AUTH_MODE = "lensio_auth_mode";
+const STORAGE_KEY_ORGANIZATIONS = "lensio_organizations";
+const STORAGE_KEY_CURRENT_ORG_ID = "lensio_current_org_id";
 
 export function createDevJwtToken(
 	sub: string,
@@ -118,13 +127,61 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
 		return "apikey";
 	});
 	const [oidcUser, setOidcUser] = useState<OIDCUserSession | null>(initialUser);
-	const [currentOrg, setCurrentOrg] = useState<OrganizationContext | null>(
-		initialOrg,
+	const [organizations, setOrganizations] = useState<OrganizationContext[]>(
+		() => {
+			const list: OrganizationContext[] = [];
+			if (initialOrg) {
+				list.push(initialOrg);
+			}
+			if (typeof window !== "undefined") {
+				try {
+					const saved = localStorage.getItem(STORAGE_KEY_ORGANIZATIONS);
+					if (saved) {
+						const parsed = JSON.parse(saved) as OrganizationContext[];
+						for (const o of parsed) {
+							if (!list.some((existing) => existing.id === o.id)) {
+								list.push(o);
+							}
+						}
+					}
+				} catch {
+					// Ignore invalid JSON in localStorage
+				}
+			}
+			return list;
+		},
 	);
+
+	const [currentOrg, setCurrentOrg] = useState<OrganizationContext | null>(
+		() => {
+			if (initialOrg) return initialOrg;
+			if (typeof window !== "undefined") {
+				const savedId = localStorage.getItem(STORAGE_KEY_CURRENT_ORG_ID);
+				if (savedId && organizations.length > 0) {
+					const found = organizations.find((o) => o.id === savedId);
+					if (found) return found;
+				}
+			}
+			return organizations.length > 0 ? organizations[0] : null;
+		},
+	);
+
 	const [environment, setEnvironment] = useState<"live" | "test">(() => {
 		if (initialApiKey?.startsWith("lensio_test_")) return "test";
 		return "live";
 	});
+
+	// Helper to persist active organization
+	const updateActiveOrg = useCallback((org: OrganizationContext | null) => {
+		setCurrentOrg(org);
+		if (typeof window !== "undefined") {
+			if (org?.id) {
+				localStorage.setItem(STORAGE_KEY_CURRENT_ORG_ID, org.id);
+			} else {
+				localStorage.removeItem(STORAGE_KEY_CURRENT_ORG_ID);
+			}
+		}
+	}, []);
 
 	useEffect(() => {
 		if (apiKey?.startsWith("lensio_test_")) {
@@ -164,18 +221,32 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
 							organization: orgContext ?? undefined,
 						};
 						setOidcUser(session);
-						setCurrentOrg(orgContext);
+						if (orgContext) {
+							setOrganizations((prev) => {
+								const next = prev.some((o) => o.id === orgContext.id)
+									? prev.map((o) => (o.id === orgContext.id ? orgContext : o))
+									: [...prev, orgContext];
+								if (typeof window !== "undefined") {
+									localStorage.setItem(
+										STORAGE_KEY_ORGANIZATIONS,
+										JSON.stringify(next),
+									);
+								}
+								return next;
+							});
+							updateActiveOrg(orgContext);
+						}
 					}
 				} catch {
 					// Cookie expired or unauthenticated; clear state
 					setOidcUser(null);
-					setCurrentOrg(null);
+					updateActiveOrg(null);
 				}
 			}
 		};
 
 		restoreSession();
-	}, [initialOrg, initialUser]);
+	}, [initialOrg, initialUser, updateActiveOrg]);
 
 	// Keep API client header synchronized (in OIDC mode, rely purely on HttpOnly Cookie)
 	useEffect(() => {
@@ -204,7 +275,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
 			organization: org ?? undefined,
 		};
 		setOidcUser(sanitizedSession);
-		setCurrentOrg(org);
+		if (org) {
+			setOrganizations((prev) => {
+				const next = prev.some((o) => o.id === org.id)
+					? prev.map((o) => (o.id === org.id ? org : o))
+					: [...prev, org];
+				if (typeof window !== "undefined") {
+					localStorage.setItem(STORAGE_KEY_ORGANIZATIONS, JSON.stringify(next));
+				}
+				return next;
+			});
+		}
+		updateActiveOrg(org);
 		setAuthMode("oidc");
 		if (typeof window !== "undefined") {
 			localStorage.setItem(STORAGE_KEY_AUTH_MODE, "oidc");
@@ -301,7 +383,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
 				slug: res.organization.slug,
 				planCode: res.organization.plan_code,
 			};
-			setCurrentOrg(newOrg);
+			setOrganizations((prev) => {
+				const next = [...prev.filter((o) => o.id !== newOrg.id), newOrg];
+				if (typeof window !== "undefined") {
+					localStorage.setItem(STORAGE_KEY_ORGANIZATIONS, JSON.stringify(next));
+				}
+				return next;
+			});
+			updateActiveOrg(newOrg);
 			if (oidcUser) {
 				const updatedSession: OIDCUserSession = {
 					...oidcUser,
@@ -322,7 +411,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
 				slug: slug || "org",
 				planCode: planCode || "free",
 			};
-			setCurrentOrg(newOrg);
+			setOrganizations((prev) => {
+				const next = [...prev.filter((o) => o.id !== newOrg.id), newOrg];
+				if (typeof window !== "undefined") {
+					localStorage.setItem(STORAGE_KEY_ORGANIZATIONS, JSON.stringify(next));
+				}
+				return next;
+			});
+			updateActiveOrg(newOrg);
 			if (oidcUser) {
 				const updatedSession: OIDCUserSession = {
 					...oidcUser,
@@ -384,7 +480,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
 	};
 
 	const handleSwitchOrganization = (org: OrganizationContext | null) => {
-		setCurrentOrg(org);
+		if (org) {
+			setOrganizations((prev) => {
+				if (!prev.some((o) => o.id === org.id)) {
+					const next = [...prev, org];
+					if (typeof window !== "undefined") {
+						localStorage.setItem(
+							STORAGE_KEY_ORGANIZATIONS,
+							JSON.stringify(next),
+						);
+					}
+					return next;
+				}
+				return prev;
+			});
+		}
+		updateActiveOrg(org);
 		if (oidcUser) {
 			const updatedSession: OIDCUserSession = {
 				...oidcUser,
@@ -410,9 +521,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
 		api.logout().catch(() => {});
 		setOidcUser(null);
 		setApiKeyState(null);
-		setCurrentOrg(null);
+		updateActiveOrg(null);
 		if (typeof window !== "undefined") {
 			localStorage.removeItem(STORAGE_KEY_AUTH_MODE);
+			localStorage.removeItem(STORAGE_KEY_CURRENT_ORG_ID);
 		}
 		api.setApiKey(null);
 	};
@@ -428,6 +540,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
 				authMode,
 				oidcUser,
 				currentOrg,
+				organizations,
 				setApiKey: handleSetApiKey,
 				setEnvironment,
 				loginOIDC: handleLoginOIDC,
