@@ -1,0 +1,95 @@
+groups:
+  - name: lensio_slo_alerts
+    rules:
+      # 1. High Error Rate: 5xx errors > 1% over 2 minutes (breaching 99.9% availability SLO)
+      - alert: HighErrorRate
+        expr: (sum(rate(http_requests_total{status_code=~"5.."}[2m])) / clamp_min(sum(rate(http_requests_total[2m])), 0.001)) * 100 > 1.0
+        for: 2m
+        labels:
+          severity: critical
+          category: availability
+          team: platform
+          tier: api
+        annotations:
+          summary: "Lensio API 5xx error rate exceeds 1% error budget"
+          description: "HTTP 5xx server error rate is currently {{ $value | printf \"%.2f\" }}% over the last 2 minutes, breaching the 99.9% availability SLO."
+          runbook_url: "docs/rollback.md"
+          dashboard_url: "https://grafana.lensio.dev/d/lensio-slo-business"
+
+      # 2. P95 Latency Breached: P95 latency > 500ms (0.5s) over 5 minutes
+      - alert: P95LatencyBreached
+        expr: histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le)) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+          category: latency
+          team: platform
+          tier: api
+        annotations:
+          summary: "Lensio API P95 latency breached 500ms threshold"
+          description: "95th percentile HTTP request duration is currently {{ $value | printf \"%.3f\" }}s over the last 5 minutes (threshold: 0.500s)."
+          runbook_url: "docs/incidents/INC-20260912-05-ocr-provider-latency-cascade.md"
+          dashboard_url: "https://grafana.lensio.dev/d/lensio-red-metrics"
+
+      # 3. Circuit Breaker Open: OCR circuit breaker entered Open state (state=2)
+      - alert: CircuitBreakerOpen
+        expr: lensio_ocr_circuit_breaker_state == 2
+        for: 1m
+        labels:
+          severity: critical
+          category: resilience
+          team: vision-ai
+          tier: ocr
+        annotations:
+          summary: "Lensio OCR circuit breaker is in OPEN state"
+          description: "The OCR circuit breaker has tripped to OPEN (state=2) due to consecutive upstream vision AI timeouts or failures. Fast-fail 504 responses are active to protect worker threads."
+          runbook_url: "docs/incidents/INC-20260912-05-ocr-provider-latency-cascade.md"
+          dashboard_url: "https://grafana.lensio.dev/d/lensio-slo-business"
+
+      # 4. Rate Limit Surge: 429 responses > 25% of incoming traffic over 5 minutes
+      - alert: RateLimitSurge
+        expr: (sum(rate(http_requests_total{status_code="429"}[5m])) / clamp_min(sum(rate(http_requests_total[5m])), 0.001)) * 100 > 25.0
+        for: 2m
+        labels:
+          severity: warning
+          category: traffic
+          team: security
+          tier: edge
+        annotations:
+          summary: "Rate limit rejections exceed 25% of incoming traffic"
+          description: "HTTP 429 Too Many Requests responses represent {{ $value | printf \"%.2f\" }}% of all incoming requests over the last 5 minutes. Possible DDoS, credential scraping, or client loop."
+          runbook_url: "docs/decisions/ADR-003-rate-limiting-and-quota-architecture.md"
+          dashboard_url: "https://grafana.lensio.dev/d/lensio-red-metrics"
+
+      # 5. Fast Error Budget Burn Rate: 14.4x burn rate (consumes 2% of 30-day budget in 1 hour)
+      - alert: FastErrorBudgetBurnRate
+        expr: >-
+          (sum(rate(http_requests_total{status_code=~"5.."}[1h])) / clamp_min(sum(rate(http_requests_total[1h])), 0.001)) > (14.4 * 0.001)
+          and
+          (sum(rate(http_requests_total{status_code=~"5.."}[5m])) / clamp_min(sum(rate(http_requests_total[5m])), 0.001)) > (14.4 * 0.001)
+        for: 2m
+        labels:
+          severity: critical
+          category: availability
+          team: platform
+          tier: api
+        annotations:
+          summary: "Critical error budget burn rate detected (14.4x burn rate)"
+          description: "Error budget is burning at 14.4x normal speed over 1h and 5m windows. 2% of the monthly error budget will be depleted in 1 hour."
+          runbook_url: "docs/rollback.md"
+          dashboard_url: "https://grafana.lensio.dev/d/lensio-slo-business"
+
+      # 6. Database Connection Pool Saturation: in-use connections > 85% of open connections
+      - alert: DatabaseConnectionPoolSaturation
+        expr: (db_pool_connections_in_use / clamp_min(db_pool_connections_open, 1)) * 100 > 85.0
+        for: 3m
+        labels:
+          severity: warning
+          category: database
+          team: platform
+          tier: db
+        annotations:
+          summary: "PostgreSQL connection pool saturation exceeds 85%"
+          description: "PostgreSQL in-use connections currently occupy {{ $value | printf \"%.2f\" }}% of open connections for > 3 minutes."
+          runbook_url: "docs/incidents/INC-20260912-02-database-outage.md"
+          dashboard_url: "https://grafana.lensio.dev/d/lensio-red-metrics"

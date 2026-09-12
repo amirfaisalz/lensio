@@ -57,6 +57,7 @@ services:
       - "9090:9090"
     volumes:
       - ./infra/observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./infra/observability/prometheus/alerting_rules.yml:/etc/prometheus/alerting_rules.yml:ro
     depends_on:
       - api
 

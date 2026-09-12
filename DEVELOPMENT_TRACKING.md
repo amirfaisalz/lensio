@@ -28,7 +28,7 @@
 - [x] **Phase 11.4: Centralized Human Identity (Keycloak + OIDC / JWT)**
 - [x] **Phase 11.5: Fine-Grained Authorization (SpiceDB / ReBAC)**
 - [x] **Phase 11.6: Deep Incident Engineering & Circuit Breaker Code Fix**
-- [ ] **Phase 11.7: Production SLOs & Actionable Alerting Rules**
+- [x] **Phase 11.7: Production SLOs & Actionable Alerting Rules**
 - [ ] **Phase 11.8: Architectural Decision Record: Distributed vs Local Rate Limiting**
 - [ ] **Phase 11.9: API Versioning Strategy & Contract Evolution**
 
@@ -186,12 +186,12 @@ Five core ADRs (`ADR-001` to `ADR-005`), production runbooks (`architecture.md`,
 ### Phase 11.7: Actionable Alerting & SLO Definitions (Priority: MEDIUM)
 *Goal: Define operational contracts and trigger automated notifications before customers report downtime.*
 
-- [ ] Author `infra/observability/prometheus/alerting_rules.yml`:
+- [x] Author `infra/observability/prometheus/alerting_rules.yml`:
   - `HighErrorRate`: 5xx errors > 1% over 2 minutes.
   - `P95LatencyBreached`: P95 latency > 500ms over 5 minutes.
   - `CircuitBreakerOpen`: OCR circuit breaker entered Open state.
   - `RateLimitSurge`: 429 responses > 25% of incoming traffic.
-- [ ] Author `docs/observability/slo-definition.md`:
+- [x] Author `docs/observability/slo-definition.md`:
   - 99.9% Availability SLA/SLO contract.
   - Latency and Error Budget consumption calculation.
 - **Interview Narrative**:

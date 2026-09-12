@@ -1,0 +1,109 @@
+rule_files:
+  - alerting_rules.yml
+
+evaluation_interval: 1m
+
+tests:
+  # Test 1: CircuitBreakerOpen triggers when lensio_ocr_circuit_breaker_state == 2 for >= 1m
+  - interval: 1m
+    input_series:
+      - series: 'lensio_ocr_circuit_breaker_state'
+        values: '0 0 2 2 2 2'
+    alert_rule_test:
+      # At 2m, breaker just entered state 2 (pending)
+      - eval_time: 2m
+        alertname: CircuitBreakerOpen
+        exp_alerts: []
+      # At 3m, breaker has been state 2 for 1m (fires)
+      - eval_time: 3m
+        alertname: CircuitBreakerOpen
+        exp_alerts:
+          - exp_labels:
+              alertname: CircuitBreakerOpen
+              severity: critical
+              category: resilience
+              team: vision-ai
+              tier: ocr
+            exp_annotations:
+              summary: "Lensio OCR circuit breaker is in OPEN state"
+              description: "The OCR circuit breaker has tripped to OPEN (state=2) due to consecutive upstream vision AI timeouts or failures. Fast-fail 504 responses are active to protect worker threads."
+              runbook_url: "docs/incidents/INC-20260912-05-ocr-provider-latency-cascade.md"
+              dashboard_url: "https://grafana.lensio.dev/d/lensio-slo-business"
+
+  # Test 2: HighErrorRate triggers when 5xx error rate > 1% for >= 2m
+  - interval: 1m
+    input_series:
+      - series: 'http_requests_total{method="POST",route="/api/v1/ocr/ktp",status_code="200"}'
+        values: '100+100x10'
+      - series: 'http_requests_total{method="POST",route="/api/v1/ocr/ktp",status_code="500"}'
+        values: '0+10x10' # 10/110 ~ 9.09% > 1.0%
+    alert_rule_test:
+      - eval_time: 2m
+        alertname: HighErrorRate
+        exp_alerts: []
+      - eval_time: 4m
+        alertname: HighErrorRate
+        exp_alerts:
+          - exp_labels:
+              alertname: HighErrorRate
+              severity: critical
+              category: availability
+              team: platform
+              tier: api
+            exp_annotations:
+              summary: "Lensio API 5xx error rate exceeds 1% error budget"
+              description: "HTTP 5xx server error rate is currently 9.09% over the last 2 minutes, breaching the 99.9% availability SLO."
+              runbook_url: "docs/rollback.md"
+              dashboard_url: "https://grafana.lensio.dev/d/lensio-slo-business"
+
+  # Test 3: RateLimitSurge triggers when 429 rate > 25% for >= 2m
+  - interval: 1m
+    input_series:
+      - series: 'http_requests_total{method="POST",route="/api/v1/ocr/ktp",status_code="200"}'
+        values: '100+50x10'
+      - series: 'http_requests_total{method="POST",route="/api/v1/ocr/ktp",status_code="429"}'
+        values: '0+50x10' # rate ratio > 25%
+    alert_rule_test:
+      - eval_time: 2m
+        alertname: RateLimitSurge
+        exp_alerts: []
+      - eval_time: 4m
+        alertname: RateLimitSurge
+        exp_alerts:
+          - exp_labels:
+              alertname: RateLimitSurge
+              severity: warning
+              category: traffic
+              team: security
+              tier: edge
+            exp_annotations:
+              summary: "Rate limit rejections exceed 25% of incoming traffic"
+              description: "HTTP 429 Too Many Requests responses represent 44.44% of all incoming requests over the last 5 minutes. Possible DDoS, credential scraping, or client loop."
+              runbook_url: "docs/decisions/ADR-003-rate-limiting-and-quota-architecture.md"
+              dashboard_url: "https://grafana.lensio.dev/d/lensio-red-metrics"
+
+  # Test 4: DatabaseConnectionPoolSaturation triggers when in-use > 85% of open
+  - interval: 1m
+    input_series:
+      - series: 'db_pool_connections_open'
+        values: '20 20 20 20 20 20 20 20'
+      - series: 'db_pool_connections_in_use'
+        values: '5 5 18 18 18 18 18 18' # 18/20 = 90% > 85%
+    alert_rule_test:
+      - eval_time: 3m
+        alertname: DatabaseConnectionPoolSaturation
+        exp_alerts: []
+      - eval_time: 5m
+        alertname: DatabaseConnectionPoolSaturation
+        exp_alerts:
+          - exp_labels:
+              alertname: DatabaseConnectionPoolSaturation
+              severity: warning
+              category: database
+              team: platform
+              tier: db
+            exp_annotations:
+              summary: "PostgreSQL connection pool saturation exceeds 85%"
+              description: "PostgreSQL in-use connections currently occupy 90.00% of open connections for > 3 minutes."
+              runbook_url: "docs/incidents/INC-20260912-02-database-outage.md"
+              dashboard_url: "https://grafana.lensio.dev/d/lensio-red-metrics"
