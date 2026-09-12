@@ -3,11 +3,12 @@
 <p align="center">
   <img src="https://img.shields.io/badge/build-passing-brightgreen?style=flat-square" alt="Build Status" />
   <img src="https://img.shields.io/badge/go%20report-A%2B-brightgreen?style=flat-square" alt="Go Report Card" />
-  <img src="https://img.shields.io/badge/coverage-100%25%20target-brightgreen?style=flat-square" alt="Coverage" />
+  <img src="https://img.shields.io/badge/core%20backend%20coverage-93.5%25-brightgreen?style=flat-square" alt="Core Backend Coverage" />
+  <img src="https://img.shields.io/badge/repo%20coverage-88.1%25-brightgreen?style=flat-square" alt="Whole Repo Coverage" />
   <img src="https://img.shields.io/badge/security%20gates-5%2F5%20passed-brightgreen?style=flat-square" alt="Security Gates" />
   <img src="https://img.shields.io/badge/opentelemetry-active-blue?style=flat-square" alt="OpenTelemetry" />
-  <img src="https://img.shields.io/badge/load%20test-1%2C000%20RPS%20sustained-brightgreen?style=flat-square" alt="Load Test 1,000 RPS" />
-  <img src="https://img.shields.io/badge/p95%20latency-1.58ms-brightgreen?style=flat-square" alt="P95 Latency 1.58ms" />
+  <img src="https://img.shields.io/badge/plumbing%20benchmark-1%2C000%20RPS%20(mock)-brightgreen?style=flat-square" alt="Plumbing Benchmark 1,000 RPS (mock)" />
+  <img src="https://img.shields.io/badge/mock%20p95%20latency-1.58ms-brightgreen?style=flat-square" alt="Mock P95 Latency 1.58ms" />
   <img src="https://img.shields.io/badge/license-MIT-blue?style=flat-square" alt="License" />
 </p>
 
@@ -374,6 +375,9 @@ _Docs_: [`examples/rentease/README.md`](examples/rentease/README.md)
 
 ## Empirical Performance & RED Metrics (k6 Load Testing)
 
+> [!NOTE]
+> **Plumbing Benchmark Scope**: The benchmark results below measure **API Gateway & Core Platform Plumbing** (routing mux, authentication validation, in-memory token bucket rate limiting, PostgreSQL connection pool, and asynchronous usage metering) using `MockOCREngine`. Live OCR calls via Google Gemini 2.0 Flash / 1.5 Flash introduce upstream LLM network and inference latency (1,200ms–2,000ms), which is decoupled from platform plumbing and protected by our adaptive Circuit Breaker (`services/ocr/circuit_breaker.go`, documented in `INC-05`).
+
 Rather than relying on theoretical claims, Lensio's production platform was subjected to rigorous empirical load testing using **Grafana k6**, instrumented with **OpenTelemetry**, and monitored through **Prometheus** RED metrics (*Rate, Errors, Duration*):
 
 | Metric / Condition | Baseline Concurrency (100 VUs) | Saturation Stress (Ramp to 1,000 RPS) |
@@ -396,6 +400,8 @@ Rather than relying on theoretical claims, Lensio's production platform was subj
    Under concurrent bursts carrying API keys for the same tenant organization, goroutines serialize on `sync.Mutex` (`b.mu.Lock()` in `ratelimit.Limiter.Allow()`), inducing tail latency spikes up to ~32ms. This empirical evidence validates our architectural roadmap for a partitioned/sharded limiter and distributed Redis token bucket (Phase 11.8).
 3. **Deterministic RFC-Compliant Throttling**:  
    Handled over 141,000 rate limit events with accurate `Retry-After` and `X-RateLimit-*` headers and zero memory leaks.
+4. **Upstream Vision AI vs Platform Plumbing Latency**:  
+   While the API platform plumbing processes requests in sub-2ms ($P_{95} = 1.58\text{ms}$), live vision calls to Google Gemini require 1,200ms–2,000ms. We isolate upstream LLM latency via an adaptive Circuit Breaker (post-mortem `INC-05`), preventing worker thread pool starvation during upstream degradation.
 
 - **Full Benchmark Report**: [`docs/benchmarks/load-test-report.md`](docs/benchmarks/load-test-report.md)
 - **Load Test Suites**: [`tests/load/`](tests/load/) | **Automated Runner**: `./scripts/run-load-tests.sh`

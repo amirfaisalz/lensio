@@ -19,6 +19,9 @@ Rather than claiming theoretical scalability, the Lensio Indonesian KTP OCR API 
 - **Rate Limiting Accuracy**: Handled **141,144 rate limit throttles (HTTP 429)** deterministically with RFC-compliant headers (`Retry-After`, `X-RateLimit-*`) and zero memory leaks.
 - **Identified Critical Bottleneck**: High CPU-cycle consumption during single-tenant bursts is dominated by `sync.Mutex` lock serialization in `ratelimit.Limiter.Allow()`, rather than PostgreSQL connection pool exhaustion, directly validating the architectural decision to decouple usage recording via non-blocking worker channels.
 
+> [!NOTE]
+> **Benchmark Scope & Architecture Context**: This benchmark evaluates the **API Gateway & Core Platform Plumbing** (HTTP mux, authentication validation, in-memory token bucket rate limiting, database connection pool, and asynchronous usage recording) utilizing `MockOCREngine`. Live OCR calls utilizing Google Gemini 2.0 Flash / 1.5 Flash introduce external vision LLM latency (1,200ms–2,000ms), which is decoupled from platform plumbing and governed by our adaptive Circuit Breaker (`services/ocr/circuit_breaker.go`) and incident post-mortem `INC-05`.
+
 ---
 
 ## 2. Test Environment & System Under Test (SUT)

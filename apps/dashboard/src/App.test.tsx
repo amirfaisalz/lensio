@@ -27,10 +27,7 @@ describe("App & Dashboard Navigation with Routes", () => {
 					ok: true,
 					status: 200,
 					json: async () => ({
-						access_token:
-							"eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJzdWIiOiJzdWItZGV2IiwiZW1haWwiOiJkZXZAbGVuc2lvLmRldiIsInByZWZlcnJlZF91c2VybmFtZSI6ImRldiIsIm5hbWUiOiJMZW5zaW8gRGV2ZWxvcGVyIiwicm9sZXMiOlsiZGV2ZWxvcGVyIl19.dev_sig",
-						token_type: "Bearer",
-						expires_in: 604800,
+						status: "authenticated",
 						user: {
 							id: "00000000-0000-0000-0000-000000000001",
 							email: "dev@lensio.dev",

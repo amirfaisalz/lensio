@@ -2,6 +2,8 @@ package middleware
 
 import (
 	"bytes"
+	"fmt"
+	"log/slog"
 	"net/http"
 	"strings"
 	"time"
@@ -149,7 +151,17 @@ func Idempotency(store idempotency.Store) func(http.Handler) http.Handler {
 			defer func() {
 				if recovered := recover(); recovered != nil {
 					_ = store.Release(r.Context(), orgID, keyHeader)
-					panic(recovered)
+					slog.Error("recovered from panic in handler under idempotency middleware",
+						"panic", fmt.Sprint(recovered),
+						"request_id", response.GetRequestID(r.Context()),
+					)
+					response.ErrorWithRequest(
+						w,
+						r,
+						http.StatusInternalServerError,
+						response.CodeInternalError,
+						"An unexpected internal error occurred",
+					)
 				}
 			}()
 

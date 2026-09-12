@@ -206,13 +206,28 @@ func TestRegisterHandler(t *testing.T) {
 		t.Errorf("expected 400 for short password, got %d", rec.Code)
 	}
 
-	// Valid registration
+	// Valid registration (development)
 	req = httptest.NewRequest(http.MethodPost, "/api/v1/auth/register", bytes.NewBufferString(`{"full_name":"Test User","email":"test@example.com","password":"password123"}`))
 	rec = httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
 	if rec.Code != http.StatusCreated {
 		t.Errorf("expected 201 for valid registration, got %d", rec.Code)
 	}
+
+	// Production registration should NOT leak verification_token
+	t.Setenv("ENV", "production")
+	req = httptest.NewRequest(http.MethodPost, "/api/v1/auth/register", bytes.NewBufferString(`{"full_name":"Prod User","email":"prod@example.com","password":"password123"}`))
+	rec = httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("expected 201 for prod registration, got %d", rec.Code)
+	}
+	var prodResp map[string]any
+	_ = json.NewDecoder(rec.Body).Decode(&prodResp)
+	if prodResp["verification_token"] != nil {
+		t.Errorf("expected verification_token to be omitted in production, got %v", prodResp["verification_token"])
+	}
+	t.Setenv("ENV", "development")
 
 	// Duplicate email
 	req = httptest.NewRequest(http.MethodPost, "/api/v1/auth/register", bytes.NewBufferString(`{"full_name":"Test User","email":"test@example.com","password":"password123"}`))
@@ -360,8 +375,11 @@ func TestLoginHandler(t *testing.T) {
 
 	var loginResp map[string]any
 	_ = json.NewDecoder(rec.Body).Decode(&loginResp)
-	if loginResp["access_token"] == nil || loginResp["access_token"] == "" {
-		t.Errorf("expected access_token in login response")
+	if loginResp["status"] != "authenticated" {
+		t.Errorf("expected status 'authenticated' in login response, got %v", loginResp["status"])
+	}
+	if loginResp["access_token"] != nil {
+		t.Errorf("expected access_token to NOT be returned in body (cookie-only session security)")
 	}
 
 	// Verify secure cookie

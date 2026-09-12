@@ -165,9 +165,10 @@ export interface LoginRequest {
 }
 
 export interface LoginResponse {
-	access_token: string;
-	token_type: string;
-	expires_in: number;
+	status?: string;
+	access_token?: string;
+	token_type?: string;
+	expires_in?: number;
 	user: {
 		id: string;
 		email: string;

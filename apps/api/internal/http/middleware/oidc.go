@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"math/big"
 	"net/http"
 	"strings"
@@ -501,12 +502,16 @@ func RequireOIDC(validator TokenValidator) func(http.Handler) http.Handler {
 
 			user, err := validator.ValidateToken(r.Context(), token)
 			if err != nil {
+				slog.Warn("oidc token validation failed",
+					"err", err,
+					"request_id", response.GetRequestID(r.Context()),
+				)
 				response.ErrorWithRequest(
 					w,
 					r,
 					http.StatusUnauthorized,
 					response.CodeInvalidAPIKey,
-					fmt.Sprintf("Invalid OIDC token: %s", err.Error()),
+					"Invalid or expired authentication token",
 				)
 				return
 			}
@@ -543,7 +548,8 @@ func DualAuth(keyStore store.APIKeyStore, oidcValidator TokenValidator) func(htt
 			}
 
 			// 1. Attempt token authentication with the configured TokenValidator
-			if oidcValidator != nil && (strings.Count(token, ".") == 2 || strings.HasPrefix(token, "mock_jwt_") || strings.HasPrefix(token, "dev_token_")) {
+			// Candidate tokens for validator are those that do not match the API key format prefix (lensio_live_ / lensio_test_).
+			if oidcValidator != nil && !strings.HasPrefix(token, "lensio_live_") && !strings.HasPrefix(token, "lensio_test_") {
 				user, err := oidcValidator.ValidateToken(r.Context(), token)
 				if err == nil && user != nil {
 					ctx := WithOIDCUser(r.Context(), user)

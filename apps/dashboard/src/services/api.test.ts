@@ -181,9 +181,7 @@ describe("ApiClient", () => {
 			ok: true,
 			status: 200,
 			json: async () => ({
-				access_token: "jwt.token.abc",
-				token_type: "Bearer",
-				expires_in: 604800,
+				status: "authenticated",
 				user: {
 					id: "u-1",
 					email: "budi@fintech.id",
@@ -198,7 +196,7 @@ describe("ApiClient", () => {
 			email: "budi@fintech.id",
 			password: "password123",
 		});
-		expect(res.access_token).toBe("jwt.token.abc");
+		expect(res.status).toBe("authenticated");
 		expect(res.user.email).toBe("budi@fintech.id");
 	});
 

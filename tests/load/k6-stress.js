@@ -49,8 +49,17 @@ export function setup() {
     return { apiKey: __ENV.API_KEY };
   }
 
-  // Attempt to authenticate via session token if available or dev token
-  let sessionToken = __ENV.SESSION_TOKEN || 'mock_jwt_admin';
+  // In local development, fallback to mock dev token if no session token provided.
+  // In staging/production, require an explicit API_KEY or SESSION_TOKEN.
+  let sessionToken = __ENV.SESSION_TOKEN;
+  const isLocal = BASE_URL.includes("localhost") || BASE_URL.includes("127.0.0.1");
+  if (!sessionToken && isLocal) {
+    sessionToken = 'mock_jwt_admin';
+  }
+
+  if (!sessionToken) {
+    throw new Error('Load test requires -e API_KEY=<key> or -e SESSION_TOKEN=<token> when targeting staging/production.');
+  }
 
   const keyPayload = JSON.stringify({
     name: 'k6-stress-loadtest-key',

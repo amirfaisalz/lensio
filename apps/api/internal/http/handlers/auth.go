@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"os"
 	"regexp"
 	"strings"
 	"time"
@@ -97,12 +98,19 @@ func RegisterHandler(accountStore store.AccountStore) http.HandlerFunc {
 			return
 		}
 
-		response.JSON(w, http.StatusCreated, map[string]any{
-			"status":             "pending_verification",
-			"email":              createdUser.Email,
-			"verification_token": verificationToken,
-			"message":            "Registrasi berhasil. Silakan periksa email Anda dan lakukan verifikasi sebelum masuk.",
-		})
+		respData := map[string]any{
+			"status":  "pending_verification",
+			"email":   createdUser.Email,
+			"message": "Registrasi berhasil. Silakan periksa email Anda dan lakukan verifikasi sebelum masuk.",
+		}
+		// Security: never leak verification_token over the wire in staging or production.
+		// Expose exclusively in local development or test environments for automated test ergonomics.
+		env := os.Getenv("ENV")
+		if env == "development" || env == "test" || env == "" {
+			respData["verification_token"] = verificationToken
+		}
+
+		response.JSON(w, http.StatusCreated, respData)
 	}
 }
 
@@ -225,9 +233,7 @@ func LoginHandler(accountStore store.AccountStore) http.HandlerFunc {
 		})
 
 		response.JSON(w, http.StatusOK, map[string]any{
-			"access_token": token,
-			"token_type":   "Bearer",
-			"expires_in":   604800,
+			"status": "authenticated",
 			"user": map[string]any{
 				"id":        userWithAuth.ID,
 				"email":     userWithAuth.Email,

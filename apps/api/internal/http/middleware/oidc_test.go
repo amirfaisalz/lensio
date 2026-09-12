@@ -951,4 +951,46 @@ func TestCompositeTokenValidator(t *testing.T) {
 	}
 }
 
+func TestDualAuth_ProductionRejectsMockTokens(t *testing.T) {
+	// Production configuration: only SessionTokenValidator and Keycloak validator, NO DevTokenValidator
+	secret := []byte("production-session-secret-32-byte-k")
+	prodValidator := middleware.NewCompositeTokenValidator(middleware.NewSessionTokenValidator(secret))
+
+	handler := middleware.DualAuth(nil, prodValidator)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("ok"))
+	}))
+
+	forbiddenTokens := []string{
+		"mock_jwt_admin",
+		"mock_jwt_developer",
+		"dev_token_admin",
+		"dev_token_dev",
+		"eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJzdWIiOiJhZG1pbiJ9.",
+		"eyJhbGciOiJub25lIn0.eyJzdWIiOiJhZG1pbiJ9.fake_sig",
+	}
+
+	for _, tok := range forbiddenTokens {
+		t.Run("token_"+tok, func(t *testing.T) {
+			// Test via Authorization header
+			req := httptest.NewRequest(http.MethodGet, "/test", nil)
+			req.Header.Set("Authorization", "Bearer "+tok)
+			rec := httptest.NewRecorder()
+			handler.ServeHTTP(rec, req)
+			if rec.Code != http.StatusUnauthorized {
+				t.Fatalf("expected 401 Unauthorized for mock token %q in production, got %d", tok, rec.Code)
+			}
+
+			// Test via Cookie
+			reqCookie := httptest.NewRequest(http.MethodGet, "/test", nil)
+			reqCookie.AddCookie(&http.Cookie{Name: "lensio_session", Value: tok})
+			recCookie := httptest.NewRecorder()
+			handler.ServeHTTP(recCookie, reqCookie)
+			if recCookie.Code != http.StatusUnauthorized {
+				t.Fatalf("expected 401 Unauthorized for cookie with mock token %q in production, got %d", tok, recCookie.Code)
+			}
+		})
+	}
+}
+
 

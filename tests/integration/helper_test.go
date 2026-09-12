@@ -56,19 +56,18 @@ func obtainTestAuthClient(client *http.Client, apiURL string) (string, string, e
 				ID string `json:"id"`
 			} `json:"organization"`
 		}
-		if err := json.NewDecoder(loginResp.Body).Decode(&loginResult); err == nil && loginResult.AccessToken != "" {
+		if err := json.NewDecoder(loginResp.Body).Decode(&loginResult); err == nil {
 			orgID := ""
 			if loginResult.Organization != nil && loginResult.Organization.ID != "" {
 				orgID = loginResult.Organization.ID
 			} else {
-				// 4. Create Organization
+				// 4. Create Organization (authenticated via session cookie stored in client.Jar)
 				createOrgBody, _ := json.Marshal(map[string]string{
 					"name":      fmt.Sprintf("Org %d", uniqueSuffix),
 					"plan_code": "free",
 				})
 				req, _ := http.NewRequest(http.MethodPost, apiURL+"/api/v1/account/organizations", bytes.NewReader(createOrgBody))
 				req.Header.Set("Content-Type", "application/json")
-				req.Header.Set("Authorization", "Bearer "+loginResult.AccessToken)
 				orgResp, err := client.Do(req)
 				if err == nil {
 					defer orgResp.Body.Close()

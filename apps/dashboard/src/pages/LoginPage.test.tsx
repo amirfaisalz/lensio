@@ -99,10 +99,7 @@ describe("LoginPage - Normal Flow & Impeccable Design", () => {
 					ok: true,
 					status: 200,
 					json: async () => ({
-						access_token:
-							"eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJzdWIiOiJzdWItcml6a3kiLCJlbWFpbCI6InJpemt5QGZpbnRlY2guaWQiLCJwcmVmZXJyZWRfdXNlcm5hbWUiOiJyaXpreSIsInJvbGVzIjpbImRldmVsb3BlciJdfQ.dev_sig",
-						token_type: "Bearer",
-						expires_in: 604800,
+						status: "authenticated",
 						user: {
 							id: "u-rizky",
 							email: body.email,

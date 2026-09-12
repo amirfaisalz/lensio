@@ -304,17 +304,17 @@ func TestIdempotencyMiddleware_PanicReleasesLock(t *testing.T) {
 	req.Header.Set("Idempotency-Key", keyID)
 	rec := httptest.NewRecorder()
 
-	defer func() {
-		if r := recover(); r == nil {
-			t.Fatal("expected panic to propagate")
-		}
-		// Verify lock was released despite panic
-		if memStore.Count() != 0 {
-			t.Fatalf("expected store count 0 after panic release, got %d", memStore.Count())
-		}
-	}()
-
+	// Handler must cleanly recover from panic without re-panicking (Zero Panics rule), release lock, and return 500
 	mw.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusInternalServerError {
+		t.Fatalf("expected 500 Internal Server Error, got %d", rec.Code)
+	}
+
+	// Verify lock was released despite panic
+	if memStore.Count() != 0 {
+		t.Fatalf("expected store count 0 after panic release, got %d", memStore.Count())
+	}
 }
 
 func TestIdempotencyMiddleware_WithAuthContext(t *testing.T) {
