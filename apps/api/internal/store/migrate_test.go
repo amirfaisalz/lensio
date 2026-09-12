@@ -2,7 +2,9 @@ package store_test
 
 import (
 	"context"
+	"fmt"
 	"io/fs"
+	"net/url"
 	"os"
 	"strings"
 	"testing"
@@ -86,7 +88,7 @@ func TestRunMigrations_LiveDB(t *testing.T) {
 		dbURL = "postgres://lensio:lensio_dev_password@localhost:5432/lensio?sslmode=disable"
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
 	db, err := store.New(ctx, dbURL)
@@ -94,6 +96,21 @@ func TestRunMigrations_LiveDB(t *testing.T) {
 		t.Skipf("skipping live migration test (db unavailable): %v", err)
 	}
 	defer db.Close()
+
+	// Create isolated test database so migration down tests do not mutate or drop dev data
+	testDBName := fmt.Sprintf("lensio_test_migrate_%d", time.Now().UnixNano())
+	if _, createErr := db.DB.ExecContext(ctx, fmt.Sprintf("CREATE DATABASE %s", testDBName)); createErr == nil {
+		defer func() {
+			_, _ = db.DB.ExecContext(context.Background(), fmt.Sprintf("DROP DATABASE IF EXISTS %s WITH (FORCE)", testDBName))
+		}()
+		if parsedURL, parseErr := url.Parse(dbURL); parseErr == nil {
+			parsedURL.Path = "/" + testDBName
+			if isolatedDB, openErr := store.New(ctx, parsedURL.String()); openErr == nil {
+				defer isolatedDB.Close()
+				db = isolatedDB
+			}
+		}
+	}
 
 	// 1. Run migrations Up
 	if err := store.RunMigrationsUp(db.DB); err != nil {
@@ -127,8 +144,8 @@ func TestRunMigrations_LiveDB(t *testing.T) {
 	if dirty {
 		t.Fatalf("database schema is in dirty state")
 	}
-	if version != 12 {
-		t.Fatalf("expected migration version 12, got %d", version)
+	if version != 13 {
+		t.Fatalf("expected migration version 13, got %d", version)
 	}
 
 	// 5. Test RunMigrationsDown (rollback)

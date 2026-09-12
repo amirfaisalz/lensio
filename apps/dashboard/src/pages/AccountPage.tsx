@@ -1,8 +1,17 @@
-import { Building2, Check, CreditCard, RefreshCw, Users } from "lucide-react";
+import {
+	Building2,
+	Check,
+	CreditCard,
+	Plus,
+	RefreshCw,
+	Users,
+} from "lucide-react";
 import type React from "react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useContext, useEffect, useState } from "react";
 import { Badge } from "../components/common/Badge";
+import { Modal } from "../components/common/Modal";
 import { Skeleton } from "../components/common/Skeleton";
+import { AuthContext } from "../context/AuthContext";
 import { api } from "../services/api";
 import type {
 	OrganizationDetails,
@@ -11,11 +20,21 @@ import type {
 } from "../types/api";
 
 export const AccountPage: React.FC = () => {
+	const auth = useContext(AuthContext);
+	const currentOrg = auth?.currentOrg;
+	const createOrganization = auth?.createOrganization;
+
 	const [org, setOrg] = useState<OrganizationDetails | null>(null);
 	const [plan, setPlan] = useState<PlanDetails | null>(null);
 	const [members, setMembers] = useState<UserMember[]>([]);
 	const [isLoading, setIsLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
+
+	// Org Creation Modal State (from Placeholder)
+	const [isOrgModalOpen, setIsOrgModalOpen] = useState(false);
+	const [newOrgName, setNewOrgName] = useState("");
+	const [newOrgPlan, setNewOrgPlan] = useState("free");
+	const [isCreatingOrg, setIsCreatingOrg] = useState(false);
 
 	// Plan update state
 	const [selectedPlan, setSelectedPlan] = useState<string>("free");
@@ -23,6 +42,15 @@ export const AccountPage: React.FC = () => {
 	const [planUpdateSuccess, setPlanUpdateSuccess] = useState(false);
 
 	const loadData = useCallback(async () => {
+		if (auth !== undefined && !currentOrg) {
+			setIsLoading(false);
+			setOrg(null);
+			setPlan(null);
+			setMembers([]);
+			setError(null);
+			return;
+		}
+
 		try {
 			setIsLoading(true);
 			setError(null);
@@ -36,19 +64,48 @@ export const AccountPage: React.FC = () => {
 			setSelectedPlan(planRes.plan_code);
 			setMembers(membersRes);
 		} catch (err) {
-			setError(
+			const errMsg =
 				err instanceof Error
 					? err.message
-					: "Failed to load account information",
-			);
+					: "Failed to load account information";
+			if (errMsg.toLowerCase().includes("not found")) {
+				setOrg(null);
+				setPlan(null);
+				setMembers([]);
+				setError(null);
+			} else {
+				setError(errMsg);
+			}
 		} finally {
 			setIsLoading(false);
 		}
-	}, []);
+	}, [auth, currentOrg]);
 
 	useEffect(() => {
 		loadData();
 	}, [loadData]);
+
+	const handleCreateOrg = async (e: React.FormEvent) => {
+		e.preventDefault();
+		const name = newOrgName.trim();
+		if (!name) return;
+
+		try {
+			setIsCreatingOrg(true);
+			if (createOrganization) {
+				await createOrganization(name, newOrgPlan);
+			} else {
+				await api.createOrganization({ name, plan_code: newOrgPlan });
+			}
+			setNewOrgName("");
+			setIsOrgModalOpen(false);
+			await loadData();
+		} catch (err) {
+			alert(err instanceof Error ? err.message : "Gagal membuat organisasi");
+		} finally {
+			setIsCreatingOrg(false);
+		}
+	};
 
 	const handleUpdatePlan = async () => {
 		if (!plan || selectedPlan === plan.plan_code) return;
@@ -137,216 +194,371 @@ export const AccountPage: React.FC = () => {
 				</div>
 			)}
 
-			{/* Organization Profile Card */}
-			<div className="bg-white p-6 rounded-xl border border-slate-200 shadow-xs">
-				<div className="flex items-center gap-2 mb-4">
-					<Building2 className="w-4 h-4 text-[#1877F2]" />
-					<h3 className="text-sm font-semibold text-slate-900">
-						Organization Profile
-					</h3>
+			{/* Placeholder Empty State if No Organization */}
+			{!isLoading && !org ? (
+				<div className="space-y-6">
+					<div className="bg-white rounded-2xl border border-slate-200 p-8 sm:p-14 text-center max-w-xl mx-auto shadow-xs my-4">
+						<div className="w-16 h-16 rounded-2xl bg-[#E7F3FF] text-[#1877F2] flex items-center justify-center mx-auto mb-4 shadow-xs">
+							<Building2 className="w-8 h-8" />
+						</div>
+						<h3 className="text-lg font-bold text-slate-900 tracking-tight">
+							Belum Ada Organisasi
+						</h3>
+						<p className="text-xs text-slate-600 mt-2 leading-relaxed max-w-md mx-auto">
+							Akun Anda belum terdaftar dalam organisasi mana pun. Buat
+							organisasi baru untuk mulai mengelola profil tenant, memilih paket
+							kuota API, dan mengundang anggota tim.
+						</p>
+						<button
+							type="button"
+							onClick={() => setIsOrgModalOpen(true)}
+							className="mt-6 inline-flex items-center gap-2 px-4 py-2.5 text-xs font-semibold text-white bg-[#1877F2] hover:bg-[#166FE5] rounded-xl shadow-xs transition-colors cursor-pointer"
+						>
+							<Plus className="w-4 h-4" />
+							<span>Buat Organisasi Sekarang</span>
+						</button>
+					</div>
+
+					<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+						<div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
+							<div className="w-8 h-8 rounded-lg bg-blue-50 text-[#1877F2] flex items-center justify-center mb-3">
+								<Building2 className="w-4 h-4" />
+							</div>
+							<h4 className="text-xs font-bold text-slate-900 mb-1">
+								Profil Tenant
+							</h4>
+							<p className="text-[11px] text-slate-500 leading-relaxed">
+								Slug dan ID unik untuk isolasi data, pelacakan API key, dan
+								audit trail pemrosesan OCR KTP.
+							</p>
+						</div>
+
+						<div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
+							<div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center mb-3">
+								<CreditCard className="w-4 h-4" />
+							</div>
+							<h4 className="text-xs font-bold text-slate-900 mb-1">
+								Paket & Kuota Bulanan
+							</h4>
+							<p className="text-[11px] text-slate-500 leading-relaxed">
+								Pilihan tier fleksibel mulai dari Free (100 req/bln), Starter
+								(1.000 req/bln), hingga Pro (10.000 req/bln).
+							</p>
+						</div>
+
+						<div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
+							<div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center mb-3">
+								<Users className="w-4 h-4" />
+							</div>
+							<h4 className="text-xs font-bold text-slate-900 mb-1">
+								Manajemen Anggota
+							</h4>
+							<p className="text-[11px] text-slate-500 leading-relaxed">
+								Kelola akses tim developer Anda dengan otorisasi berbasis
+								SpiceDB ReBAC terintegrasi.
+							</p>
+						</div>
+					</div>
+
+					{/* Create Org Modal */}
+					<Modal
+						isOpen={isOrgModalOpen}
+						onClose={() => setIsOrgModalOpen(false)}
+						title="Buat Organisasi Baru"
+					>
+						<form onSubmit={handleCreateOrg} className="space-y-4">
+							<p className="text-xs text-slate-600">
+								Tentukan nama organisasi untuk mengaktifkan kuota API dan
+								mengelola akun Anda.
+							</p>
+
+							<div>
+								<label
+									htmlFor="account-new-org-name"
+									className="block text-xs font-semibold text-slate-700 mb-1"
+								>
+									Nama Organisasi / Perusahaan
+								</label>
+								<div className="relative">
+									<Building2 className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+									<input
+										id="account-new-org-name"
+										type="text"
+										placeholder="misal: PT Fintech Nusantara"
+										value={newOrgName}
+										onChange={(e) => setNewOrgName(e.target.value)}
+										className="w-full pl-9 pr-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-hidden focus:border-[#1877F2] focus:ring-2 focus:ring-[#1877F2]/20"
+									/>
+								</div>
+							</div>
+
+							<div>
+								<label
+									htmlFor="account-org-plan"
+									className="block text-xs font-semibold text-slate-700 mb-1"
+								>
+									Paket Langganan Awal
+								</label>
+								<select
+									id="account-org-plan"
+									value={newOrgPlan}
+									onChange={(e) => setNewOrgPlan(e.target.value)}
+									className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg bg-white focus:outline-hidden focus:border-[#1877F2] focus:ring-2 focus:ring-[#1877F2]/20"
+								>
+									<option value="free">
+										Free Tier (100 req/bulan, 10 req/min) - Gratis
+									</option>
+									<option value="starter">
+										Starter Tier (1,000 req/bulan, 30 req/min)
+									</option>
+									<option value="pro">
+										Pro Tier (10,000 req/bulan, 100 req/min)
+									</option>
+								</select>
+							</div>
+
+							<div className="flex justify-end gap-2 pt-2">
+								<button
+									type="button"
+									onClick={() => setIsOrgModalOpen(false)}
+									className="px-3 py-2 text-xs font-medium text-slate-600 hover:text-slate-800 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
+								>
+									Batal
+								</button>
+								<button
+									type="submit"
+									disabled={!newOrgName.trim() || isCreatingOrg}
+									className="px-4 py-2 text-xs font-semibold text-white bg-[#1877F2] hover:bg-[#166FE5] disabled:opacity-50 rounded-lg transition-colors cursor-pointer"
+								>
+									{isCreatingOrg ? "Membuat..." : "Buat Organisasi & Simpan"}
+								</button>
+							</div>
+						</form>
+					</Modal>
 				</div>
-
-				{isLoading ? (
-					<div className="space-y-2">
-						<Skeleton className="h-4 w-48" />
-						<Skeleton className="h-4 w-64" />
-					</div>
-				) : org ? (
-					<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-xs">
-						<div className="p-3 bg-slate-50 rounded-lg border border-slate-100">
-							<span className="text-slate-400 block text-[10px] uppercase font-semibold">
-								Organization Name
-							</span>
-							<span className="font-bold text-slate-900 text-sm">
-								{org.organization_name}
-							</span>
-						</div>
-						<div className="p-3 bg-slate-50 rounded-lg border border-slate-100">
-							<span className="text-slate-400 block text-[10px] uppercase font-semibold">
-								Tenant Slug
-							</span>
-							<span className="font-mono text-slate-700">{org.slug}</span>
-						</div>
-						<div className="p-3 bg-slate-50 rounded-lg border border-slate-100">
-							<span className="text-slate-400 block text-[10px] uppercase font-semibold">
-								Organization ID
-							</span>
-							<span className="font-mono text-[11px] text-slate-700">
-								{org.organization_id}
-							</span>
-						</div>
-						<div className="p-3 bg-slate-50 rounded-lg border border-slate-100">
-							<span className="text-slate-400 block text-[10px] uppercase font-semibold">
-								Active API Keys
-							</span>
-							<span className="font-bold text-[#1877F2] text-sm tabular-nums">
-								{org.active_keys_count} active
-							</span>
-						</div>
-					</div>
-				) : null}
-			</div>
-
-			{/* Subscription Plan Switcher */}
-			<div className="bg-white p-6 rounded-xl border border-slate-200 shadow-xs">
-				<div className="flex items-center justify-between mb-4">
-					<div>
-						<div className="flex items-center gap-2">
-							<CreditCard className="w-4 h-4 text-[#1877F2]" />
+			) : (
+				<>
+					{/* Organization Profile Card */}
+					<div className="bg-white p-6 rounded-xl border border-slate-200 shadow-xs">
+						<div className="flex items-center gap-2 mb-4">
+							<Building2 className="w-4 h-4 text-[#1877F2]" />
 							<h3 className="text-sm font-semibold text-slate-900">
-								Subscription Plan & Quotas
+								Organization Profile
 							</h3>
 						</div>
-						<p className="text-xs text-slate-500">
-							Select an API tier to instantly adjust your monthly quota and
-							per-minute throughput limits.
-						</p>
-					</div>
 
-					{planUpdateSuccess && (
-						<span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200">
-							<Check className="w-3.5 h-3.5" /> Plan Updated Successfully
-						</span>
-					)}
-				</div>
-
-				<div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-					{planOptions.map((opt) => {
-						const isCurrent = plan?.plan_code === opt.code;
-						const isSelected = selectedPlan === opt.code;
-
-						return (
-							<button
-								type="button"
-								key={opt.code}
-								onClick={() => setSelectedPlan(opt.code)}
-								className={`text-left p-4 rounded-xl border cursor-pointer transition-all ${
-									isSelected
-										? "border-[#1877F2] ring-2 ring-[#1877F2]/20 bg-[#E7F3FF]/20"
-										: "border-slate-200 hover:border-slate-300 bg-white"
-								}`}
-							>
-								<div className="flex items-center justify-between mb-2">
-									<span className="font-bold text-slate-900 text-sm">
-										{opt.name}
+						{isLoading ? (
+							<div className="space-y-2">
+								<Skeleton className="h-4 w-48" />
+								<Skeleton className="h-4 w-64" />
+							</div>
+						) : org ? (
+							<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-xs">
+								<div className="p-3 bg-slate-50 rounded-lg border border-slate-100">
+									<span className="text-slate-400 block text-[10px] uppercase font-semibold">
+										Organization Name
 									</span>
-									{isCurrent && <Badge variant="success">Current Plan</Badge>}
+									<span className="font-bold text-slate-900 text-sm">
+										{org.organization_name}
+									</span>
 								</div>
-
-								<div className="text-lg font-bold text-slate-900 mb-1">
-									{opt.price}
+								<div className="p-3 bg-slate-50 rounded-lg border border-slate-100">
+									<span className="text-slate-400 block text-[10px] uppercase font-semibold">
+										Tenant Slug
+									</span>
+									<span className="font-mono text-slate-700">{org.slug}</span>
 								</div>
-								<p className="text-xs text-slate-500 mb-3">{opt.desc}</p>
-
-								<div className="space-y-1 text-xs text-slate-700 border-t border-slate-100 pt-3 tabular-nums">
-									<div className="flex justify-between">
-										<span className="text-slate-500">Monthly Quota:</span>
-										<strong className="text-slate-900">{opt.quota}</strong>
-									</div>
-									<div className="flex justify-between">
-										<span className="text-slate-500">Rate Limit:</span>
-										<strong className="text-slate-900">{opt.rateLimit}</strong>
-									</div>
+								<div className="p-3 bg-slate-50 rounded-lg border border-slate-100">
+									<span className="text-slate-400 block text-[10px] uppercase font-semibold">
+										Organization ID
+									</span>
+									<span className="font-mono text-[11px] text-slate-700">
+										{org.organization_id}
+									</span>
 								</div>
-							</button>
-						);
-					})}
-				</div>
-
-				{plan && selectedPlan !== plan.plan_code && (
-					<div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
-						<button
-							type="button"
-							onClick={() => setSelectedPlan(plan.plan_code)}
-							className="px-4 py-2 text-xs font-medium text-slate-600 hover:text-slate-900"
-						>
-							Reset
-						</button>
-						<button
-							type="button"
-							onClick={handleUpdatePlan}
-							disabled={isUpdatingPlan}
-							className="px-4 py-2 text-xs font-semibold text-white bg-[#1877F2] hover:bg-[#166FE5] rounded-lg transition-colors shadow-xs"
-						>
-							{isUpdatingPlan
-								? "Updating Plan..."
-								: `Switch to ${selectedPlan.toUpperCase()}`}
-						</button>
+								<div className="p-3 bg-slate-50 rounded-lg border border-slate-100">
+									<span className="text-slate-400 block text-[10px] uppercase font-semibold">
+										Active API Keys
+									</span>
+									<span className="font-bold text-[#1877F2] text-sm tabular-nums">
+										{org.active_keys_count} active
+									</span>
+								</div>
+							</div>
+						) : null}
 					</div>
-				)}
-			</div>
 
-			{/* Team Members List */}
-			<div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
-				<div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-					<div className="flex items-center gap-2">
-						<Users className="w-4 h-4 text-[#1877F2]" />
-						<h3 className="text-sm font-semibold text-slate-900">
-							Organization Members
-						</h3>
-					</div>
-					<span className="text-xs text-slate-500">
-						{members.length} Member(s)
-					</span>
-				</div>
+					{/* Subscription Plan Switcher */}
+					<div className="bg-white p-6 rounded-xl border border-slate-200 shadow-xs">
+						<div className="flex items-center justify-between mb-4">
+							<div>
+								<div className="flex items-center gap-2">
+									<CreditCard className="w-4 h-4 text-[#1877F2]" />
+									<h3 className="text-sm font-semibold text-slate-900">
+										Subscription Plan & Quotas
+									</h3>
+								</div>
+								<p className="text-xs text-slate-500">
+									Select an API tier to instantly adjust your monthly quota and
+									per-minute throughput limits.
+								</p>
+							</div>
 
-				<div className="overflow-x-auto">
-					<table className="w-full text-left text-xs text-slate-600">
-						<thead className="bg-slate-50 border-b border-slate-200 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
-							<tr>
-								<th className="px-6 py-3.5">Name</th>
-								<th className="px-6 py-3.5">Email</th>
-								<th className="px-6 py-3.5">Role</th>
-								<th className="px-6 py-3.5">Joined Date</th>
-							</tr>
-						</thead>
-						<tbody className="divide-y divide-slate-100 font-medium">
-							{isLoading ? (
-								<tr>
-									<td colSpan={4} className="px-6 py-8">
-										<Skeleton className="h-6 w-full my-2" />
-									</td>
-								</tr>
-							) : members.length === 0 ? (
-								<tr>
-									<td
-										colSpan={4}
-										className="px-6 py-8 text-center text-slate-400"
-									>
-										No members listed.
-									</td>
-								</tr>
-							) : (
-								members.map((m) => (
-									<tr
-										key={m.id}
-										className="hover:bg-slate-50/80 transition-colors"
-									>
-										<td className="px-6 py-3.5 font-semibold text-slate-900">
-											{m.full_name}
-										</td>
-										<td className="px-6 py-3.5 font-mono text-slate-600">
-											{m.email}
-										</td>
-										<td className="px-6 py-3.5">
-											<Badge variant={m.role === "owner" ? "info" : "neutral"}>
-												{m.role}
-											</Badge>
-										</td>
-										<td className="px-6 py-3.5 text-slate-500 tabular-nums">
-											{new Date(m.created_at).toLocaleDateString(undefined, {
-												month: "short",
-												day: "numeric",
-												year: "numeric",
-											})}
-										</td>
-									</tr>
-								))
+							{planUpdateSuccess && (
+								<span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200">
+									<Check className="w-3.5 h-3.5" /> Plan Updated Successfully
+								</span>
 							)}
-						</tbody>
-					</table>
-				</div>
-			</div>
+						</div>
+
+						<div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+							{planOptions.map((opt) => {
+								const isCurrent = plan?.plan_code === opt.code;
+								const isSelected = selectedPlan === opt.code;
+
+								return (
+									<button
+										type="button"
+										key={opt.code}
+										onClick={() => setSelectedPlan(opt.code)}
+										className={`text-left p-4 rounded-xl border cursor-pointer transition-all ${
+											isSelected
+												? "border-[#1877F2] ring-2 ring-[#1877F2]/20 bg-[#E7F3FF]/20"
+												: "border-slate-200 hover:border-slate-300 bg-white"
+										}`}
+									>
+										<div className="flex items-center justify-between mb-2">
+											<span className="font-bold text-slate-900 text-sm">
+												{opt.name}
+											</span>
+											{isCurrent && (
+												<Badge variant="success">Current Plan</Badge>
+											)}
+										</div>
+
+										<div className="text-lg font-bold text-slate-900 mb-1">
+											{opt.price}
+										</div>
+										<p className="text-xs text-slate-500 mb-3">{opt.desc}</p>
+
+										<div className="space-y-1 text-xs text-slate-700 border-t border-slate-100 pt-3 tabular-nums">
+											<div className="flex justify-between">
+												<span className="text-slate-500">Monthly Quota:</span>
+												<strong className="text-slate-900">{opt.quota}</strong>
+											</div>
+											<div className="flex justify-between">
+												<span className="text-slate-500">Rate Limit:</span>
+												<strong className="text-slate-900">
+													{opt.rateLimit}
+												</strong>
+											</div>
+										</div>
+									</button>
+								);
+							})}
+						</div>
+
+						{plan && selectedPlan !== plan.plan_code && (
+							<div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
+								<button
+									type="button"
+									onClick={() => setSelectedPlan(plan.plan_code)}
+									className="px-4 py-2 text-xs font-medium text-slate-600 hover:text-slate-900"
+								>
+									Reset
+								</button>
+								<button
+									type="button"
+									onClick={handleUpdatePlan}
+									disabled={isUpdatingPlan}
+									className="px-4 py-2 text-xs font-semibold text-white bg-[#1877F2] hover:bg-[#166FE5] rounded-lg transition-colors shadow-xs"
+								>
+									{isUpdatingPlan
+										? "Updating Plan..."
+										: `Switch to ${selectedPlan.toUpperCase()}`}
+								</button>
+							</div>
+						)}
+					</div>
+
+					{/* Team Members List */}
+					<div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
+						<div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+							<div className="flex items-center gap-2">
+								<Users className="w-4 h-4 text-[#1877F2]" />
+								<h3 className="text-sm font-semibold text-slate-900">
+									Organization Members
+								</h3>
+							</div>
+							<span className="text-xs text-slate-500">
+								{members.length} Member(s)
+							</span>
+						</div>
+
+						<div className="overflow-x-auto">
+							<table className="w-full text-left text-xs text-slate-600">
+								<thead className="bg-slate-50 border-b border-slate-200 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+									<tr>
+										<th className="px-6 py-3.5">Name</th>
+										<th className="px-6 py-3.5">Email</th>
+										<th className="px-6 py-3.5">Role</th>
+										<th className="px-6 py-3.5">Joined Date</th>
+									</tr>
+								</thead>
+								<tbody className="divide-y divide-slate-100 font-medium">
+									{isLoading ? (
+										<tr>
+											<td colSpan={4} className="px-6 py-8">
+												<Skeleton className="h-6 w-full my-2" />
+											</td>
+										</tr>
+									) : members.length === 0 ? (
+										<tr>
+											<td
+												colSpan={4}
+												className="px-6 py-8 text-center text-slate-400"
+											>
+												No members listed.
+											</td>
+										</tr>
+									) : (
+										members.map((m) => (
+											<tr
+												key={m.id}
+												className="hover:bg-slate-50/80 transition-colors"
+											>
+												<td className="px-6 py-3.5 font-semibold text-slate-900">
+													{m.full_name}
+												</td>
+												<td className="px-6 py-3.5 font-mono text-slate-600">
+													{m.email}
+												</td>
+												<td className="px-6 py-3.5">
+													<Badge
+														variant={m.role === "owner" ? "info" : "neutral"}
+													>
+														{m.role}
+													</Badge>
+												</td>
+												<td className="px-6 py-3.5 text-slate-500 tabular-nums">
+													{new Date(m.created_at).toLocaleDateString(
+														undefined,
+														{
+															month: "short",
+															day: "numeric",
+															year: "numeric",
+														},
+													)}
+												</td>
+											</tr>
+										))
+									)}
+								</tbody>
+							</table>
+						</div>
+					</div>
+				</>
+			)}
 		</div>
 	);
 };

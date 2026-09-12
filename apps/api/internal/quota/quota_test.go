@@ -34,6 +34,34 @@ func (m *mockAccountStore) GetOrganizationMembers(ctx context.Context, orgID str
 	return nil, nil
 }
 
+func (m *mockAccountStore) CreateUser(ctx context.Context, fullName, email, passwordHash, verificationToken string) (*store.User, error) {
+	return nil, nil
+}
+
+func (m *mockAccountStore) GetUserByEmail(ctx context.Context, email string) (*store.UserWithAuth, error) {
+	return nil, store.ErrNotFound
+}
+
+func (m *mockAccountStore) GetUserByID(ctx context.Context, userID string) (*store.User, error) {
+	return nil, store.ErrNotFound
+}
+
+func (m *mockAccountStore) VerifyUserEmail(ctx context.Context, email, token string) error {
+	return nil
+}
+
+func (m *mockAccountStore) CreateOrganization(ctx context.Context, name, slug, planCode string) (*store.Organization, error) {
+	return nil, nil
+}
+
+func (m *mockAccountStore) AssignUserToOrg(ctx context.Context, userID, orgID, role string) error {
+	return nil
+}
+
+func (m *mockAccountStore) GetUserOrganization(ctx context.Context, userID string) (*store.Organization, error) {
+	return nil, store.ErrNotFound
+}
+
 type mockUsageStore struct {
 	count int
 	err   error

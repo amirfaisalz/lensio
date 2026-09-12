@@ -1,5 +1,6 @@
 import {
 	AlertOctagon,
+	Building2,
 	Check,
 	Copy,
 	KeyRound,
@@ -18,10 +19,15 @@ import { api } from "../services/api";
 import type { APIKeyListItem, CreateKeyResponse } from "../types/api";
 
 export const APIKeysPage: React.FC = () => {
-	const { setApiKey } = useAuth();
+	const { currentOrg, setApiKey, createOrganization } = useAuth();
 	const [keys, setKeys] = useState<APIKeyListItem[]>([]);
-	const [isLoading, setIsLoading] = useState(true);
+	const [isLoading, setIsLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
+
+	// Org Creation Modal State (from Empty State)
+	const [isOrgModalOpen, setIsOrgModalOpen] = useState(false);
+	const [newOrgName, setNewOrgName] = useState("");
+	const [newOrgPlan, setNewOrgPlan] = useState("free");
 
 	// Create Key Modal State
 	const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -44,6 +50,12 @@ export const APIKeysPage: React.FC = () => {
 	const [isRevoking, setIsRevoking] = useState(false);
 
 	const loadKeys = useCallback(async () => {
+		if (!currentOrg) {
+			setKeys([]);
+			setIsLoading(false);
+			return;
+		}
+
 		try {
 			setIsLoading(true);
 			setError(null);
@@ -54,11 +66,19 @@ export const APIKeysPage: React.FC = () => {
 		} finally {
 			setIsLoading(false);
 		}
-	}, []);
+	}, [currentOrg]);
 
 	useEffect(() => {
 		loadKeys();
 	}, [loadKeys]);
+
+	const handleCreateOrg = (e: React.FormEvent) => {
+		e.preventDefault();
+		if (!newOrgName.trim()) return;
+		createOrganization(newOrgName.trim(), newOrgPlan);
+		setNewOrgName("");
+		setIsOrgModalOpen(false);
+	};
 
 	const handleCreateKey = async (e: React.FormEvent) => {
 		e.preventDefault();
@@ -85,7 +105,9 @@ export const APIKeysPage: React.FC = () => {
 
 	const handleCopyKey = () => {
 		if (!createdKeyData) return;
-		navigator.clipboard.writeText(createdKeyData.key);
+		if (navigator.clipboard?.writeText) {
+			navigator.clipboard.writeText(createdKeyData.key);
+		}
 		setCopied(true);
 		setTimeout(() => setCopied(false), 2000);
 	};
@@ -111,6 +133,120 @@ export const APIKeysPage: React.FC = () => {
 		}
 	};
 
+	// REQUIREMENT 4: EMPTY STATE WHEN NO ORGANIZATION EXISTS
+	if (!currentOrg) {
+		return (
+			<div className="space-y-6 animate-in fade-in duration-200">
+				<div>
+					<h2 className="text-xl font-bold text-slate-900 tracking-tight">
+						API Key Management
+					</h2>
+					<p className="text-xs text-slate-500">
+						Securely generate, scope, and manage authentication credentials.
+					</p>
+				</div>
+
+				<div className="bg-white rounded-2xl border border-slate-200 p-8 sm:p-14 text-center max-w-xl mx-auto shadow-xs my-8">
+					<div className="w-16 h-16 rounded-2xl bg-[#E7F3FF] text-[#1877F2] flex items-center justify-center mx-auto mb-4 shadow-xs">
+						<Building2 className="w-8 h-8" />
+					</div>
+					<h3 className="text-lg font-bold text-slate-900 tracking-tight">
+						Organisasi Diperlukan
+					</h3>
+					<p className="text-xs text-slate-600 mt-2 leading-relaxed max-w-md mx-auto">
+						Anda harus membuat atau memilih organisasi terlebih dahulu sebelum
+						dapat membuat API Key. Setiap API Key terikat pada kuota bulanan dan
+						kebijakan keamanan organisasi Anda.
+					</p>
+					<button
+						type="button"
+						onClick={() => setIsOrgModalOpen(true)}
+						className="mt-6 inline-flex items-center gap-2 px-4 py-2.5 text-xs font-semibold text-white bg-[#1877F2] hover:bg-[#166FE5] rounded-xl shadow-xs transition-colors cursor-pointer"
+					>
+						<Plus className="w-4 h-4" />
+						<span>Buat Organisasi Sekarang</span>
+					</button>
+				</div>
+
+				{/* Create Org Modal */}
+				<Modal
+					isOpen={isOrgModalOpen}
+					onClose={() => setIsOrgModalOpen(false)}
+					title="Buat Organisasi Baru"
+				>
+					<form onSubmit={handleCreateOrg} className="space-y-4">
+						<p className="text-xs text-slate-600">
+							Tentukan nama organisasi untuk mengaktifkan kuota API dan
+							pembuatan API Key.
+						</p>
+
+						<div>
+							<label
+								htmlFor="apikey-new-org-name"
+								className="block text-xs font-semibold text-slate-700 mb-1"
+							>
+								Nama Organisasi / Perusahaan
+							</label>
+							<div className="relative">
+								<Building2 className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+								<input
+									id="apikey-new-org-name"
+									type="text"
+									placeholder="misal: PT Fintech Nusantara"
+									value={newOrgName}
+									onChange={(e) => setNewOrgName(e.target.value)}
+									className="w-full pl-9 pr-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-hidden focus:border-[#1877F2] focus:ring-2 focus:ring-[#1877F2]/20"
+								/>
+							</div>
+						</div>
+
+						<div>
+							<label
+								htmlFor="apikey-org-plan"
+								className="block text-xs font-semibold text-slate-700 mb-1"
+							>
+								Paket Langganan
+							</label>
+							<select
+								id="apikey-org-plan"
+								value={newOrgPlan}
+								onChange={(e) => setNewOrgPlan(e.target.value)}
+								className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg bg-white focus:outline-hidden focus:border-[#1877F2] focus:ring-2 focus:ring-[#1877F2]/20"
+							>
+								<option value="free">
+									Free Tier (100 req/bulan, 10 req/min) - Gratis
+								</option>
+								<option value="starter">
+									Starter Tier (1,000 req/bulan, 30 req/min)
+								</option>
+								<option value="pro">
+									Pro Tier (10,000 req/bulan, 100 req/min)
+								</option>
+							</select>
+						</div>
+
+						<div className="flex justify-end gap-2 pt-2">
+							<button
+								type="button"
+								onClick={() => setIsOrgModalOpen(false)}
+								className="px-3 py-2 text-xs font-medium text-slate-600 hover:text-slate-800 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
+							>
+								Batal
+							</button>
+							<button
+								type="submit"
+								disabled={!newOrgName.trim()}
+								className="px-4 py-2 text-xs font-semibold text-white bg-[#1877F2] hover:bg-[#166FE5] disabled:opacity-50 rounded-lg transition-colors cursor-pointer"
+							>
+								Buat Organisasi & Lanjutkan
+							</button>
+						</div>
+					</form>
+				</Modal>
+			</div>
+		);
+	}
+
 	return (
 		<div className="space-y-6 animate-in fade-in duration-200">
 			{/* Top Banner */}
@@ -120,8 +256,9 @@ export const APIKeysPage: React.FC = () => {
 						API Key Management
 					</h2>
 					<p className="text-xs text-slate-500">
-						Securely generate, scope, and manage authentication credentials for
-						your client applications.
+						Organisasi aktif:{" "}
+						<strong className="text-slate-800">{currentOrg.name}</strong> •
+						Kelola token otentikasi aplikasi Anda.
 					</p>
 				</div>
 
@@ -130,7 +267,7 @@ export const APIKeysPage: React.FC = () => {
 						type="button"
 						onClick={loadKeys}
 						disabled={isLoading}
-						className="p-2 text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
+						className="p-2 text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors cursor-pointer"
 						title="Refresh keys list"
 					>
 						<RefreshCw
@@ -141,7 +278,7 @@ export const APIKeysPage: React.FC = () => {
 					<button
 						type="button"
 						onClick={() => setIsCreateModalOpen(true)}
-						className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-[#1877F2] hover:bg-[#166FE5] rounded-lg shadow-xs transition-colors"
+						className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-[#1877F2] hover:bg-[#166FE5] rounded-lg shadow-xs transition-colors cursor-pointer"
 					>
 						<Plus className="w-4 h-4" />
 						<span>Create New Key</span>
@@ -192,12 +329,20 @@ export const APIKeysPage: React.FC = () => {
 									>
 										<KeyRound className="w-8 h-8 text-slate-300 mx-auto mb-2" />
 										<p className="font-semibold text-slate-700">
-											No API Keys Generated
+											Belum Ada API Key
 										</p>
 										<p className="text-xs text-slate-400 mt-1">
-											Create an API key to start authenticating requests to
-											Lensio.
+											Organisasi &apos;{currentOrg.name}&apos; belum memiliki
+											API Key aktif.
 										</p>
+										<button
+											type="button"
+											onClick={() => setIsCreateModalOpen(true)}
+											className="mt-4 inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-white bg-[#1877F2] hover:bg-[#166FE5] rounded-lg shadow-xs transition-colors cursor-pointer"
+										>
+											<Plus className="w-3.5 h-3.5" />
+											<span>Buat API Key Pertama</span>
+										</button>
 									</td>
 								</tr>
 							) : (
@@ -271,7 +416,7 @@ export const APIKeysPage: React.FC = () => {
 													<button
 														type="button"
 														onClick={() => setKeyToRevoke(k)}
-														className="text-rose-600 hover:text-rose-800 p-1 rounded hover:bg-rose-50 transition-colors"
+														className="text-rose-600 hover:text-rose-800 p-1 rounded hover:bg-rose-50 transition-colors cursor-pointer"
 														title="Revoke this API Key"
 													>
 														<Trash2 className="w-4 h-4" />
@@ -297,7 +442,7 @@ export const APIKeysPage: React.FC = () => {
 						<button
 							type="button"
 							onClick={() => setIsCreateModalOpen(false)}
-							className="px-4 py-2 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50"
+							className="px-4 py-2 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 cursor-pointer"
 						>
 							Cancel
 						</button>
@@ -305,7 +450,7 @@ export const APIKeysPage: React.FC = () => {
 							type="button"
 							onClick={handleCreateKey}
 							disabled={isCreating || !newKeyName.trim()}
-							className="px-4 py-2 text-xs font-semibold text-white bg-[#1877F2] hover:bg-[#166FE5] disabled:opacity-50 rounded-lg transition-colors"
+							className="px-4 py-2 text-xs font-semibold text-white bg-[#1877F2] hover:bg-[#166FE5] disabled:opacity-50 rounded-lg transition-colors cursor-pointer"
 						>
 							{isCreating ? "Generating..." : "Create Key"}
 						</button>
@@ -430,14 +575,14 @@ export const APIKeysPage: React.FC = () => {
 							<button
 								type="button"
 								onClick={handleUseCreatedKey}
-								className="px-3 py-1.5 text-xs font-semibold text-[#1877F2] bg-[#E7F3FF] hover:bg-[#d5eaff] rounded-lg transition-colors"
+								className="px-3 py-1.5 text-xs font-semibold text-[#1877F2] bg-[#E7F3FF] hover:bg-[#d5eaff] rounded-lg transition-colors cursor-pointer"
 							>
 								Connect in Dashboard
 							</button>
 							<button
 								type="button"
 								onClick={() => setCreatedKeyData(null)}
-								className="px-4 py-2 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-lg transition-colors"
+								className="px-4 py-2 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
 							>
 								I Have Saved It
 							</button>
@@ -472,7 +617,7 @@ export const APIKeysPage: React.FC = () => {
 								<button
 									type="button"
 									onClick={handleCopyKey}
-									className="px-3 py-2 text-xs font-semibold text-white bg-[#1877F2] hover:bg-[#166FE5] rounded-lg transition-colors flex items-center gap-1 shrink-0"
+									className="px-3 py-2 text-xs font-semibold text-white bg-[#1877F2] hover:bg-[#166FE5] rounded-lg transition-colors flex items-center gap-1 shrink-0 cursor-pointer"
 								>
 									{copied ? (
 										<Check className="w-3.5 h-3.5" />
@@ -504,7 +649,7 @@ export const APIKeysPage: React.FC = () => {
 							<button
 								type="button"
 								onClick={() => setKeyToRevoke(null)}
-								className="px-4 py-2 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50"
+								className="px-4 py-2 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 cursor-pointer"
 							>
 								Cancel
 							</button>
@@ -512,7 +657,7 @@ export const APIKeysPage: React.FC = () => {
 								type="button"
 								onClick={handleRevokeKey}
 								disabled={isRevoking}
-								className="px-4 py-2 text-xs font-semibold text-white bg-rose-600 hover:bg-rose-700 rounded-lg transition-colors"
+								className="px-4 py-2 text-xs font-semibold text-white bg-rose-600 hover:bg-rose-700 rounded-lg transition-colors cursor-pointer"
 							>
 								{isRevoking ? "Revoking..." : "Confirm Revocation"}
 							</button>

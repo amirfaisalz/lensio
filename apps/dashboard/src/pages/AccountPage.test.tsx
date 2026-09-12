@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { AuthProvider } from "../context/AuthContext";
 import { AccountPage } from "./AccountPage";
 
 describe("AccountPage", () => {
@@ -133,6 +134,95 @@ describe("AccountPage", () => {
 
 		await waitFor(() => {
 			expect(screen.getByText("Account database failure")).toBeDefined();
+		});
+	});
+
+	it("renders placeholder empty state when no organization exists", async () => {
+		render(
+			<AuthProvider>
+				<AccountPage />
+			</AuthProvider>,
+		);
+
+		await waitFor(() => {
+			expect(screen.getByText("Belum Ada Organisasi")).toBeDefined();
+			expect(
+				screen.getByText(
+					"Akun Anda belum terdaftar dalam organisasi mana pun. Buat organisasi baru untuk mulai mengelola profil tenant, memilih paket kuota API, dan mengundang anggota tim.",
+				),
+			).toBeDefined();
+			expect(screen.getByText("Buat Organisasi Sekarang")).toBeDefined();
+			expect(screen.getByText("Profil Tenant")).toBeDefined();
+			expect(screen.getByText("Paket & Kuota Bulanan")).toBeDefined();
+			expect(screen.getByText("Manajemen Anggota")).toBeDefined();
+		});
+	});
+
+	it("creates an organization from the placeholder modal in AccountPage", async () => {
+		vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+			const url = String(input);
+			if (url.includes("/api/v1/account/organizations")) {
+				return {
+					ok: true,
+					json: async () => ({
+						organization: {
+							id: "org-new-id",
+							name: "PT Solusi Cerdas",
+							slug: "pt-solusi-cerdas",
+							plan_code: "free",
+						},
+					}),
+				} as Response;
+			}
+			if (url.includes("/api/v1/account/plan")) {
+				return { ok: true, json: async () => mockPlan } as Response;
+			}
+			if (url.includes("/api/v1/account/members")) {
+				return {
+					ok: true,
+					json: async () => ({ data: mockMembers }),
+				} as Response;
+			}
+			if (url.includes("/api/v1/account")) {
+				return {
+					ok: true,
+					json: async () => ({
+						...mockOrg,
+						organization_name: "PT Solusi Cerdas",
+						slug: "pt-solusi-cerdas",
+					}),
+				} as Response;
+			}
+			return { ok: true, json: async () => ({}) } as Response;
+		});
+
+		render(
+			<AuthProvider>
+				<AccountPage />
+			</AuthProvider>,
+		);
+
+		// Verify placeholder is shown
+		await waitFor(() => {
+			expect(screen.getByText("Belum Ada Organisasi")).toBeDefined();
+		});
+
+		// Open modal
+		fireEvent.click(screen.getByText("Buat Organisasi Sekarang"));
+		expect(screen.getByText("Buat Organisasi Baru")).toBeDefined();
+
+		// Fill in org name
+		fireEvent.change(screen.getByLabelText("Nama Organisasi / Perusahaan"), {
+			target: { value: "PT Solusi Cerdas" },
+		});
+
+		// Submit form
+		fireEvent.click(screen.getByText("Buat Organisasi & Simpan"));
+
+		// Transitions to active organization account details view
+		await waitFor(() => {
+			expect(screen.getByText("PT Solusi Cerdas")).toBeDefined();
+			expect(screen.getByText("pt-solusi-cerdas")).toBeDefined();
 		});
 	});
 });

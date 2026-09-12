@@ -1,11 +1,21 @@
 import type React from "react";
 import { useEffect, useState } from "react";
+import {
+	BrowserRouter,
+	Navigate,
+	Route,
+	Routes,
+	useLocation,
+	useNavigate,
+	useParams,
+} from "react-router-dom";
 import { Header } from "./components/layout/Header";
 import { type NavigationPage, Sidebar } from "./components/layout/Sidebar";
-import { AuthProvider } from "./context/AuthContext";
+import { AuthProvider, useAuth } from "./context/AuthContext";
 import { AccountPage } from "./pages/AccountPage";
 import { APIKeysPage } from "./pages/APIKeysPage";
 import { DocsPage } from "./pages/DocsPage";
+import { LoginPage } from "./pages/LoginPage";
 import { OverviewPage } from "./pages/OverviewPage";
 import { RequestsPage } from "./pages/RequestsPage";
 import { UsagePage } from "./pages/UsagePage";
@@ -38,9 +48,25 @@ const pageMeta: Record<NavigationPage, { title: string; subtitle: string }> = {
 	},
 };
 
+const VALID_PAGES: NavigationPage[] = [
+	"overview",
+	"keys",
+	"usage",
+	"requests",
+	"docs",
+	"account",
+];
+
 export const DashboardLayout: React.FC = () => {
-	const [currentPage, setCurrentPage] = useState<NavigationPage>("overview");
+	const navigate = useNavigate();
+	const params = useParams<{ page?: string }>();
 	const [isHealthy, setIsHealthy] = useState(true);
+
+	// Resolve active navigation page from route params or fallback to overview
+	const currentPage: NavigationPage =
+		params.page && VALID_PAGES.includes(params.page as NavigationPage)
+			? (params.page as NavigationPage)
+			: "overview";
 
 	useEffect(() => {
 		const checkSystemHealth = async () => {
@@ -57,10 +83,14 @@ export const DashboardLayout: React.FC = () => {
 		return () => clearInterval(interval);
 	}, []);
 
+	const handleNavigate = (page: NavigationPage) => {
+		navigate(`/dashboard/${page}`);
+	};
+
 	const renderPage = () => {
 		switch (currentPage) {
 			case "overview":
-				return <OverviewPage />;
+				return <OverviewPage onNavigate={handleNavigate} />;
 			case "keys":
 				return <APIKeysPage />;
 			case "usage":
@@ -72,7 +102,7 @@ export const DashboardLayout: React.FC = () => {
 			case "account":
 				return <AccountPage />;
 			default:
-				return <OverviewPage />;
+				return <OverviewPage onNavigate={handleNavigate} />;
 		}
 	};
 
@@ -83,19 +113,15 @@ export const DashboardLayout: React.FC = () => {
 			{/* Sidebar navigation */}
 			<Sidebar
 				currentPage={currentPage}
-				onNavigate={setCurrentPage}
+				onNavigate={handleNavigate}
 				isHealthy={isHealthy}
 			/>
 
 			{/* Main Content Area */}
 			<div className="flex-1 flex flex-col min-w-0">
-				<Header
-					title={meta.title}
-					subtitle={meta.subtitle}
-					onQuickTestClick={() => setCurrentPage("overview")}
-				/>
+				<Header title={meta.title} subtitle={meta.subtitle} />
 
-				<main className="flex-1 p-8 max-w-7xl w-full mx-auto">
+				<main className="flex-1 p-6 sm:p-8 max-w-7xl w-full mx-auto">
 					{renderPage()}
 				</main>
 			</div>
@@ -103,10 +129,99 @@ export const DashboardLayout: React.FC = () => {
 	);
 };
 
+// Protected Route Guard: If not authenticated, forcefully redirect to /login
+export const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({
+	children,
+}) => {
+	const { isConnected } = useAuth();
+	const location = useLocation();
+
+	if (!isConnected) {
+		return <Navigate to="/login" state={{ from: location }} replace />;
+	}
+
+	return <>{children}</>;
+};
+
+// Public Only Route Guard: If already authenticated, redirect to /dashboard
+export const PublicOnlyRoute: React.FC<{
+	children: React.ReactNode;
+}> = ({ children }) => {
+	const { isConnected } = useAuth();
+
+	if (isConnected) {
+		return <Navigate to="/dashboard" replace />;
+	}
+
+	return <>{children}</>;
+};
+
+export const AppRoutes: React.FC = () => {
+	const { isConnected } = useAuth();
+
+	return (
+		<Routes>
+			{/* Public Authentication Routes */}
+			<Route
+				path="/login"
+				element={
+					<PublicOnlyRoute>
+						<LoginPage defaultMode="login" />
+					</PublicOnlyRoute>
+				}
+			/>
+			<Route
+				path="/register"
+				element={
+					<PublicOnlyRoute>
+						<LoginPage defaultMode="register" />
+					</PublicOnlyRoute>
+				}
+			/>
+
+			{/* Protected Dashboard Routes */}
+			<Route
+				path="/dashboard"
+				element={
+					<ProtectedRoute>
+						<DashboardLayout />
+					</ProtectedRoute>
+				}
+			/>
+			<Route
+				path="/dashboard/:page"
+				element={
+					<ProtectedRoute>
+						<DashboardLayout />
+					</ProtectedRoute>
+				}
+			/>
+
+			{/* Root Redirect */}
+			<Route
+				path="/"
+				element={
+					<Navigate to={isConnected ? "/dashboard" : "/login"} replace />
+				}
+			/>
+
+			{/* Catch-all Fallback */}
+			<Route
+				path="*"
+				element={
+					<Navigate to={isConnected ? "/dashboard" : "/login"} replace />
+				}
+			/>
+		</Routes>
+	);
+};
+
 export const App: React.FC = () => {
 	return (
 		<AuthProvider>
-			<DashboardLayout />
+			<BrowserRouter>
+				<AppRoutes />
+			</BrowserRouter>
 		</AuthProvider>
 	);
 };

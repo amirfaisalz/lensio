@@ -91,8 +91,19 @@ func TestPostgresStore_LiveDB(t *testing.T) {
 		t.Fatalf("failed applying migrations: %v", err)
 	}
 
+	slug := fmt.Sprintf("test-org-idem-%d", time.Now().UnixNano())
+	testOrg, err := db.CreateOrganization(ctx, "Test Org "+slug, slug, "free")
+	if err != nil {
+		t.Fatalf("failed creating test organization: %v", err)
+	}
+	t.Cleanup(func() {
+		cleanupCtx, cleanupCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cleanupCancel()
+		_, _ = db.DB.ExecContext(cleanupCtx, "DELETE FROM organizations WHERE id = $1", testOrg.ID)
+	})
+
 	pgStore := idempotency.NewPostgresStore(db.DB, 24*time.Hour)
-	orgID := "00000000-0000-0000-0000-000000000001"
+	orgID := testOrg.ID
 	key := fmt.Sprintf("pg_test_key_%d", time.Now().UnixNano())
 	hash := "pg_test_hash_abcdef123456"
 

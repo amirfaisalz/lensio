@@ -4,6 +4,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthProvider } from "../context/AuthContext";
 import { APIKeysPage } from "./APIKeysPage";
 
+const TEST_ORG = {
+	id: "org-test-uuid",
+	name: "Acme Corp",
+	slug: "acme",
+	planCode: "free",
+};
+
 const renderWithAuth = (ui: React.ReactElement) => {
 	return render(<AuthProvider>{ui}</AuthProvider>);
 };
@@ -14,7 +21,43 @@ describe("APIKeysPage", () => {
 		vi.restoreAllMocks();
 	});
 
-	it("renders loading skeleton and then empty state when no keys exist", async () => {
+	it("renders empty state requiring organization when currentOrg is null", () => {
+		renderWithAuth(<APIKeysPage />);
+
+		expect(screen.getByText("Organisasi Diperlukan")).toBeDefined();
+		expect(
+			screen.getByText(
+				"Anda harus membuat atau memilih organisasi terlebih dahulu sebelum dapat membuat API Key. Setiap API Key terikat pada kuota bulanan dan kebijakan keamanan organisasi Anda.",
+			),
+		).toBeDefined();
+		expect(screen.getByText("Buat Organisasi Sekarang")).toBeDefined();
+	});
+
+	it("creates an organization from the empty state modal", async () => {
+		renderWithAuth(<APIKeysPage />);
+
+		// Open org modal from empty state
+		fireEvent.click(screen.getByText("Buat Organisasi Sekarang"));
+		expect(screen.getByText("Buat Organisasi Baru")).toBeDefined();
+
+		// Fill in org name
+		fireEvent.change(screen.getByLabelText("Nama Organisasi / Perusahaan"), {
+			target: { value: "PT Fintech Prima" },
+		});
+
+		// Submit org creation
+		fireEvent.click(screen.getByText("Buat Organisasi & Lanjutkan"));
+
+		// Now the empty state transitions to the active keys management view
+		await waitFor(() => {
+			expect(screen.getByText("Create New Key")).toBeDefined();
+			expect(screen.getByText("Belum Ada API Key")).toBeDefined();
+		});
+	});
+
+	it("renders empty keys state when organization exists but no keys are generated", async () => {
+		localStorage.setItem("lensio_current_org", JSON.stringify(TEST_ORG));
+
 		vi.spyOn(globalThis, "fetch").mockResolvedValue({
 			ok: true,
 			json: async () => ({ data: [] }),
@@ -23,14 +66,14 @@ describe("APIKeysPage", () => {
 		renderWithAuth(<APIKeysPage />);
 
 		await waitFor(() => {
-			expect(screen.getByText("No API Keys Generated")).toBeDefined();
-			expect(
-				screen.getByText(/Create an API key to start authenticating/),
-			).toBeDefined();
+			expect(screen.getByText("Belum Ada API Key")).toBeDefined();
+			expect(screen.getByText("Buat API Key Pertama")).toBeDefined();
 		});
 	});
 
 	it("renders list of API keys with badges and details", async () => {
+		localStorage.setItem("lensio_current_org", JSON.stringify(TEST_ORG));
+
 		const mockKeys = [
 			{
 				id: "key-1",
@@ -65,6 +108,8 @@ describe("APIKeysPage", () => {
 	});
 
 	it("handles error when fetching API keys fails", async () => {
+		localStorage.setItem("lensio_current_org", JSON.stringify(TEST_ORG));
+
 		vi.spyOn(globalThis, "fetch").mockResolvedValue({
 			ok: false,
 			status: 500,
@@ -81,6 +126,8 @@ describe("APIKeysPage", () => {
 	});
 
 	it("creates a new API key and reveals the plaintext secret token", async () => {
+		localStorage.setItem("lensio_current_org", JSON.stringify(TEST_ORG));
+
 		const createdKeyResponse = {
 			id: "key-2",
 			org_id: "org-1",
@@ -155,34 +202,33 @@ describe("APIKeysPage", () => {
 			).toBeDefined();
 		});
 
-		// Connect in Dashboard saves to local storage and dismisses modal
-		fireEvent.click(screen.getByText("Connect in Dashboard"));
-		expect(localStorage.getItem("lensio_api_key")).toBe(
-			"lensio_live_secret_plain_1234567890",
-		);
+		// Test Copy button
+		const copyBtn = screen.getByText("Copy");
+		fireEvent.click(copyBtn);
+		expect(screen.getByText("Copied")).toBeDefined();
 
-		await waitFor(() => {
-			expect(screen.queryByText("Save Your API Key")).toBeNull();
-		});
+		// Close reveal modal using "I Have Saved It"
+		fireEvent.click(screen.getByText("I Have Saved It"));
+		expect(screen.queryByText("Save Your API Key")).toBeNull();
 	});
 
-	it("revokes an API key after confirmation", async () => {
-		const mockKeys = [
-			{
-				id: "key-to-delete",
-				org_id: "org-1",
-				name: "Temporary Key",
-				prefix: "lensio_live_temp",
-				masked_key: "lensio_live_temp••••••••",
-				scopes: ["ocr:read"],
-				environment: "live",
-				rate_limit_rpm: 60,
-				monthly_quota: 1000,
-				is_active: true,
-				created_at: "2026-09-10T12:00:00Z",
-				last_used_at: null,
-			},
-		];
+	it("revokes an active API key after confirmation", async () => {
+		localStorage.setItem("lensio_current_org", JSON.stringify(TEST_ORG));
+
+		const activeKey = {
+			id: "key-to-delete",
+			org_id: "org-1",
+			name: "Temporary Key",
+			prefix: "lensio_live_temp",
+			masked_key: "lensio_live_temp••••••••",
+			scopes: ["ocr:read"],
+			environment: "live",
+			rate_limit_rpm: 60,
+			monthly_quota: 1000,
+			is_active: true,
+			created_at: "2026-09-10T12:00:00Z",
+			last_used_at: null,
+		};
 
 		let isRevoked = false;
 
@@ -193,14 +239,18 @@ describe("APIKeysPage", () => {
 				return {
 					ok: true,
 					json: async () => ({
-						message: "API key successfully revoked",
+						message: "Key revoked successfully",
 						id: "key-to-delete",
 					}),
 				} as Response;
 			}
 			return {
 				ok: true,
-				json: async () => ({ data: isRevoked ? [] : mockKeys }),
+				json: async () => ({
+					data: isRevoked
+						? [{ ...activeKey, revoked_at: "2026-09-11T14:00:00Z" }]
+						: [activeKey],
+				}),
 			} as Response;
 		});
 
@@ -210,21 +260,21 @@ describe("APIKeysPage", () => {
 			expect(screen.getByText("Temporary Key")).toBeDefined();
 		});
 
-		// Click Revoke icon button
+		// Click revoke trash icon
 		const revokeButton = screen.getByTitle("Revoke this API Key");
 		fireEvent.click(revokeButton);
 
-		// Confirmation modal
-		expect(screen.getByText("Revoke API Key")).toBeDefined();
+		// Modal should open
 		expect(
-			screen.getByText(/Are you sure you want to revoke this key/),
+			screen.getByText("Are you sure you want to revoke this key?"),
 		).toBeDefined();
 
-		// Confirm Revocation
-		fireEvent.click(screen.getByText("Confirm Revocation"));
+		// Confirm revocation
+		const confirmBtn = screen.getByText("Confirm Revocation");
+		fireEvent.click(confirmBtn);
 
 		await waitFor(() => {
-			expect(screen.getByText("No API Keys Generated")).toBeDefined();
+			expect(screen.getByText("Revoked")).toBeDefined();
 		});
 	});
 });

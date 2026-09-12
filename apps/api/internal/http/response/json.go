@@ -21,6 +21,7 @@ const (
 	CodeRequestInProgress   = "request_in_progress"
 	CodeIdempotencyMismatch = "idempotency_key_mismatch"
 	CodePermissionDenied    = "permission_denied"
+	CodeEmailNotVerified    = "EMAIL_NOT_VERIFIED"
 )
 
 type ctxKeyRequestID struct{}

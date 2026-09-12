@@ -1,9 +1,11 @@
 import {
 	Activity,
 	AlertTriangle,
+	Building2,
 	CheckCircle2,
 	Clock,
 	FileCheck,
+	KeyRound,
 	RefreshCw,
 	Sparkles,
 	Upload,
@@ -13,6 +15,7 @@ import type React from "react";
 import { useCallback, useEffect, useState } from "react";
 import { Badge } from "../components/common/Badge";
 import { Skeleton } from "../components/common/Skeleton";
+import { useAuth } from "../context/AuthContext";
 import { api } from "../services/api";
 import type { KTPResponse, UsageSummary } from "../types/api";
 
@@ -29,7 +32,14 @@ function base64ToUint8Array(base64: string): Uint8Array {
 	return bytes;
 }
 
-export const OverviewPage: React.FC = () => {
+export interface OverviewPageProps {
+	onNavigate?: (
+		page: "overview" | "keys" | "usage" | "requests" | "docs" | "account",
+	) => void;
+}
+
+export const OverviewPage: React.FC<OverviewPageProps> = ({ onNavigate }) => {
+	const { currentOrg, apiKey } = useAuth();
 	const [summary, setSummary] = useState<UsageSummary | null>(null);
 	const [isLoading, setIsLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
@@ -44,7 +54,7 @@ export const OverviewPage: React.FC = () => {
 		try {
 			setIsLoading(true);
 			setError(null);
-			const data = await api.fetchUsageSummary();
+			const data = await api.fetchUsageSummary(currentOrg?.id);
 			setSummary(data);
 		} catch (err) {
 			setError(
@@ -53,7 +63,7 @@ export const OverviewPage: React.FC = () => {
 		} finally {
 			setIsLoading(false);
 		}
-	}, []);
+	}, [currentOrg]);
 
 	useEffect(() => {
 		loadMetrics();
@@ -153,6 +163,78 @@ export const OverviewPage: React.FC = () => {
 					</button>
 				</div>
 			)}
+
+			{/* Onboarding Callout for Organization / First API Key */}
+			{!currentOrg ? (
+				<div className="p-4 bg-gradient-to-r from-[#E7F3FF] to-indigo-50 border border-[#1877F2]/30 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
+					<div className="flex items-center gap-3">
+						<div className="w-9 h-9 rounded-lg bg-[#1877F2] text-white flex items-center justify-center shrink-0 shadow-xs">
+							<Building2 className="w-5 h-5" />
+						</div>
+						<div>
+							<p className="text-xs font-bold text-slate-900">
+								Selamat Datang di Lensio! Buat organisasi Anda terlebih dahulu
+							</p>
+							<p className="text-[11px] text-slate-600">
+								Buat organisasi untuk mengaktifkan kuota 100 request/bulan dan
+								mulai menghasilkan API Key.
+							</p>
+						</div>
+					</div>
+					<button
+						type="button"
+						onClick={() => {
+							if (onNavigate) {
+								onNavigate("keys");
+							} else {
+								const keysTab = document.querySelector(
+									'button[data-page="keys"]',
+								) as HTMLButtonElement | null;
+								if (keysTab) keysTab.click();
+							}
+						}}
+						className="px-3.5 py-1.5 text-xs font-semibold text-white bg-[#1877F2] hover:bg-[#166FE5] rounded-lg transition-colors shrink-0 shadow-xs cursor-pointer"
+					>
+						Buat Organisasi
+					</button>
+				</div>
+			) : !apiKey ? (
+				<div className="p-4 bg-gradient-to-r from-[#E7F3FF] to-indigo-50 border border-[#1877F2]/30 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
+					<div className="flex items-center gap-3">
+						<div className="w-9 h-9 rounded-lg bg-[#1877F2] text-white flex items-center justify-center shrink-0 shadow-xs">
+							<KeyRound className="w-5 h-5" />
+						</div>
+						<div>
+							<p className="text-xs font-bold text-slate-900">
+								Welcome to {currentOrg.name}! Create your first API Key
+							</p>
+							<p className="text-[11px] text-slate-600">
+								Generate an API key to start submitting KTP images to{" "}
+								<code className="font-mono bg-white/80 px-1 py-0.5 rounded text-[10px]">
+									POST /api/v1/ocr/ktp
+								</code>
+								.
+							</p>
+						</div>
+					</div>
+					<button
+						type="button"
+						onClick={() => {
+							if (onNavigate) {
+								onNavigate("keys");
+							} else {
+								const keysTab = document.querySelector(
+									'button[data-page="keys"]',
+								) as HTMLButtonElement | null;
+								if (keysTab) keysTab.click();
+							}
+						}}
+						className="px-3.5 py-1.5 text-xs font-semibold text-white bg-[#1877F2] hover:bg-[#166FE5] rounded-lg transition-colors shrink-0 shadow-xs cursor-pointer"
+					>
+						Create API Key
+					</button>
+				</div>
+			) : null}
 
 			{/* 4 Primary Metric Cards */}
 			<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

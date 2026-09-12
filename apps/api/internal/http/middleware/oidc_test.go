@@ -8,6 +8,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -765,3 +766,83 @@ func BenchmarkValidateToken(b *testing.B) {
 		}
 	}
 }
+
+func TestDevTokenValidator(t *testing.T) {
+	validator := middleware.NewDevTokenValidator()
+	ctx := context.Background()
+
+	t.Run("empty token returns ErrMalformedToken", func(t *testing.T) {
+		_, err := validator.ValidateToken(ctx, "")
+		if !errors.Is(err, middleware.ErrMalformedToken) {
+			t.Fatalf("expected ErrMalformedToken, got %v", err)
+		}
+	})
+
+	t.Run("mock jwt admin token succeeds", func(t *testing.T) {
+		user, err := validator.ValidateToken(ctx, "mock_jwt_admin")
+		if err != nil {
+			t.Fatalf("expected nil error, got %v", err)
+		}
+		if user.PreferredUsername != "admin" {
+			t.Errorf("expected preferred username 'admin', got %s", user.PreferredUsername)
+		}
+		hasAdmin := false
+		for _, r := range user.Roles {
+			if r == "admin" {
+				hasAdmin = true
+			}
+		}
+		if !hasAdmin {
+			t.Errorf("expected admin role in roles %v", user.Roles)
+		}
+	})
+
+	t.Run("mock jwt developer token succeeds", func(t *testing.T) {
+		user, err := validator.ValidateToken(ctx, "mock_jwt_developer@veriform.com")
+		if err != nil {
+			t.Fatalf("expected nil error, got %v", err)
+		}
+		if user.Email != "developer@veriform.com" {
+			t.Errorf("expected email 'developer@veriform.com', got %s", user.Email)
+		}
+	})
+
+	t.Run("valid 3-part base64 jwt succeeds", func(t *testing.T) {
+		headerJSON := `{"alg":"none","typ":"JWT"}`
+		payloadJSON := `{"sub":"user-123","email":"dev@lensio.dev","preferred_username":"dev","roles":["developer"],"exp":` +
+			fmt.Sprintf("%d", time.Now().Add(1*time.Hour).Unix()) + `}`
+
+		token := b64url([]byte(headerJSON)) + "." + b64url([]byte(payloadJSON)) + ".mock_sig"
+		user, err := validator.ValidateToken(ctx, token)
+		if err != nil {
+			t.Fatalf("expected valid token parsing, got %v", err)
+		}
+		if user.Email != "dev@lensio.dev" {
+			t.Errorf("expected email 'dev@lensio.dev', got %s", user.Email)
+		}
+		if user.Subject != "user-123" {
+			t.Errorf("expected subject 'user-123', got %s", user.Subject)
+		}
+	})
+
+	t.Run("expired 3-part jwt returns ErrTokenExpired", func(t *testing.T) {
+		headerJSON := `{"alg":"none","typ":"JWT"}`
+		payloadJSON := `{"sub":"user-123","email":"dev@lensio.dev","exp":` +
+			fmt.Sprintf("%d", time.Now().Add(-1*time.Hour).Unix()) + `}`
+
+		token := b64url([]byte(headerJSON)) + "." + b64url([]byte(payloadJSON)) + ".mock_sig"
+		_, err := validator.ValidateToken(ctx, token)
+		if !errors.Is(err, middleware.ErrTokenExpired) {
+			t.Fatalf("expected ErrTokenExpired, got %v", err)
+		}
+	})
+
+	t.Run("invalid base64 payload returns error", func(t *testing.T) {
+		token := "header.!!!invalid_base64!!!.sig"
+		_, err := validator.ValidateToken(ctx, token)
+		if err == nil {
+			t.Fatal("expected error on invalid base64, got nil")
+		}
+	})
+}
+

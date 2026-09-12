@@ -38,7 +38,8 @@ func TestAPIKeyStore_LiveDB(t *testing.T) {
 		t.Fatalf("failed to run migrations: %v", err)
 	}
 
-	defaultOrgID := "00000000-0000-0000-0000-000000000001"
+	testOrg := createTestOrg(t, db)
+	testOrgID := testOrg.ID
 
 	// 1. Generate & Insert Key
 	gen, err := apikey.Generate(apikey.EnvLive)
@@ -48,7 +49,7 @@ func TestAPIKeyStore_LiveDB(t *testing.T) {
 
 	exp := time.Now().Add(24 * time.Hour).UTC().Truncate(time.Second)
 	k := &store.APIKey{
-		OrgID:       defaultOrgID,
+		OrgID:       testOrgID,
 		Name:        "Test Key",
 		KeyHash:     gen.KeyHash,
 		Prefix:      gen.Prefix,
@@ -90,7 +91,7 @@ func TestAPIKeyStore_LiveDB(t *testing.T) {
 	}
 
 	// 4. List by Org
-	list, err := db.ListAPIKeysByOrg(ctx, defaultOrgID)
+	list, err := db.ListAPIKeysByOrg(ctx, testOrgID)
 	if err != nil {
 		t.Fatalf("failed listing keys: %v", err)
 	}
@@ -99,12 +100,12 @@ func TestAPIKeyStore_LiveDB(t *testing.T) {
 	}
 
 	// 5. Revoke Key
-	if err := db.RevokeAPIKey(ctx, defaultOrgID, k.ID); err != nil {
+	if err := db.RevokeAPIKey(ctx, testOrgID, k.ID); err != nil {
 		t.Fatalf("failed revoking key: %v", err)
 	}
 
 	// 6. Revoke non-existent key returns ErrNotFound
-	err = db.RevokeAPIKey(ctx, defaultOrgID, "00000000-0000-0000-0000-999999999999")
+	err = db.RevokeAPIKey(ctx, testOrgID, "00000000-0000-0000-0000-999999999999")
 	if !errors.Is(err, store.ErrNotFound) {
 		t.Errorf("expected ErrNotFound for non-existent key, got %v", err)
 	}

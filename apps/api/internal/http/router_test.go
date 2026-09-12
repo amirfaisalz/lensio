@@ -341,6 +341,34 @@ func (d *dummyAccountStore) GetOrganizationMembers(ctx context.Context, orgID st
 	}, nil
 }
 
+func (d *dummyAccountStore) CreateUser(ctx context.Context, fullName, email, passwordHash, verificationToken string) (*store.User, error) {
+	return nil, nil
+}
+
+func (d *dummyAccountStore) GetUserByEmail(ctx context.Context, email string) (*store.UserWithAuth, error) {
+	return nil, store.ErrNotFound
+}
+
+func (d *dummyAccountStore) GetUserByID(ctx context.Context, userID string) (*store.User, error) {
+	return nil, store.ErrNotFound
+}
+
+func (d *dummyAccountStore) VerifyUserEmail(ctx context.Context, email, token string) error {
+	return nil
+}
+
+func (d *dummyAccountStore) CreateOrganization(ctx context.Context, name, slug, planCode string) (*store.Organization, error) {
+	return nil, nil
+}
+
+func (d *dummyAccountStore) AssignUserToOrg(ctx context.Context, userID, orgID, role string) error {
+	return nil
+}
+
+func (d *dummyAccountStore) GetUserOrganization(ctx context.Context, userID string) (*store.Organization, error) {
+	return nil, store.ErrNotFound
+}
+
 type dummyAuditStore struct {
 	mu   sync.Mutex
 	logs []*store.AuditLog

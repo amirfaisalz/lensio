@@ -31,9 +31,6 @@ type RateLimitMiddleware struct {
 
 // NewRateLimitMiddleware initializes rate limiting middleware with cached plan limits.
 func NewRateLimitMiddleware(limiter ratelimit.RateLimiter, accountStore store.AccountStore, defaultOrgID string) *RateLimitMiddleware {
-	if defaultOrgID == "" {
-		defaultOrgID = "00000000-0000-0000-0000-000000000001"
-	}
 	return &RateLimitMiddleware{
 		limiter:      limiter,
 		accountStore: accountStore,
@@ -45,7 +42,17 @@ func NewRateLimitMiddleware(limiter ratelimit.RateLimiter, accountStore store.Ac
 // Handler returns an http.Handler middleware enforcing rate limits and emitting standard RFC headers.
 func (m *RateLimitMiddleware) Handler(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/health" || r.URL.Path == "/ready" || strings.HasPrefix(r.URL.Path, "/docs") || strings.HasPrefix(r.URL.Path, "/openapi") || r.URL.Path == "/metrics" {
+		if r.URL.Path == "/health" || r.URL.Path == "/ready" || r.URL.Path == "/metrics" ||
+			strings.HasPrefix(r.URL.Path, "/docs") || strings.HasPrefix(r.URL.Path, "/openapi") ||
+			strings.HasPrefix(r.URL.Path, "/api/v1/auth/login") ||
+			strings.HasPrefix(r.URL.Path, "/api/v1/auth/register") ||
+			strings.HasPrefix(r.URL.Path, "/api/v1/auth/verify-email") {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		// Bypass rate limiting for dashboard sessions authenticated via OIDC / JWT
+		if GetOIDCUser(r.Context()) != nil {
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -53,6 +60,12 @@ func (m *RateLimitMiddleware) Handler(next http.Handler) http.Handler {
 		orgID := m.defaultOrgID
 		if key := GetAPIKey(r.Context()); key != nil && key.OrgID != "" {
 			orgID = key.OrgID
+		}
+
+		// If no organization is resolved, bypass rate limiting (e.g. unauthenticated or non-tenant calls)
+		if orgID == "" {
+			next.ServeHTTP(w, r)
+			return
 		}
 
 		limit, planCode := m.getOrgRateLimit(r.Context(), orgID)
@@ -81,6 +94,10 @@ func (m *RateLimitMiddleware) Handler(next http.Handler) http.Handler {
 
 // getOrgRateLimit looks up organization rate limit with a 1-minute in-memory cache to guarantee O(1) hot paths.
 func (m *RateLimitMiddleware) getOrgRateLimit(ctx context.Context, orgID string) (int, string) {
+	if orgID == "" || orgID == "00000000-0000-0000-0000-000000000001" {
+		return 10, "free"
+	}
+
 	now := time.Now()
 
 	m.mu.RLock()

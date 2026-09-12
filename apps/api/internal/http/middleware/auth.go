@@ -110,6 +110,9 @@ func Authenticate(keyStore store.APIKeyStore) func(http.Handler) http.Handler {
 			touchKeyAsync(r.Context(), keyStore, key.ID)
 
 			ctx := WithAPIKey(r.Context(), key)
+			if car, ok := w.(interface{ SetRequestContext(context.Context) }); ok {
+				car.SetRequestContext(ctx)
+			}
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}

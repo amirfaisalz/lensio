@@ -5,7 +5,13 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
+)
+
+var (
+	// ErrDuplicateEmail is returned when attempting to register an already existing email address.
+	ErrDuplicateEmail = errors.New("email already registered")
 )
 
 // Plan represents an API subscription tier with defined quota and rate limits.
@@ -33,12 +39,20 @@ type Organization struct {
 
 // User represents a tenant organization member or user account.
 type User struct {
-	ID        string    `json:"id"`
-	OrgID     string    `json:"org_id"`
-	Email     string    `json:"email"`
-	FullName  string    `json:"full_name"`
-	Role      string    `json:"role"`
-	CreatedAt time.Time `json:"created_at"`
+	ID            string    `json:"id"`
+	OrgID         string    `json:"org_id,omitempty"`
+	Email         string    `json:"email"`
+	FullName      string    `json:"full_name"`
+	Role          string    `json:"role"`
+	EmailVerified bool      `json:"email_verified"`
+	CreatedAt     time.Time `json:"created_at"`
+}
+
+// UserWithAuth represents user authentication details including credentials.
+type UserWithAuth struct {
+	User
+	PasswordHash      string `json:"-"`
+	VerificationToken string `json:"-"`
 }
 
 // AccountStore defines repository operations for organizations and subscription plans.
@@ -47,6 +61,13 @@ type AccountStore interface {
 	GetOrganizationPlan(ctx context.Context, orgID string) (*Plan, error)
 	UpdateOrganizationPlan(ctx context.Context, orgID string, planCode string) error
 	GetOrganizationMembers(ctx context.Context, orgID string) ([]User, error)
+	CreateUser(ctx context.Context, fullName, email, passwordHash, verificationToken string) (*User, error)
+	GetUserByEmail(ctx context.Context, email string) (*UserWithAuth, error)
+	GetUserByID(ctx context.Context, userID string) (*User, error)
+	VerifyUserEmail(ctx context.Context, email, token string) error
+	CreateOrganization(ctx context.Context, name, slug, planCode string) (*Organization, error)
+	AssignUserToOrg(ctx context.Context, userID, orgID, role string) error
+	GetUserOrganization(ctx context.Context, userID string) (*Organization, error)
 }
 
 // GetOrganization retrieves tenant account metadata, plan details, and active key count.
@@ -61,7 +82,7 @@ func (db *DB) GetOrganization(ctx context.Context, orgID string) (*Organization,
 			o.name, 
 			o.slug, 
 			COALESCE(p.code, 'free'), 
-			COALESCE(p.name, 'Free Tier'),
+			COALESCE(p.name, 'Free Tier'), 
 			COALESCE(p.monthly_quota, 100), 
 			COALESCE(p.rate_limit_per_minute, 10),
 			(
@@ -123,7 +144,6 @@ func (db *DB) GetOrganizationPlan(ctx context.Context, orgID string) (*Plan, err
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			// Fallback: If organization has no plan attached, query the default 'free' plan
 			fallbackQuery := `
 				SELECT id, code, name, monthly_quota, rate_limit_per_minute, created_at
 				FROM plans
@@ -155,7 +175,6 @@ func (db *DB) UpdateOrganizationPlan(ctx context.Context, orgID string, planCode
 		return errors.New("orgID and planCode are required")
 	}
 
-	// Verify planCode exists
 	var planID string
 	err := db.QueryRowContext(ctx, "SELECT id FROM plans WHERE code = $1", planCode).Scan(&planID)
 	if err != nil {
@@ -194,7 +213,7 @@ func (db *DB) GetOrganizationMembers(ctx context.Context, orgID string) ([]User,
 	}
 
 	query := `
-		SELECT id, org_id, email, full_name, role, created_at
+		SELECT id, COALESCE(org_id::text, ''), email, full_name, role, COALESCE(email_verified, false), created_at
 		FROM users
 		WHERE org_id = $1
 		ORDER BY created_at ASC;
@@ -209,7 +228,7 @@ func (db *DB) GetOrganizationMembers(ctx context.Context, orgID string) ([]User,
 	var members []User
 	for rows.Next() {
 		var u User
-		if err := rows.Scan(&u.ID, &u.OrgID, &u.Email, &u.FullName, &u.Role, &u.CreatedAt); err != nil {
+		if err := rows.Scan(&u.ID, &u.OrgID, &u.Email, &u.FullName, &u.Role, &u.EmailVerified, &u.CreatedAt); err != nil {
 			return nil, fmt.Errorf("scanning user row: %w", err)
 		}
 		members = append(members, u)
@@ -224,3 +243,267 @@ func (db *DB) GetOrganizationMembers(ctx context.Context, orgID string) ([]User,
 	return members, nil
 }
 
+// CreateUser registers a new user identity in the database with pending email verification.
+func (db *DB) CreateUser(ctx context.Context, fullName, email, passwordHash, verificationToken string) (*User, error) {
+	fullName = strings.TrimSpace(fullName)
+	email = strings.ToLower(strings.TrimSpace(email))
+
+	if fullName == "" || email == "" || passwordHash == "" {
+		return nil, errors.New("fullName, email, and passwordHash are required")
+	}
+
+	// Check if user already exists
+	var existingID string
+	err := db.QueryRowContext(ctx, "SELECT id FROM users WHERE LOWER(email) = LOWER($1)", email).Scan(&existingID)
+	if err == nil {
+		return nil, ErrDuplicateEmail
+	} else if !errors.Is(err, sql.ErrNoRows) {
+		return nil, fmt.Errorf("checking existing user: %w", err)
+	}
+
+	query := `
+		INSERT INTO users (full_name, email, password_hash, verification_token, email_verified, role)
+		VALUES ($1, $2, $3, $4, FALSE, 'member')
+		RETURNING id, COALESCE(org_id::text, ''), email, full_name, role, email_verified, created_at;
+	`
+
+	var u User
+	err = db.QueryRowContext(ctx, query, fullName, email, passwordHash, verificationToken).Scan(
+		&u.ID,
+		&u.OrgID,
+		&u.Email,
+		&u.FullName,
+		&u.Role,
+		&u.EmailVerified,
+		&u.CreatedAt,
+	)
+	if err != nil {
+		if strings.Contains(strings.ToLower(err.Error()), "unique") || strings.Contains(strings.ToLower(err.Error()), "duplicate") {
+			return nil, ErrDuplicateEmail
+		}
+		return nil, fmt.Errorf("inserting user: %w", err)
+	}
+
+	return &u, nil
+}
+
+// GetUserByEmail queries user credentials and verification state by email address.
+func (db *DB) GetUserByEmail(ctx context.Context, email string) (*UserWithAuth, error) {
+	email = strings.ToLower(strings.TrimSpace(email))
+	if email == "" {
+		return nil, errors.New("email is required")
+	}
+
+	query := `
+		SELECT 
+			id, 
+			COALESCE(org_id::text, ''), 
+			email, 
+			full_name, 
+			role, 
+			COALESCE(email_verified, false), 
+			COALESCE(password_hash, ''), 
+			COALESCE(verification_token, ''), 
+			created_at
+		FROM users
+		WHERE LOWER(email) = LOWER($1);
+	`
+
+	var u UserWithAuth
+	err := db.QueryRowContext(ctx, query, email).Scan(
+		&u.ID,
+		&u.OrgID,
+		&u.Email,
+		&u.FullName,
+		&u.Role,
+		&u.EmailVerified,
+		&u.PasswordHash,
+		&u.VerificationToken,
+		&u.CreatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrNotFound
+		}
+		return nil, fmt.Errorf("querying user by email: %w", err)
+	}
+
+	return &u, nil
+}
+
+// GetUserByID queries a user by primary key ID.
+func (db *DB) GetUserByID(ctx context.Context, userID string) (*User, error) {
+	if userID == "" {
+		return nil, errors.New("userID is required")
+	}
+
+	query := `
+		SELECT id, COALESCE(org_id::text, ''), email, full_name, role, COALESCE(email_verified, false), created_at
+		FROM users
+		WHERE id = $1;
+	`
+
+	var u User
+	err := db.QueryRowContext(ctx, query, userID).Scan(
+		&u.ID,
+		&u.OrgID,
+		&u.Email,
+		&u.FullName,
+		&u.Role,
+		&u.EmailVerified,
+		&u.CreatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrNotFound
+		}
+		return nil, fmt.Errorf("querying user by id: %w", err)
+	}
+
+	return &u, nil
+}
+
+// VerifyUserEmail updates the email_verified flag for a user if the token matches.
+func (db *DB) VerifyUserEmail(ctx context.Context, email, token string) error {
+	email = strings.ToLower(strings.TrimSpace(email))
+	if email == "" {
+		return errors.New("email is required")
+	}
+
+	var query string
+	var args []any
+
+	if token != "" {
+		query = `
+			UPDATE users
+			SET email_verified = TRUE, verification_token = NULL
+			WHERE LOWER(email) = LOWER($1) AND verification_token = $2;
+		`
+		args = []any{email, token}
+	} else {
+		// When token is empty (e.g. admin or dev verification flow), verify user by email
+		query = `
+			UPDATE users
+			SET email_verified = TRUE, verification_token = NULL
+			WHERE LOWER(email) = LOWER($1);
+		`
+		args = []any{email}
+	}
+
+	res, err := db.ExecContext(ctx, query, args...)
+	if err != nil {
+		return fmt.Errorf("updating user verification: %w", err)
+	}
+
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("checking rows affected on user verification: %w", err)
+	}
+	if rows == 0 {
+		return ErrNotFound
+	}
+
+	return nil
+}
+
+// CreateOrganization provisions a new organization row in the database.
+func (db *DB) CreateOrganization(ctx context.Context, name, slug, planCode string) (*Organization, error) {
+	name = strings.TrimSpace(name)
+	slug = strings.ToLower(strings.TrimSpace(slug))
+	if planCode == "" {
+		planCode = "free"
+	}
+
+	if name == "" || slug == "" {
+		return nil, errors.New("name and slug are required")
+	}
+
+	// Verify plan exists
+	var planID string
+	var monthlyQuota, rateLimit int
+	var planName string
+	err := db.QueryRowContext(ctx, "SELECT id, name, monthly_quota, rate_limit_per_minute FROM plans WHERE code = $1", planCode).Scan(
+		&planID, &planName, &monthlyQuota, &rateLimit,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, fmt.Errorf("plan code %q not found: %w", planCode, ErrNotFound)
+		}
+		return nil, fmt.Errorf("looking up plan: %w", err)
+	}
+
+	query := `
+		INSERT INTO organizations (name, slug, plan_id)
+		VALUES ($1, $2, $3)
+		RETURNING id, created_at;
+	`
+
+	var org Organization
+	org.Name = name
+	org.Slug = slug
+	org.PlanCode = planCode
+	org.PlanName = planName
+	org.MonthlyQuota = monthlyQuota
+	org.RateLimitPerMinute = rateLimit
+
+	err = db.QueryRowContext(ctx, query, name, slug, planID).Scan(&org.ID, &org.CreatedAt)
+	if err != nil {
+		return nil, fmt.Errorf("inserting organization: %w", err)
+	}
+
+	return &org, nil
+}
+
+// AssignUserToOrg updates a user's associated organization and role.
+func (db *DB) AssignUserToOrg(ctx context.Context, userID, orgID, role string) error {
+	if userID == "" || orgID == "" {
+		return errors.New("userID and orgID are required")
+	}
+	if role == "" {
+		role = "owner"
+	}
+
+	query := `
+		UPDATE users
+		SET org_id = $1, role = $2
+		WHERE id = $3;
+	`
+
+	res, err := db.ExecContext(ctx, query, orgID, role, userID)
+	if err != nil {
+		return fmt.Errorf("assigning user to organization: %w", err)
+	}
+
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("checking rows affected on user assignment: %w", err)
+	}
+	if rows == 0 {
+		return ErrNotFound
+	}
+
+	return nil
+}
+
+// GetUserOrganization retrieves the organization belonging to the specified user.
+func (db *DB) GetUserOrganization(ctx context.Context, userID string) (*Organization, error) {
+	if userID == "" {
+		return nil, errors.New("userID is required")
+	}
+
+	var orgID sql.NullString
+	query := `SELECT org_id FROM users WHERE id = $1;`
+	err := db.QueryRowContext(ctx, query, userID).Scan(&orgID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrNotFound
+		}
+		return nil, fmt.Errorf("querying user org_id: %w", err)
+	}
+
+	if !orgID.Valid || orgID.String == "" {
+		return nil, ErrNotFound
+	}
+
+	return db.GetOrganization(ctx, orgID.String)
+}

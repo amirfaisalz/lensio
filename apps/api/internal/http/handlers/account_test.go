@@ -51,6 +51,34 @@ func (m *mockAccountStoreForHandlers) GetOrganizationMembers(ctx context.Context
 	return m.members, nil
 }
 
+func (m *mockAccountStoreForHandlers) CreateUser(ctx context.Context, fullName, email, passwordHash, verificationToken string) (*store.User, error) {
+	return nil, nil
+}
+
+func (m *mockAccountStoreForHandlers) GetUserByEmail(ctx context.Context, email string) (*store.UserWithAuth, error) {
+	return nil, store.ErrNotFound
+}
+
+func (m *mockAccountStoreForHandlers) GetUserByID(ctx context.Context, userID string) (*store.User, error) {
+	return nil, store.ErrNotFound
+}
+
+func (m *mockAccountStoreForHandlers) VerifyUserEmail(ctx context.Context, email, token string) error {
+	return nil
+}
+
+func (m *mockAccountStoreForHandlers) CreateOrganization(ctx context.Context, name, slug, planCode string) (*store.Organization, error) {
+	return nil, nil
+}
+
+func (m *mockAccountStoreForHandlers) AssignUserToOrg(ctx context.Context, userID, orgID, role string) error {
+	return nil
+}
+
+func (m *mockAccountStoreForHandlers) GetUserOrganization(ctx context.Context, userID string) (*store.Organization, error) {
+	return nil, store.ErrNotFound
+}
+
 type mockAuditStoreForHandlers struct {
 	recorded []*store.AuditLog
 }

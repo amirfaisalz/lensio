@@ -134,3 +134,66 @@ export interface ApiErrorResponse {
 		request_id?: string;
 	};
 }
+
+export interface RegisterRequest {
+	full_name: string;
+	email: string;
+	password: string;
+}
+
+export interface RegisterResponse {
+	status: string;
+	email: string;
+	verification_token?: string;
+	message: string;
+}
+
+export interface VerifyEmailRequest {
+	email: string;
+	token?: string;
+}
+
+export interface VerifyEmailResponse {
+	status: string;
+	message: string;
+}
+
+export interface LoginRequest {
+	email: string;
+	password: string;
+}
+
+export interface LoginResponse {
+	access_token: string;
+	token_type: string;
+	expires_in: number;
+	user: {
+		id: string;
+		email: string;
+		full_name: string;
+		role: string;
+	};
+	organization?: {
+		id: string;
+		name: string;
+		slug: string;
+		plan_code: string;
+	} | null;
+}
+
+export interface CreateOrganizationRequest {
+	name: string;
+	plan_code?: string;
+}
+
+export interface CreateOrganizationResponse {
+	organization: {
+		id: string;
+		name: string;
+		slug: string;
+		plan_code: string;
+		plan_name?: string;
+		monthly_quota?: number;
+		rate_limit_per_minute?: number;
+	};
+}

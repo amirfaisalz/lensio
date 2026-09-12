@@ -1,7 +1,13 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import type React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { AuthProvider } from "../context/AuthContext";
 import { api } from "../services/api";
 import { OverviewPage } from "./OverviewPage";
+
+const renderWithAuth = (ui: React.ReactElement) => {
+	return render(<AuthProvider>{ui}</AuthProvider>);
+};
 
 describe("OverviewPage", () => {
 	beforeEach(() => {
@@ -29,7 +35,7 @@ describe("OverviewPage", () => {
 			return { ok: true, json: async () => ({}) } as Response;
 		});
 
-		render(<OverviewPage />);
+		renderWithAuth(<OverviewPage />);
 
 		await waitFor(() => {
 			expect(screen.getAllByText("1,250").length).toBe(2);
@@ -49,7 +55,7 @@ describe("OverviewPage", () => {
 			}),
 		} as Response);
 
-		render(<OverviewPage />);
+		renderWithAuth(<OverviewPage />);
 
 		await waitFor(() => {
 			expect(
@@ -106,7 +112,7 @@ describe("OverviewPage", () => {
 
 		vi.spyOn(api, "executeKTPOCR").mockResolvedValue(mockOcrResult);
 
-		render(<OverviewPage />);
+		renderWithAuth(<OverviewPage />);
 
 		await waitFor(() => {
 			expect(screen.getByText("System Overview")).toBeDefined();
@@ -150,7 +156,7 @@ describe("OverviewPage", () => {
 			new Error("Image blur score too low for OCR extraction"),
 		);
 
-		render(<OverviewPage />);
+		renderWithAuth(<OverviewPage />);
 
 		await waitFor(() => {
 			expect(screen.getByText("System Overview")).toBeDefined();

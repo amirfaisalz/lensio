@@ -31,6 +31,34 @@ func (m *mockAccountStoreForRateLimit) GetOrganizationMembers(ctx context.Contex
 	return nil, nil
 }
 
+func (m *mockAccountStoreForRateLimit) CreateUser(ctx context.Context, fullName, email, passwordHash, verificationToken string) (*store.User, error) {
+	return nil, nil
+}
+
+func (m *mockAccountStoreForRateLimit) GetUserByEmail(ctx context.Context, email string) (*store.UserWithAuth, error) {
+	return nil, store.ErrNotFound
+}
+
+func (m *mockAccountStoreForRateLimit) GetUserByID(ctx context.Context, userID string) (*store.User, error) {
+	return nil, store.ErrNotFound
+}
+
+func (m *mockAccountStoreForRateLimit) VerifyUserEmail(ctx context.Context, email, token string) error {
+	return nil
+}
+
+func (m *mockAccountStoreForRateLimit) CreateOrganization(ctx context.Context, name, slug, planCode string) (*store.Organization, error) {
+	return nil, nil
+}
+
+func (m *mockAccountStoreForRateLimit) AssignUserToOrg(ctx context.Context, userID, orgID, role string) error {
+	return nil
+}
+
+func (m *mockAccountStoreForRateLimit) GetUserOrganization(ctx context.Context, userID string) (*store.Organization, error) {
+	return nil, store.ErrNotFound
+}
+
 func TestRateLimitMiddleware(t *testing.T) {
 	limiter := ratelimit.NewLimiter()
 	accountStore := &mockAccountStoreForRateLimit{

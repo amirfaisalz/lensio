@@ -85,6 +85,34 @@ func (m *mockAccountStoreForUsage) GetOrganizationMembers(ctx context.Context, o
 	return nil, nil
 }
 
+func (m *mockAccountStoreForUsage) CreateUser(ctx context.Context, fullName, email, passwordHash, verificationToken string) (*store.User, error) {
+	return nil, nil
+}
+
+func (m *mockAccountStoreForUsage) GetUserByEmail(ctx context.Context, email string) (*store.UserWithAuth, error) {
+	return nil, store.ErrNotFound
+}
+
+func (m *mockAccountStoreForUsage) GetUserByID(ctx context.Context, userID string) (*store.User, error) {
+	return nil, store.ErrNotFound
+}
+
+func (m *mockAccountStoreForUsage) VerifyUserEmail(ctx context.Context, email, token string) error {
+	return nil
+}
+
+func (m *mockAccountStoreForUsage) CreateOrganization(ctx context.Context, name, slug, planCode string) (*store.Organization, error) {
+	return nil, nil
+}
+
+func (m *mockAccountStoreForUsage) AssignUserToOrg(ctx context.Context, userID, orgID, role string) error {
+	return nil
+}
+
+func (m *mockAccountStoreForUsage) GetUserOrganization(ctx context.Context, userID string) (*store.Organization, error) {
+	return nil, store.ErrNotFound
+}
+
 func TestUsageSummaryHandler(t *testing.T) {
 	t.Run("nil usage store returns empty summary", func(t *testing.T) {
 		handler := handlers.UsageSummaryHandler(nil, nil, "org-1")
@@ -136,7 +164,7 @@ func TestUsageSummaryHandler(t *testing.T) {
 
 func TestDailyUsageHandler(t *testing.T) {
 	t.Run("nil store returns empty array", func(t *testing.T) {
-		handler := handlers.DailyUsageHandler(nil, "org-1")
+		handler := handlers.DailyUsageHandler(nil, nil, "org-1")
 		req := httptest.NewRequest(http.MethodGet, "/api/v1/usage/daily", nil)
 		rec := httptest.NewRecorder()
 
@@ -152,7 +180,7 @@ func TestDailyUsageHandler(t *testing.T) {
 				{Date: "2026-09-01", TotalRequests: 10, SuccessCount: 10, ErrorCount: 0},
 			},
 		}
-		handler := handlers.DailyUsageHandler(uStore, "org-1")
+		handler := handlers.DailyUsageHandler(uStore, nil, "org-1")
 		req := httptest.NewRequest(http.MethodGet, "/api/v1/usage/daily", nil)
 		rec := httptest.NewRecorder()
 
@@ -164,7 +192,7 @@ func TestDailyUsageHandler(t *testing.T) {
 
 	t.Run("store error returns 500", func(t *testing.T) {
 		uStore := &mockUsageStore{err: errors.New("query failed")}
-		handler := handlers.DailyUsageHandler(uStore, "org-1")
+		handler := handlers.DailyUsageHandler(uStore, nil, "org-1")
 		req := httptest.NewRequest(http.MethodGet, "/api/v1/usage/daily", nil)
 		rec := httptest.NewRecorder()
 
@@ -177,7 +205,7 @@ func TestDailyUsageHandler(t *testing.T) {
 
 func TestEndpointUsageHandler(t *testing.T) {
 	t.Run("nil store returns empty array", func(t *testing.T) {
-		handler := handlers.EndpointUsageHandler(nil, "org-1")
+		handler := handlers.EndpointUsageHandler(nil, nil, "org-1")
 		req := httptest.NewRequest(http.MethodGet, "/api/v1/usage/endpoints", nil)
 		rec := httptest.NewRecorder()
 
@@ -193,7 +221,7 @@ func TestEndpointUsageHandler(t *testing.T) {
 				{Endpoint: "/api/v1/ocr/ktp", TotalRequests: 25, AvgLatencyMS: 120.5},
 			},
 		}
-		handler := handlers.EndpointUsageHandler(uStore, "org-1")
+		handler := handlers.EndpointUsageHandler(uStore, nil, "org-1")
 		req := httptest.NewRequest(http.MethodGet, "/api/v1/usage/endpoints", nil)
 		rec := httptest.NewRecorder()
 
@@ -205,7 +233,7 @@ func TestEndpointUsageHandler(t *testing.T) {
 
 	t.Run("store error returns 500", func(t *testing.T) {
 		uStore := &mockUsageStore{err: errors.New("query failed")}
-		handler := handlers.EndpointUsageHandler(uStore, "org-1")
+		handler := handlers.EndpointUsageHandler(uStore, nil, "org-1")
 		req := httptest.NewRequest(http.MethodGet, "/api/v1/usage/endpoints", nil)
 		rec := httptest.NewRecorder()
 
@@ -218,7 +246,7 @@ func TestEndpointUsageHandler(t *testing.T) {
 
 func TestUsageRecordsHandler(t *testing.T) {
 	t.Run("nil usage store returns empty response", func(t *testing.T) {
-		handler := handlers.UsageRecordsHandler(nil, "org-1")
+		handler := handlers.UsageRecordsHandler(nil, nil, "org-1")
 		req := httptest.NewRequest(http.MethodGet, "/api/v1/usage/records?limit=10&offset=0", nil)
 		rec := httptest.NewRecorder()
 
@@ -242,7 +270,7 @@ func TestUsageRecordsHandler(t *testing.T) {
 			},
 			total: 1,
 		}
-		handler := handlers.UsageRecordsHandler(uStore, "org-1")
+		handler := handlers.UsageRecordsHandler(uStore, nil, "org-1")
 		req := httptest.NewRequest(http.MethodGet, "/api/v1/usage/records?limit=25&offset=0&status_code=200&endpoint=/api/v1/ocr/ktp", nil)
 		rec := httptest.NewRecorder()
 
@@ -254,7 +282,7 @@ func TestUsageRecordsHandler(t *testing.T) {
 
 	t.Run("store error returns 500", func(t *testing.T) {
 		uStore := &mockUsageStore{err: errors.New("database failure")}
-		handler := handlers.UsageRecordsHandler(uStore, "org-1")
+		handler := handlers.UsageRecordsHandler(uStore, nil, "org-1")
 		req := httptest.NewRequest(http.MethodGet, "/api/v1/usage/records", nil)
 		rec := httptest.NewRecorder()
 

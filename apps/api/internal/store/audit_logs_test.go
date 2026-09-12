@@ -49,10 +49,11 @@ func TestAuditStore_LiveDB(t *testing.T) {
 		t.Fatalf("failed running migrations: %v", err)
 	}
 
-	defaultOrgID := "00000000-0000-0000-0000-000000000001"
+	testOrg := createTestOrg(t, db)
+	testOrgID := testOrg.ID
 
 	log := &store.AuditLog{
-		OrgID:          defaultOrgID,
+		OrgID:          testOrgID,
 		ActorID:        "test-actor",
 		Action:         "api_key.create",
 		TargetResource: "api_key:test-key-123",
@@ -70,7 +71,7 @@ func TestAuditStore_LiveDB(t *testing.T) {
 	}
 
 	// Retrieve logs
-	logs, err := db.ListAuditLogsByOrg(ctx, defaultOrgID)
+	logs, err := db.ListAuditLogsByOrg(ctx, testOrgID)
 	if err != nil {
 		t.Fatalf("failed listing audit logs: %v", err)
 	}

@@ -26,7 +26,8 @@ func TestStore_ErrorBranchesAndEdgeCases(t *testing.T) {
 	}
 	defer db.Close()
 
-	defaultOrgID := "00000000-0000-0000-0000-000000000001"
+	testOrg := createTestOrg(t, db)
+	defaultOrgID := testOrg.ID
 	missingOrgID := "00000000-0000-0000-0000-999999999999"
 
 	canceledCtx, cancelCtx := context.WithCancel(context.Background())
@@ -241,6 +242,7 @@ func TestStore_ErrorBranchesAndEdgeCases(t *testing.T) {
 			keyID = &keys[0].ID
 		}
 
+		_, _ = db.ExecContext(ctx, "DELETE FROM ocr_requests WHERE id = 'test-ocr-req-default-doctype'")
 		req := &store.OCRRequest{
 			ID:         "test-ocr-req-default-doctype",
 			OrgID:      defaultOrgID,

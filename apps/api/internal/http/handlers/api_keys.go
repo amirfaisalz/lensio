@@ -305,11 +305,24 @@ func resolveActorSubject(r *http.Request) (authz.Subject, bool) {
 }
 
 func resolveOrgID(r *http.Request, explicit string, fallback string) string {
+	return resolveOrgIDWithAccount(r, explicit, nil, fallback)
+}
+
+func resolveOrgIDWithAccount(r *http.Request, explicit string, accountStore store.AccountStore, fallback string) string {
+	if explicit = strings.TrimSpace(explicit); explicit != "" {
+		return explicit
+	}
 	if authKey := middleware.GetAPIKey(r.Context()); authKey != nil && authKey.OrgID != "" {
 		return authKey.OrgID
 	}
-	if explicit = strings.TrimSpace(explicit); explicit != "" {
-		return explicit
+	if oidcUser := middleware.GetOIDCUser(r.Context()); oidcUser != nil && accountStore != nil {
+		org, err := accountStore.GetUserOrganization(r.Context(), oidcUser.Subject)
+		if err == nil && org != nil && org.ID != "" {
+			return org.ID
+		}
+		if errors.Is(err, store.ErrNotFound) {
+			return ""
+		}
 	}
 	if fallback != "" {
 		return fallback

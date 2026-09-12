@@ -1,303 +1,207 @@
-import { Check, KeyRound, LogOut, UserCheck, Users } from "lucide-react";
+import { Building2, ChevronDown, LogOut, Plus } from "lucide-react";
 import type React from "react";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { Modal } from "../common/Modal";
 
 interface HeaderProps {
 	title: string;
 	subtitle?: string;
-	onQuickTestClick?: () => void;
 }
 
-export const Header: React.FC<HeaderProps> = ({
-	title,
-	subtitle,
-	onQuickTestClick,
-}) => {
-	const {
-		apiKey,
-		authMode,
-		oidcUser,
-		isConnected,
-		setApiKey,
-		loginOIDC,
-		logout,
-	} = useAuth();
-	const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-	const [modalTab, setModalTab] = useState<"apikey" | "oidc">("apikey");
-	const [inputKey, setInputKey] = useState("");
-	const [inputOidcToken, setInputOidcToken] = useState("");
+export const Header: React.FC<HeaderProps> = ({ title, subtitle }) => {
+	const navigate = useNavigate();
+	const { currentOrg, oidcUser, apiKey, createOrganization, logout } =
+		useAuth();
 
-	const handleSaveKey = (e: React.FormEvent) => {
+	const [isOrgModalOpen, setIsOrgModalOpen] = useState(false);
+	const [newOrgName, setNewOrgName] = useState("");
+	const [newOrgPlan, setNewOrgPlan] = useState("free");
+	const [isCreatingOrg, setIsCreatingOrg] = useState(false);
+
+	const handleCreateOrg = (e: React.FormEvent) => {
 		e.preventDefault();
-		if (inputKey.trim()) {
-			setApiKey(inputKey.trim());
-			setInputKey("");
-			setIsAuthModalOpen(false);
-		}
+		if (!newOrgName.trim()) return;
+
+		setIsCreatingOrg(true);
+		createOrganization(newOrgName.trim(), newOrgPlan);
+		setNewOrgName("");
+		setIsCreatingOrg(false);
+		setIsOrgModalOpen(false);
 	};
 
-	const handleSaveOidcToken = (e: React.FormEvent) => {
-		e.preventDefault();
-		if (inputOidcToken.trim()) {
-			loginOIDC({
-				sub: "manual-oidc-user",
-				email: "operator@lensio.dev",
-				preferredUsername: "operator",
-				roles: ["admin"],
-				token: inputOidcToken.trim(),
-			});
-			setInputOidcToken("");
-			setIsAuthModalOpen(false);
-		}
+	const handleLogout = () => {
+		logout();
+		navigate("/login");
 	};
 
-	const handleSeedOIDCLogin = (
-		email: string,
-		preferredUsername: string,
-		role: string,
-	) => {
-		loginOIDC({
-			sub: `sub-${preferredUsername}`,
-			email,
-			preferredUsername,
-			roles: [role],
-			token: `mock_jwt_${preferredUsername}_${Date.now()}`,
-		});
-		setIsAuthModalOpen(false);
-	};
+	// Determine display name / email
+	const userIdentifier =
+		oidcUser?.email || (apiKey ? "API Key Connected" : "Pengguna");
+	const userInitial = userIdentifier.charAt(0).toUpperCase();
 
 	return (
-		<header className="h-16 bg-white border-b border-slate-200 px-8 flex items-center justify-between sticky top-0 z-30">
+		<header className="h-16 bg-white border-b border-slate-200 px-6 sm:px-8 flex items-center justify-between sticky top-0 z-30">
+			{/* Left: Page Title */}
 			<div>
-				<h1 className="text-lg font-bold text-slate-900 tracking-tight">
+				<h1 className="text-base sm:text-lg font-bold text-slate-900 tracking-tight">
 					{title}
 				</h1>
-				{subtitle && <p className="text-xs text-slate-500">{subtitle}</p>}
+				{subtitle && (
+					<p className="text-[11px] text-slate-500 hidden sm:block">
+						{subtitle}
+					</p>
+				)}
 			</div>
 
+			{/* Right: Clean & Minimalist Action Elements */}
 			<div className="flex items-center gap-3">
-				{onQuickTestClick && (
+				{/* Organization Selector / Creation Button */}
+				{currentOrg ? (
 					<button
 						type="button"
-						onClick={onQuickTestClick}
-						className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-[#E7F3FF] text-[#1877F2] hover:bg-[#dbeeff] transition-colors"
+						onClick={() => setIsOrgModalOpen(true)}
+						className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 transition-colors cursor-pointer"
 					>
-						<span>Live KTP Test</span>
-					</button>
-				)}
-
-				{authMode === "oidc" && oidcUser ? (
-					<button
-						type="button"
-						onClick={() => {
-							setModalTab("oidc");
-							setIsAuthModalOpen(true);
-						}}
-						className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-semibold rounded-lg border border-purple-200 bg-purple-50 text-purple-700 hover:bg-purple-100 transition-colors"
-					>
-						<UserCheck className="w-3.5 h-3.5 text-purple-600" />
-						<span>{oidcUser.email} (OIDC)</span>
+						<Building2 className="w-3.5 h-3.5 text-slate-500" />
+						<span className="font-semibold text-slate-900 max-w-[140px] truncate">
+							{currentOrg.name}
+						</span>
+						<span className="text-[10px] px-1.5 py-0.2 rounded bg-[#E7F3FF] text-[#1877F2] font-semibold uppercase">
+							{currentOrg.planCode}
+						</span>
+						<ChevronDown className="w-3 h-3 text-slate-400 ml-0.5" />
 					</button>
 				) : (
 					<button
 						type="button"
-						onClick={() => {
-							setModalTab("apikey");
-							setIsAuthModalOpen(true);
-						}}
-						className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-semibold rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition-colors"
+						onClick={() => setIsOrgModalOpen(true)}
+						className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-[#E7F3FF] text-[#1877F2] hover:bg-[#d4e9ff] transition-colors cursor-pointer"
 					>
-						<KeyRound className="w-3.5 h-3.5 text-[#1877F2]" />
-						<span>{apiKey ? "Change API Key" : "Connect Key"}</span>
+						<Plus className="w-3.5 h-3.5" />
+						<span>Buat Organisasi</span>
 					</button>
 				)}
 
-				{isConnected && (
+				{/* User Profile & Logout */}
+				<div className="flex items-center gap-2 pl-2 border-l border-slate-200">
+					<div className="flex items-center gap-2 px-2.5 py-1 rounded-lg bg-slate-50 border border-slate-200 text-slate-700">
+						<div className="w-6 h-6 rounded-full bg-[#1877F2] text-white flex items-center justify-center text-[11px] font-bold">
+							{userInitial}
+						</div>
+						<span className="text-xs font-medium max-w-[150px] truncate hidden md:inline">
+							{userIdentifier}
+						</span>
+					</div>
+
 					<button
 						type="button"
-						onClick={logout}
-						title="Disconnect session"
-						className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg transition-colors hover:bg-slate-100"
+						onClick={handleLogout}
+						title="Keluar dari akun"
+						aria-label="Keluar dari akun"
+						className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg transition-colors hover:bg-slate-100 cursor-pointer"
 					>
 						<LogOut className="w-4 h-4" />
 					</button>
-				)}
+				</div>
 			</div>
 
-			{/* Authentication Modal (Dual Auth: Machine API Key vs Keycloak OIDC) */}
+			{/* Create / Manage Organization Modal */}
 			<Modal
-				isOpen={isAuthModalOpen}
-				onClose={() => setIsAuthModalOpen(false)}
-				title="Lensio Authentication & Identity"
+				isOpen={isOrgModalOpen}
+				onClose={() => setIsOrgModalOpen(false)}
+				title={currentOrg ? "Kelola Organisasi" : "Buat Organisasi Baru"}
 			>
 				<div className="space-y-4">
-					{/* Modal Tab Selector */}
-					<div className="flex border-b border-slate-200 gap-4 text-xs font-medium">
-						<button
-							type="button"
-							onClick={() => setModalTab("apikey")}
-							className={`pb-2 border-b-2 transition-colors ${
-								modalTab === "apikey"
-									? "border-[#1877F2] text-[#1877F2] font-semibold"
-									: "border-transparent text-slate-500 hover:text-slate-700"
-							}`}
-						>
-							API Key (Machine Identity)
-						</button>
-						<button
-							type="button"
-							onClick={() => setModalTab("oidc")}
-							className={`pb-2 border-b-2 transition-colors ${
-								modalTab === "oidc"
-									? "border-purple-600 text-purple-600 font-semibold"
-									: "border-transparent text-slate-500 hover:text-slate-700"
-							}`}
-						>
-							Keycloak OIDC (Human Operator)
-						</button>
-					</div>
+					<p className="text-xs text-slate-600">
+						Setiap organisasi memiliki kuota, API key, dan tim yang terisolasi.
+					</p>
 
-					{modalTab === "apikey" ? (
-						<form onSubmit={handleSaveKey} className="space-y-4">
-							<p className="text-xs text-slate-600">
-								Paste your active Lensio API key (
-								<code className="font-mono text-[11px] bg-slate-100 px-1 py-0.5 rounded">
-									lensio_live_...
-								</code>{" "}
-								or{" "}
-								<code className="font-mono text-[11px] bg-slate-100 px-1 py-0.5 rounded">
-									lensio_test_...
-								</code>
-								). It will be used for machine-level authenticated API calls.
-							</p>
+					{currentOrg && (
+						<div className="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between">
 							<div>
-								<label
-									htmlFor="api-key-input"
-									className="block text-xs font-medium text-slate-700 mb-1"
-								>
-									API Key Token
-								</label>
-								<input
-									id="api-key-input"
-									type="password"
-									placeholder="lensio_live_..."
-									value={inputKey}
-									onChange={(e) => setInputKey(e.target.value)}
-									className="w-full px-3 py-2 text-sm font-mono border border-slate-300 rounded-lg focus:outline-hidden focus:border-[#1877F2] focus:ring-2 focus:ring-[#1877F2]/20"
-								/>
-							</div>
-							{apiKey && (
-								<div className="p-3 bg-slate-50 rounded-lg border border-slate-200 text-xs text-slate-600 flex items-center justify-between">
-									<div>
-										<p className="font-medium text-slate-800">
-											Currently Connected Key
-										</p>
-										<p className="font-mono text-[11px] text-slate-500">
-											{apiKey.slice(0, 16)}••••••••
-										</p>
-									</div>
-									<span className="inline-flex items-center gap-1 text-emerald-600 font-semibold text-[11px]">
-										<Check className="w-3.5 h-3.5" /> Active
-									</span>
-								</div>
-							)}
-							<div className="flex justify-end gap-2 pt-2">
-								<button
-									type="button"
-									onClick={() => setIsAuthModalOpen(false)}
-									className="px-4 py-2 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50"
-								>
-									Cancel
-								</button>
-								<button
-									type="submit"
-									className="px-4 py-2 text-xs font-semibold text-white bg-[#1877F2] hover:bg-[#166FE5] rounded-lg transition-colors"
-								>
-									Save & Authenticate
-								</button>
-							</div>
-						</form>
-					) : (
-						<div className="space-y-4">
-							<p className="text-xs text-slate-600">
-								Authenticate as a human operator via Keycloak OpenID Connect
-								(OIDC). Short-lived JWT bearer tokens grant role-scoped access
-								to the dashboard.
-							</p>
-
-							{/* Quick seed user logins */}
-							<div className="p-3 bg-slate-50 rounded-lg border border-slate-200 space-y-2">
-								<p className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
-									<Users className="w-3.5 h-3.5 text-purple-600" />
-									Keycloak Seed Users:
+								<p className="text-xs font-bold text-slate-900">
+									{currentOrg.name}
 								</p>
-								<div className="flex flex-col sm:flex-row gap-2">
-									<button
-										type="button"
-										onClick={() =>
-											handleSeedOIDCLogin("admin@lensio.dev", "admin", "admin")
-										}
-										className="flex-1 px-3 py-2 text-xs font-semibold text-purple-700 bg-purple-100 hover:bg-purple-200 rounded-lg text-left transition-colors"
-									>
-										<div>admin@lensio.dev</div>
-										<div className="text-[10px] text-purple-600 font-normal">
-											Role: admin
-										</div>
-									</button>
-									<button
-										type="button"
-										onClick={() =>
-											handleSeedOIDCLogin(
-												"developer@veriform.com",
-												"dev",
-												"developer",
-											)
-										}
-										className="flex-1 px-3 py-2 text-xs font-semibold text-indigo-700 bg-indigo-100 hover:bg-indigo-200 rounded-lg text-left transition-colors"
-									>
-										<div>developer@veriform.com</div>
-										<div className="text-[10px] text-indigo-600 font-normal">
-											Role: developer
-										</div>
-									</button>
-								</div>
+								<p className="text-[11px] text-slate-500">
+									Paket Saat Ini:{" "}
+									<span className="font-semibold text-[#1877F2] uppercase">
+										{currentOrg.planCode}
+									</span>
+								</p>
 							</div>
-
-							<form onSubmit={handleSaveOidcToken} className="space-y-3">
-								<label
-									htmlFor="oidc-token-input"
-									className="block text-xs font-medium text-slate-700"
-								>
-									Or paste Keycloak JWT bearer token:
-								</label>
-								<input
-									id="oidc-token-input"
-									type="password"
-									placeholder="eyJhbGciOiJSUzI1NiIs..."
-									value={inputOidcToken}
-									onChange={(e) => setInputOidcToken(e.target.value)}
-									className="w-full px-3 py-2 text-xs font-mono border border-slate-300 rounded-lg focus:outline-hidden focus:border-purple-600 focus:ring-2 focus:ring-purple-600/20"
-								/>
-								<div className="flex justify-end gap-2 pt-2">
-									<button
-										type="button"
-										onClick={() => setIsAuthModalOpen(false)}
-										className="px-4 py-2 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50"
-									>
-										Cancel
-									</button>
-									<button
-										type="submit"
-										className="px-4 py-2 text-xs font-semibold text-white bg-purple-600 hover:bg-purple-700 rounded-lg transition-colors"
-									>
-										Authenticate OIDC
-									</button>
-								</div>
-							</form>
+							<span className="text-[10px] font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+								Aktif
+							</span>
 						</div>
 					)}
+
+					<form onSubmit={handleCreateOrg} className="space-y-3 pt-2">
+						<div>
+							<label
+								htmlFor="header-new-org-name"
+								className="block text-xs font-semibold text-slate-700 mb-1"
+							>
+								Nama Organisasi / Perusahaan
+							</label>
+							<div className="relative">
+								<Building2 className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+								<input
+									id="header-new-org-name"
+									type="text"
+									placeholder="misal: PT Fintech Nusantara"
+									value={newOrgName}
+									onChange={(e) => setNewOrgName(e.target.value)}
+									className="w-full pl-9 pr-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-hidden focus:border-[#1877F2] focus:ring-2 focus:ring-[#1877F2]/20"
+								/>
+							</div>
+						</div>
+
+						<div>
+							<label
+								htmlFor="header-org-plan"
+								className="block text-xs font-semibold text-slate-700 mb-1"
+							>
+								Paket Berlangganan
+							</label>
+							<select
+								id="header-org-plan"
+								value={newOrgPlan}
+								onChange={(e) => setNewOrgPlan(e.target.value)}
+								className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg bg-white focus:outline-hidden focus:border-[#1877F2] focus:ring-2 focus:ring-[#1877F2]/20"
+							>
+								<option value="free">
+									Free Tier (100 req/bulan, 10 req/min) - Gratis
+								</option>
+								<option value="starter">
+									Starter Tier (1,000 req/bulan, 30 req/min)
+								</option>
+								<option value="pro">
+									Pro Tier (10,000 req/bulan, 100 req/min)
+								</option>
+							</select>
+						</div>
+
+						<div className="flex justify-end gap-2 pt-2">
+							<button
+								type="button"
+								onClick={() => setIsOrgModalOpen(false)}
+								className="px-3 py-2 text-xs font-medium text-slate-600 hover:text-slate-800 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors cursor-pointer"
+							>
+								Batal
+							</button>
+							<button
+								type="submit"
+								disabled={!newOrgName.trim() || isCreatingOrg}
+								className="px-4 py-2 text-xs font-semibold text-white bg-[#1877F2] hover:bg-[#166FE5] disabled:opacity-50 rounded-lg transition-colors cursor-pointer"
+							>
+								{currentOrg
+									? "Buat Organisasi Baru"
+									: "Buat Organisasi & Lanjutkan"}
+							</button>
+						</div>
+					</form>
 				</div>
 			</Modal>
 		</header>

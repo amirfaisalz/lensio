@@ -3,18 +3,31 @@ import type {
 	ApiErrorResponse,
 	CreateKeyRequest,
 	CreateKeyResponse,
+	CreateOrganizationRequest,
+	CreateOrganizationResponse,
 	DailyUsage,
 	EndpointUsage,
 	KTPResponse,
+	LoginRequest,
+	LoginResponse,
 	OrganizationDetails,
 	PlanDetails,
+	RegisterRequest,
+	RegisterResponse,
 	UsageRecordsResponse,
 	UsageSummary,
 	UserMember,
+	VerifyEmailRequest,
+	VerifyEmailResponse,
 } from "../types/api";
 
 const API_BASE = import.meta.env.VITE_API_URL || "";
 const STORAGE_KEY_API_KEY = "lensio_api_key";
+
+export interface ApiClientError extends Error {
+	code?: string;
+	status?: number;
+}
 
 class ApiClient {
 	private activeApiKey: string | null = null;
@@ -55,15 +68,22 @@ class ApiClient {
 	private async handleResponse<T>(res: Response): Promise<T> {
 		if (!res.ok) {
 			let errorMessage = `Request failed with status ${res.status}`;
+			let errorCode = "";
 			try {
 				const errorData = (await res.json()) as ApiErrorResponse;
 				if (errorData?.error?.message) {
 					errorMessage = errorData.error.message;
 				}
+				if (errorData?.error?.code) {
+					errorCode = errorData.error.code;
+				}
 			} catch {
 				// use fallback status error
 			}
-			throw new Error(errorMessage);
+			const err = new Error(errorMessage) as ApiClientError;
+			err.code = errorCode;
+			err.status = res.status;
+			throw err;
 		}
 		return res.json() as Promise<T>;
 	}
@@ -76,16 +96,22 @@ class ApiClient {
 		return this.handleResponse<{ status: string; timestamp: string }>(res);
 	}
 
-	public async fetchUsageSummary(): Promise<UsageSummary> {
-		const res = await fetch(`${API_BASE}/api/v1/usage`, {
+	public async fetchUsageSummary(orgId?: string): Promise<UsageSummary> {
+		const url = orgId
+			? `${API_BASE}/api/v1/usage?org_id=${encodeURIComponent(orgId)}`
+			: `${API_BASE}/api/v1/usage`;
+		const res = await fetch(url, {
 			method: "GET",
 			headers: this.getHeaders(),
 		});
 		return this.handleResponse<UsageSummary>(res);
 	}
 
-	public async fetchDailyUsage(): Promise<DailyUsage[]> {
-		const res = await fetch(`${API_BASE}/api/v1/usage/daily`, {
+	public async fetchDailyUsage(orgId?: string): Promise<DailyUsage[]> {
+		const url = orgId
+			? `${API_BASE}/api/v1/usage/daily?org_id=${encodeURIComponent(orgId)}`
+			: `${API_BASE}/api/v1/usage/daily`;
+		const res = await fetch(url, {
 			method: "GET",
 			headers: this.getHeaders(),
 		});
@@ -93,8 +119,11 @@ class ApiClient {
 		return result.data || [];
 	}
 
-	public async fetchEndpointUsage(): Promise<EndpointUsage[]> {
-		const res = await fetch(`${API_BASE}/api/v1/usage/endpoints`, {
+	public async fetchEndpointUsage(orgId?: string): Promise<EndpointUsage[]> {
+		const url = orgId
+			? `${API_BASE}/api/v1/usage/endpoints?org_id=${encodeURIComponent(orgId)}`
+			: `${API_BASE}/api/v1/usage/endpoints`;
+		const res = await fetch(url, {
 			method: "GET",
 			headers: this.getHeaders(),
 		});
@@ -103,12 +132,14 @@ class ApiClient {
 	}
 
 	public async fetchUsageRecords(params?: {
+		org_id?: string;
 		limit?: number;
 		offset?: number;
 		status_code?: number;
 		endpoint?: string;
 	}): Promise<UsageRecordsResponse> {
 		const query = new URLSearchParams();
+		if (params?.org_id) query.set("org_id", params.org_id);
 		if (params?.limit) query.set("limit", params.limit.toString());
 		if (params?.offset !== undefined)
 			query.set("offset", params.offset.toString());
@@ -199,6 +230,46 @@ class ApiClient {
 			body: formData,
 		});
 		return this.handleResponse<KTPResponse>(res);
+	}
+
+	public async register(req: RegisterRequest): Promise<RegisterResponse> {
+		const res = await fetch(`${API_BASE}/api/v1/auth/register`, {
+			method: "POST",
+			headers: this.getHeaders(),
+			body: JSON.stringify(req),
+		});
+		return this.handleResponse<RegisterResponse>(res);
+	}
+
+	public async verifyEmail(
+		req: VerifyEmailRequest,
+	): Promise<VerifyEmailResponse> {
+		const res = await fetch(`${API_BASE}/api/v1/auth/verify-email`, {
+			method: "POST",
+			headers: this.getHeaders(),
+			body: JSON.stringify(req),
+		});
+		return this.handleResponse<VerifyEmailResponse>(res);
+	}
+
+	public async login(req: LoginRequest): Promise<LoginResponse> {
+		const res = await fetch(`${API_BASE}/api/v1/auth/login`, {
+			method: "POST",
+			headers: this.getHeaders(),
+			body: JSON.stringify(req),
+		});
+		return this.handleResponse<LoginResponse>(res);
+	}
+
+	public async createOrganization(
+		req: CreateOrganizationRequest,
+	): Promise<CreateOrganizationResponse> {
+		const res = await fetch(`${API_BASE}/api/v1/account/organizations`, {
+			method: "POST",
+			headers: this.getHeaders(),
+			body: JSON.stringify(req),
+		});
+		return this.handleResponse<CreateOrganizationResponse>(res);
 	}
 }
 

@@ -60,13 +60,28 @@ func NewRouterWithDeps(deps RouterDeps) http.Handler {
 	mux.HandleFunc("GET /openapi.yaml", handlers.OpenAPIHandler())
 	mux.HandleFunc("GET /docs", handlers.DocsHandler("/openapi.yaml"))
 
+	// Public Authentication Endpoints (Registration, Verification, Login)
+	if deps.AccountStore != nil {
+		mux.HandleFunc("POST /api/v1/auth/register", handlers.RegisterHandler(deps.AccountStore))
+		mux.HandleFunc("POST /api/v1/auth/verify-email", handlers.VerifyEmailHandler(deps.AccountStore))
+		mux.HandleFunc("POST /api/v1/auth/login", handlers.LoginHandler(deps.AccountStore))
+	}
+
 	// API v1 Routes (PRD Section 6)
 	if deps.KeyStore != nil {
-		var authMiddleware func(http.Handler) http.Handler
+		var baseAuthMiddleware func(http.Handler) http.Handler
 		if deps.OIDCValidator != nil {
-			authMiddleware = middleware.DualAuth(deps.KeyStore, deps.OIDCValidator)
+			baseAuthMiddleware = middleware.DualAuth(deps.KeyStore, deps.OIDCValidator)
 		} else {
-			authMiddleware = middleware.Authenticate(deps.KeyStore)
+			baseAuthMiddleware = middleware.Authenticate(deps.KeyStore)
+		}
+
+		authMiddleware := baseAuthMiddleware
+		if deps.RateLimiter != nil {
+			rlMw := middleware.NewRateLimitMiddleware(deps.RateLimiter, deps.AccountStore, "")
+			authMiddleware = func(next http.Handler) http.Handler {
+				return baseAuthMiddleware(rlMw.Handler(next))
+			}
 		}
 
 		// API Key Lifecycle (PRD Section 7 & 8; Phase 11.5 ReBAC)
@@ -130,9 +145,9 @@ func NewRouterWithDeps(deps RouterDeps) http.Handler {
 
 		// Usage Analytics (PRD Section 11)
 		mux.Handle("GET /api/v1/usage", authMiddleware(scopeUsageMiddleware(handlers.UsageSummaryHandler(deps.UsageStore, deps.AccountStore, handlers.DefaultOrgID))))
-		mux.Handle("GET /api/v1/usage/daily", authMiddleware(scopeUsageMiddleware(handlers.DailyUsageHandler(deps.UsageStore, handlers.DefaultOrgID))))
-		mux.Handle("GET /api/v1/usage/endpoints", authMiddleware(scopeUsageMiddleware(handlers.EndpointUsageHandler(deps.UsageStore, handlers.DefaultOrgID))))
-		mux.Handle("GET /api/v1/usage/records", authMiddleware(scopeUsageMiddleware(handlers.UsageRecordsHandler(deps.UsageStore, handlers.DefaultOrgID))))
+		mux.Handle("GET /api/v1/usage/daily", authMiddleware(scopeUsageMiddleware(handlers.DailyUsageHandler(deps.UsageStore, deps.AccountStore, handlers.DefaultOrgID))))
+		mux.Handle("GET /api/v1/usage/endpoints", authMiddleware(scopeUsageMiddleware(handlers.EndpointUsageHandler(deps.UsageStore, deps.AccountStore, handlers.DefaultOrgID))))
+		mux.Handle("GET /api/v1/usage/records", authMiddleware(scopeUsageMiddleware(handlers.UsageRecordsHandler(deps.UsageStore, deps.AccountStore, handlers.DefaultOrgID))))
 
 		// Account & Plan Management (PRD Section 5 & 30)
 		if deps.AccountStore != nil {
@@ -140,16 +155,11 @@ func NewRouterWithDeps(deps RouterDeps) http.Handler {
 			mux.Handle("GET /api/v1/account/plan", authMiddleware(handlers.AccountPlanHandler(deps.AccountStore, handlers.DefaultOrgID)))
 			mux.Handle("PUT /api/v1/account/plan", authMiddleware(handlers.UpdatePlanHandler(deps.AccountStore, deps.AuditStore, handlers.DefaultOrgID)))
 			mux.Handle("GET /api/v1/account/members", authMiddleware(handlers.AccountMembersHandler(deps.AccountStore, handlers.DefaultOrgID)))
+			mux.Handle("POST /api/v1/account/organizations", authMiddleware(handlers.CreateOrganizationHandler(deps.AccountStore)))
 		}
 	}
 
 	var rootHandler http.Handler = mux
-
-	// Rate Limiter Middleware (PRD Section 9)
-	if deps.RateLimiter != nil {
-		rlMw := middleware.NewRateLimitMiddleware(deps.RateLimiter, deps.AccountStore, handlers.DefaultOrgID)
-		rootHandler = rlMw.Handler(rootHandler)
-	}
 
 	// Usage Metering & Metrics Middleware (PRD Section 11 & 16)
 	rootHandler = middleware.UsageMetering(deps.UsageRecorder, handlers.DefaultOrgID)(rootHandler)

@@ -1,9 +1,1 @@
-INSERT INTO users (id, org_id, email, full_name, role)
-VALUES (
-    '00000000-0000-0000-0000-000000000001',
-    '00000000-0000-0000-0000-000000000001',
-    'dev@lensio.dev',
-    'Lensio Lead Developer',
-    'owner'
-)
-ON CONFLICT (email) DO NOTHING;
+-- Default user seeding removed. Users register dynamically via auth endpoint.

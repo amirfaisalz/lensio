@@ -1,21 +1,28 @@
 import {
 	AlertTriangle,
+	Building2,
 	CheckCircle2,
 	ChevronLeft,
 	ChevronRight,
 	Eye,
+	Plus,
 	RefreshCw,
 	ShieldCheck,
 	XCircle,
 } from "lucide-react";
 import type React from "react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useContext, useEffect, useState } from "react";
 import { Modal } from "../components/common/Modal";
 import { TableSkeleton } from "../components/common/Skeleton";
+import { AuthContext } from "../context/AuthContext";
 import { api } from "../services/api";
 import type { UsageRecord } from "../types/api";
 
 export const RequestsPage: React.FC = () => {
+	const auth = useContext(AuthContext);
+	const currentOrg = auth?.currentOrg;
+	const createOrganization = auth?.createOrganization;
+
 	const [records, setRecords] = useState<UsageRecord[]>([]);
 	const [total, setTotal] = useState(0);
 	const [limit] = useState(25);
@@ -32,7 +39,21 @@ export const RequestsPage: React.FC = () => {
 		null,
 	);
 
+	// Org Creation Modal State
+	const [isOrgModalOpen, setIsOrgModalOpen] = useState(false);
+	const [newOrgName, setNewOrgName] = useState("");
+	const [newOrgPlan, setNewOrgPlan] = useState("free");
+	const [isCreatingOrg, setIsCreatingOrg] = useState(false);
+
 	const loadRecords = useCallback(async () => {
+		if (auth !== undefined && !currentOrg) {
+			setIsLoading(false);
+			setRecords([]);
+			setTotal(0);
+			setError(null);
+			return;
+		}
+
 		try {
 			setIsLoading(true);
 			setError(null);
@@ -51,11 +72,130 @@ export const RequestsPage: React.FC = () => {
 		} finally {
 			setIsLoading(false);
 		}
-	}, [limit, offset, statusCodeFilter, endpointFilter]);
+	}, [auth, currentOrg, limit, offset, statusCodeFilter, endpointFilter]);
 
 	useEffect(() => {
 		loadRecords();
 	}, [loadRecords]);
+
+	const handleCreateOrg = async (e: React.FormEvent) => {
+		e.preventDefault();
+		if (!newOrgName.trim() || !createOrganization) return;
+
+		try {
+			setIsCreatingOrg(true);
+			await createOrganization(newOrgName.trim(), newOrgPlan);
+			setNewOrgName("");
+			setIsOrgModalOpen(false);
+		} catch (err) {
+			alert(err instanceof Error ? err.message : "Gagal membuat organisasi");
+		} finally {
+			setIsCreatingOrg(false);
+		}
+	};
+
+	if (auth !== undefined && !currentOrg) {
+		return (
+			<div className="space-y-6 animate-in fade-in duration-200">
+				<div>
+					<h2 className="text-xl font-bold text-slate-900 tracking-tight">
+						Live Request Logs
+					</h2>
+					<p className="text-xs text-slate-500">
+						Audit trail and real-time inspection for every OCR processing
+						request.
+					</p>
+				</div>
+
+				<div className="bg-white rounded-2xl border border-slate-200 p-8 sm:p-14 text-center max-w-xl mx-auto shadow-xs my-8">
+					<div className="w-16 h-16 rounded-2xl bg-[#E7F3FF] text-[#1877F2] flex items-center justify-center mx-auto mb-4 shadow-xs">
+						<Building2 className="w-8 h-8" />
+					</div>
+					<h3 className="text-lg font-bold text-slate-900 tracking-tight">
+						Organisasi Diperlukan
+					</h3>
+					<p className="text-xs text-slate-600 mt-2 leading-relaxed max-w-md mx-auto">
+						Anda belum memiliki organisasi. Buat atau pilih organisasi terlebih
+						dahulu untuk melihat riwayat log permintaan OCR.
+					</p>
+					<button
+						type="button"
+						onClick={() => setIsOrgModalOpen(true)}
+						className="mt-6 inline-flex items-center gap-2 px-4 py-2.5 text-xs font-semibold text-white bg-[#1877F2] hover:bg-[#166FE5] rounded-xl shadow-xs transition-colors cursor-pointer"
+					>
+						<Plus className="w-4 h-4" />
+						<span>Buat Organisasi Sekarang</span>
+					</button>
+				</div>
+
+				{/* Create Org Modal */}
+				<Modal
+					isOpen={isOrgModalOpen}
+					onClose={() => setIsOrgModalOpen(false)}
+					title="Buat Organisasi Baru"
+				>
+					<form onSubmit={handleCreateOrg} className="space-y-4">
+						<p className="text-xs text-slate-600">
+							Tentukan nama organisasi untuk mengaktifkan kuota API dan log
+							permintaan.
+						</p>
+						<div>
+							<label
+								htmlFor="new-org-name"
+								className="block text-xs font-medium text-slate-700 mb-1"
+							>
+								Nama Organisasi
+							</label>
+							<input
+								id="new-org-name"
+								type="text"
+								required
+								value={newOrgName}
+								onChange={(e) => setNewOrgName(e.target.value)}
+								placeholder="contoh: PT Teknologi Maju"
+								className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-[#1877F2]/20 focus:border-[#1877F2]"
+							/>
+						</div>
+						<div>
+							<label
+								htmlFor="new-org-plan"
+								className="block text-xs font-medium text-slate-700 mb-1"
+							>
+								Paket Berlangganan
+							</label>
+							<select
+								id="new-org-plan"
+								value={newOrgPlan}
+								onChange={(e) => setNewOrgPlan(e.target.value)}
+								className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-[#1877F2]/20 focus:border-[#1877F2]"
+							>
+								<option value="free">Free (100 req/bln)</option>
+								<option value="starter">Starter (1.000 req/bln)</option>
+								<option value="pro">Pro (10.000 req/bln)</option>
+								<option value="enterprise">Enterprise (Unlimited)</option>
+							</select>
+						</div>
+						<div className="flex justify-end gap-2 pt-2">
+							<button
+								type="button"
+								onClick={() => setIsOrgModalOpen(false)}
+								className="px-3 py-2 text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors cursor-pointer"
+							>
+								Batal
+							</button>
+							<button
+								type="submit"
+								disabled={isCreatingOrg || !newOrgName.trim()}
+								className="px-4 py-2 text-xs font-medium text-white bg-[#1877F2] hover:bg-[#166FE5] disabled:opacity-50 rounded-lg transition-colors cursor-pointer"
+							>
+								{isCreatingOrg ? "Menyimpan..." : "Simpan Organisasi"}
+							</button>
+						</div>
+					</form>
+				</Modal>
+			</div>
+		);
+	}
 
 	const getStatusBadge = (code: number) => {
 		if (code >= 200 && code < 300) {

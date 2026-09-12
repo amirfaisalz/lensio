@@ -2,9 +2,10 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
 
-describe("App & Dashboard Navigation", () => {
+describe("App & Dashboard Navigation with Routes", () => {
 	beforeEach(() => {
 		localStorage.clear();
+		window.history.pushState({}, "", "/");
 		vi.restoreAllMocks();
 
 		vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
@@ -15,6 +16,33 @@ describe("App & Dashboard Navigation", () => {
 					json: async () => ({
 						status: "ok",
 						timestamp: "2026-09-11T00:00:00Z",
+					}),
+				} as Response;
+			}
+			if (
+				url.includes("/realms/lensio/protocol/openid-connect/token") ||
+				url.includes("/api/v1/auth/login")
+			) {
+				return {
+					ok: true,
+					status: 200,
+					json: async () => ({
+						access_token:
+							"eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJzdWIiOiJzdWItZGV2IiwiZW1haWwiOiJkZXZAbGVuc2lvLmRldiIsInByZWZlcnJlZF91c2VybmFtZSI6ImRldiIsIm5hbWUiOiJMZW5zaW8gRGV2ZWxvcGVyIiwicm9sZXMiOlsiZGV2ZWxvcGVyIl19.dev_sig",
+						token_type: "Bearer",
+						expires_in: 604800,
+						user: {
+							id: "00000000-0000-0000-0000-000000000001",
+							email: "dev@lensio.dev",
+							full_name: "Lensio Lead Developer",
+							role: "owner",
+						},
+						organization: {
+							id: "00000000-0000-0000-0000-000000000001",
+							name: "Default Organization",
+							slug: "default",
+							plan_code: "free",
+						},
 					}),
 				} as Response;
 			}
@@ -81,30 +109,60 @@ describe("App & Dashboard Navigation", () => {
 		});
 	});
 
-	it("renders sidebar, header, and navigates across all 6 pages", async () => {
+	it("forcefully redirects /dashboard back to /login when unauthenticated", async () => {
+		// Attempt to access protected /dashboard directly while unauthenticated
+		window.history.pushState({}, "", "/dashboard");
 		render(<App />);
 
-		// Initial Overview page
-		expect(screen.getByText("Lensio")).toBeDefined();
+		// Must redirect to /login and display the login form
 		await waitFor(() => {
+			expect(screen.getByText("Masuk (Sign In)")).toBeDefined();
+			expect(window.location.pathname).toBe("/login");
+		});
+
+		// 1-click login shortcut must be absent
+		expect(screen.queryByText("1-Click Developer Sign-In")).toBeNull();
+	});
+
+	it("executes normal login flow and redirects to /dashboard, then navigates across pages", async () => {
+		window.history.pushState({}, "", "/login");
+		render(<App />);
+
+		// Fill in normal credentials
+		fireEvent.change(screen.getByLabelText("Email Kerja / Username"), {
+			target: { value: "dev@lensio.dev" },
+		});
+		fireEvent.change(screen.getByLabelText("Kata Sandi"), {
+			target: { value: "dev123" },
+		});
+
+		// Submit normal sign in form
+		fireEvent.click(screen.getByText("Masuk ke Dashboard"));
+
+		// Must successfully navigate to /dashboard
+		await waitFor(() => {
+			expect(window.location.pathname).toBe("/dashboard");
 			expect(screen.getByText("System Overview")).toBeDefined();
 		});
 
 		// Navigate to API Keys
 		fireEvent.click(screen.getByText("API Keys"));
 		await waitFor(() => {
+			expect(window.location.pathname).toBe("/dashboard/keys");
 			expect(screen.getByText("API Key Management")).toBeDefined();
 		});
 
 		// Navigate to Usage & Analytics
 		fireEvent.click(screen.getByText("Usage & Analytics"));
 		await waitFor(() => {
+			expect(window.location.pathname).toBe("/dashboard/usage");
 			expect(screen.getByText("Daily Request Volume")).toBeDefined();
 		});
 
 		// Navigate to Requests Explorer
 		fireEvent.click(screen.getByText("Requests Explorer"));
 		await waitFor(() => {
+			expect(window.location.pathname).toBe("/dashboard/requests");
 			expect(
 				screen.getByText("Requests Explorer", { selector: "h2" }),
 			).toBeDefined();
@@ -113,13 +171,25 @@ describe("App & Dashboard Navigation", () => {
 		// Navigate to API Documentation
 		fireEvent.click(screen.getByText("API Documentation"));
 		await waitFor(() => {
+			expect(window.location.pathname).toBe("/dashboard/docs");
 			expect(screen.getByText("Quickstart Integration Snippet")).toBeDefined();
 		});
 
 		// Navigate to Account & Settings
 		fireEvent.click(screen.getByText("Account & Settings"));
 		await waitFor(() => {
+			expect(window.location.pathname).toBe("/dashboard/account");
 			expect(screen.getByText("Organization Profile")).toBeDefined();
+		});
+
+		// Test Logout from simplified header
+		const logoutBtn = screen.getByLabelText("Keluar dari akun");
+		fireEvent.click(logoutBtn);
+
+		// Must redirect back to /login
+		await waitFor(() => {
+			expect(window.location.pathname).toBe("/login");
+			expect(screen.getByText("Masuk (Sign In)")).toBeDefined();
 		});
 	});
 });

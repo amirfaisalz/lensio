@@ -129,6 +129,9 @@ func main() {
 			validator.SetExpectedAudience(cfg.KeycloakAudience)
 		}
 		oidcValidator = validator
+	} else if cfg.Env == "development" {
+		logger.Info("Keycloak JWKS URL not configured, enabling DevTokenValidator for local development")
+		oidcValidator = middleware.NewDevTokenValidator()
 	}
 
 	var authorizer authz.Authorizer

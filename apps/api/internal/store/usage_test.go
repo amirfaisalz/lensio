@@ -58,7 +58,9 @@ func TestUsageStore_LiveDB(t *testing.T) {
 		t.Fatalf("failed running migrations: %v", err)
 	}
 
-	defaultOrgID := "00000000-0000-0000-0000-000000000001"
+	testOrg := createTestOrg(t, db)
+	defaultOrgID := testOrg.ID
+
 	since := time.Now().Add(-1 * time.Hour)
 	cycleReset := time.Now().Add(24 * time.Hour)
 

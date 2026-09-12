@@ -64,6 +64,28 @@
   ],
   "users": [
     {
+      "username": "dev@lensio.dev",
+      "email": "dev@lensio.dev",
+      "firstName": "Lensio",
+      "lastName": "Lead Developer",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "dev123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "developer",
+        "admin",
+        "ocr:write",
+        "ocr:read",
+        "usage:read"
+      ]
+    },
+    {
       "username": "admin@lensio.dev",
       "email": "admin@lensio.dev",
       "firstName": "Lensio",

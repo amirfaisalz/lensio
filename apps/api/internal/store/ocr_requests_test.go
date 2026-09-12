@@ -38,12 +38,13 @@ func TestOCRRequestStore_LiveDB(t *testing.T) {
 		t.Fatalf("failed to run migrations: %v", err)
 	}
 
-	defaultOrgID := "00000000-0000-0000-0000-000000000001"
+	testOrg := createTestOrg(t, db)
+	testOrgID := testOrg.ID
 	reqID := fmt.Sprintf("req_test_%d", time.Now().UnixNano())
 
 	req := &store.OCRRequest{
 		ID:         reqID,
-		OrgID:      defaultOrgID,
+		OrgID:      testOrgID,
 		Status:     "completed",
 		Confidence: 0.98,
 		LatencyMS:  125,
@@ -58,11 +59,11 @@ func TestOCRRequestStore_LiveDB(t *testing.T) {
 	}
 
 	// Retrieve by ID
-	fetched, err := db.GetOCRRequestByID(ctx, defaultOrgID, reqID)
+	fetched, err := db.GetOCRRequestByID(ctx, testOrgID, reqID)
 	if err != nil {
 		t.Fatalf("failed fetching ocr request by id: %v", err)
 	}
-	if fetched.ID != reqID || fetched.OrgID != defaultOrgID || fetched.Status != "completed" {
+	if fetched.ID != reqID || fetched.OrgID != testOrgID || fetched.Status != "completed" {
 		t.Errorf("fetched metadata mismatch: %+v", fetched)
 	}
 	if fetched.Confidence < 0.97 || fetched.Confidence > 0.99 {
@@ -77,7 +78,7 @@ func TestOCRRequestStore_LiveDB(t *testing.T) {
 	}
 
 	// Non-existent ID check
-	_, err = db.GetOCRRequestByID(ctx, defaultOrgID, "non_existent_req_id")
+	_, err = db.GetOCRRequestByID(ctx, testOrgID, "non_existent_req_id")
 	if !errors.Is(err, store.ErrNotFound) {
 		t.Fatalf("expected ErrNotFound for missing id, got %v", err)
 	}

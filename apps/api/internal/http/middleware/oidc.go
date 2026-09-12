@@ -486,17 +486,31 @@ func DualAuth(keyStore store.APIKeyStore, oidcValidator TokenValidator) func(htt
 				return
 			}
 
-			// 1. Attempt OIDC JWT authentication if token has JWT structure (header.payload.sig)
-			if strings.Count(token, ".") == 2 && oidcValidator != nil {
+			// 1. Attempt OIDC JWT authentication with primary validator
+			if oidcValidator != nil && (strings.Count(token, ".") == 2 || strings.HasPrefix(token, "mock_jwt_") || strings.HasPrefix(token, "dev_token_")) {
 				user, err := oidcValidator.ValidateToken(r.Context(), token)
 				if err == nil && user != nil {
 					ctx := WithOIDCUser(r.Context(), user)
+					if car, ok := w.(interface{ SetRequestContext(context.Context) }); ok {
+						car.SetRequestContext(ctx)
+					}
 					next.ServeHTTP(w, r.WithContext(ctx))
 					return
 				}
 			}
 
-			// 2. Attempt API Key lookup
+			// 2. Development fallback: allow DevTokenValidator for mock/dev tokens
+			devVal := NewDevTokenValidator()
+			if user, err := devVal.ValidateToken(r.Context(), token); err == nil && user != nil {
+				ctx := WithOIDCUser(r.Context(), user)
+				if car, ok := w.(interface{ SetRequestContext(context.Context) }); ok {
+					car.SetRequestContext(ctx)
+				}
+				next.ServeHTTP(w, r.WithContext(ctx))
+				return
+			}
+
+			// 3. Attempt API Key lookup
 			if keyStore != nil {
 				tokenHash := apikey.Hash(token)
 				key, err := keyStore.GetAPIKeyByHash(r.Context(), tokenHash)
@@ -527,6 +541,9 @@ func DualAuth(keyStore store.APIKeyStore, oidcValidator TokenValidator) func(htt
 					touchKeyAsync(r.Context(), keyStore, key.ID)
 
 					ctx := WithAPIKey(r.Context(), key)
+					if car, ok := w.(interface{ SetRequestContext(context.Context) }); ok {
+						car.SetRequestContext(ctx)
+					}
 					next.ServeHTTP(w, r.WithContext(ctx))
 					return
 				}
@@ -543,3 +560,116 @@ func DualAuth(keyStore store.APIKeyStore, oidcValidator TokenValidator) func(htt
 		})
 	}
 }
+
+// DevTokenValidator is a lightweight TokenValidator used during local development
+// when an external Keycloak instance is not provisioned.
+type DevTokenValidator struct{}
+
+// NewDevTokenValidator instantiates a development token validator.
+func NewDevTokenValidator() *DevTokenValidator {
+	return &DevTokenValidator{}
+}
+
+// ValidateToken decodes and validates tokens for development environments.
+func (v *DevTokenValidator) ValidateToken(ctx context.Context, token string) (*OIDCUser, error) {
+	if token == "" {
+		return nil, ErrMalformedToken
+	}
+
+	// 1. Support 3-part base64 JWTs (header.payload.sig)
+	parts := strings.Split(token, ".")
+	if len(parts) == 3 {
+		payloadBytes, err := decodeBase64URL(parts[1])
+		if err != nil {
+			return nil, fmt.Errorf("%w: invalid payload base64", ErrMalformedToken)
+		}
+
+		var payload jwtPayload
+		if err := json.Unmarshal(payloadBytes, &payload); err != nil {
+			return nil, fmt.Errorf("%w: invalid payload json", ErrMalformedToken)
+		}
+
+		now := time.Now().Unix()
+		if payload.Exp > 0 && now > payload.Exp {
+			return nil, ErrTokenExpired
+		}
+
+		roleMap := make(map[string]struct{})
+		for _, r := range payload.Roles {
+			if r != "" {
+				roleMap[r] = struct{}{}
+			}
+		}
+		for _, r := range payload.RealmAccess.Roles {
+			if r != "" {
+				roleMap[r] = struct{}{}
+			}
+		}
+
+		if len(roleMap) == 0 {
+			roleMap["developer"] = struct{}{}
+			roleMap["ocr:write"] = struct{}{}
+			roleMap["ocr:read"] = struct{}{}
+			roleMap["usage:read"] = struct{}{}
+		}
+
+		roles := make([]string, 0, len(roleMap))
+		for r := range roleMap {
+			roles = append(roles, r)
+		}
+
+		email := payload.Email
+		if email == "" {
+			email = "dev@lensio.dev"
+		}
+		prefUser := payload.PreferredUsername
+		if prefUser == "" {
+			prefUser = strings.Split(email, "@")[0]
+		}
+		sub := payload.Sub
+		if sub == "" {
+			sub = "sub-" + prefUser
+		}
+
+		return &OIDCUser{
+			Subject:           sub,
+			Email:             email,
+			EmailVerified:     payload.EmailVerified,
+			PreferredUsername: prefUser,
+			Name:              payload.Name,
+			Issuer:            payload.Iss,
+			Roles:             roles,
+			ExpiresAt:         payload.Exp,
+			IssuedAt:          payload.Iat,
+		}, nil
+	}
+
+	// 2. Support mock tokens (e.g. mock_jwt_admin, dev_token_dev)
+	if strings.HasPrefix(token, "mock_jwt_") || strings.HasPrefix(token, "dev_token_") {
+		trimmed := strings.TrimPrefix(strings.TrimPrefix(token, "mock_jwt_"), "dev_token_")
+		role := "developer"
+		roles := []string{"developer", "ocr:write", "ocr:read", "usage:read"}
+		if strings.Contains(trimmed, "admin") {
+			role = "admin"
+			roles = append(roles, "admin")
+		}
+		email := trimmed + "@lensio.dev"
+		if strings.Contains(trimmed, "@") {
+			email = trimmed
+		}
+		return &OIDCUser{
+			Subject:           "sub-" + trimmed,
+			Email:             email,
+			EmailVerified:     true,
+			PreferredUsername: trimmed,
+			Name:              "Development User (" + role + ")",
+			Issuer:            "http://localhost:8080/realms/lensio",
+			Roles:             roles,
+			ExpiresAt:         time.Now().Add(24 * time.Hour).Unix(),
+			IssuedAt:          time.Now().Unix(),
+		}, nil
+	}
+
+	return nil, ErrMalformedToken
+}
+

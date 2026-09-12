@@ -137,4 +137,90 @@ describe("ApiClient", () => {
 		expect(result.data.nik).toBe("3171012345670001");
 		expect(result.status).toBe("completed");
 	});
+
+	it("registers user successfully", async () => {
+		vi.spyOn(globalThis, "fetch").mockResolvedValueOnce({
+			ok: true,
+			status: 201,
+			json: async () => ({
+				status: "pending_verification",
+				email: "budi@fintech.id",
+				verification_token: "tok-123",
+				message: "Registrasi berhasil.",
+			}),
+		} as Response);
+
+		const res = await api.register({
+			full_name: "Budi Santoso",
+			email: "budi@fintech.id",
+			password: "password123",
+		});
+		expect(res.status).toBe("pending_verification");
+		expect(res.email).toBe("budi@fintech.id");
+	});
+
+	it("verifies user email successfully", async () => {
+		vi.spyOn(globalThis, "fetch").mockResolvedValueOnce({
+			ok: true,
+			status: 200,
+			json: async () => ({
+				status: "verified",
+				message: "Email berhasil diverifikasi!",
+			}),
+		} as Response);
+
+		const res = await api.verifyEmail({
+			email: "budi@fintech.id",
+			token: "tok-123",
+		});
+		expect(res.status).toBe("verified");
+	});
+
+	it("logs in with password and handles tokens", async () => {
+		vi.spyOn(globalThis, "fetch").mockResolvedValueOnce({
+			ok: true,
+			status: 200,
+			json: async () => ({
+				access_token: "jwt.token.abc",
+				token_type: "Bearer",
+				expires_in: 604800,
+				user: {
+					id: "u-1",
+					email: "budi@fintech.id",
+					full_name: "Budi Santoso",
+					role: "member",
+				},
+				organization: null,
+			}),
+		} as Response);
+
+		const res = await api.login({
+			email: "budi@fintech.id",
+			password: "password123",
+		});
+		expect(res.access_token).toBe("jwt.token.abc");
+		expect(res.user.email).toBe("budi@fintech.id");
+	});
+
+	it("creates organization successfully", async () => {
+		vi.spyOn(globalThis, "fetch").mockResolvedValueOnce({
+			ok: true,
+			status: 201,
+			json: async () => ({
+				organization: {
+					id: "org-acme",
+					name: "Acme Corp",
+					slug: "acme-corp",
+					plan_code: "free",
+				},
+			}),
+		} as Response);
+
+		const res = await api.createOrganization({
+			name: "Acme Corp",
+			plan_code: "free",
+		});
+		expect(res.organization.id).toBe("org-acme");
+		expect(res.organization.name).toBe("Acme Corp");
+	});
 });

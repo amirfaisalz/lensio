@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"context"
 	"net/http"
 	"strings"
 	"time"
@@ -14,11 +15,16 @@ import (
 type statusResponseWriter struct {
 	http.ResponseWriter
 	statusCode int
+	ctx        context.Context
 }
 
 func (w *statusResponseWriter) WriteHeader(code int) {
 	w.statusCode = code
 	w.ResponseWriter.WriteHeader(code)
+}
+
+func (w *statusResponseWriter) SetRequestContext(ctx context.Context) {
+	w.ctx = ctx
 }
 
 // UsageMetering returns a middleware that measures request latency, captures status codes,
@@ -51,9 +57,10 @@ func UsageMetering(recorder *usage.Recorder, defaultOrgID string) func(http.Hand
 				return
 			}
 
-			// Exclude internal health probes, API docs, and dashboard telemetry/management queries from tenant usage records
+			// Exclude internal health probes, API docs, public auth, and dashboard telemetry/management queries from tenant usage records
 			if r.URL.Path == "/health" || r.URL.Path == "/ready" || r.URL.Path == "/metrics" ||
 				r.URL.Path == "/docs" || r.URL.Path == "/openapi" || r.URL.Path == "/openapi.yaml" ||
+				strings.HasPrefix(r.URL.Path, "/api/v1/auth") ||
 				strings.HasPrefix(r.URL.Path, "/api/v1/usage") ||
 				strings.HasPrefix(r.URL.Path, "/api/v1/account") {
 				return
@@ -64,19 +71,23 @@ func UsageMetering(recorder *usage.Recorder, defaultOrgID string) func(http.Hand
 				return
 			}
 
-			orgID := defaultOrgID
-			var apiKeyID *string
-
-			if key := GetAPIKey(r.Context()); key != nil {
-				if key.OrgID != "" {
-					orgID = key.OrgID
-				}
-				if key.ID != "" {
-					apiKeyID = &key.ID
-				}
+			reqCtx := r.Context()
+			if sw.ctx != nil {
+				reqCtx = sw.ctx
 			}
 
-			reqID := response.GetRequestID(r.Context())
+			key := GetAPIKey(reqCtx)
+			if key == nil || key.OrgID == "" {
+				return
+			}
+
+			orgID := key.OrgID
+			var apiKeyID *string
+			if key.ID != "" {
+				apiKeyID = &key.ID
+			}
+
+			reqID := response.GetRequestID(reqCtx)
 			if reqID == "" {
 				reqID = r.Header.Get("X-Request-ID")
 			}

@@ -30,7 +30,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 	onNavigate,
 	isHealthy,
 }) => {
-	const { environment, apiKey } = useAuth();
+	const { environment, apiKey, currentOrg, oidcUser } = useAuth();
 
 	const navItems: {
 		id: NavigationPage;
@@ -100,6 +100,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 					return (
 						<button
 							key={item.id}
+							data-page={item.id}
 							type="button"
 							onClick={() => onNavigate(item.id)}
 							className={`w-full flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
@@ -122,10 +123,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
 				<div className="text-xs text-slate-500">
 					<div className="flex items-center gap-1.5 mb-1">
 						<Radio className="w-3.5 h-3.5 text-[#1877F2]" />
-						<span className="font-semibold text-slate-700">Active Tenant</span>
+						<span className="font-semibold text-slate-700">Workspace</span>
 					</div>
-					<p className="truncate font-mono text-[11px] text-slate-600">
-						{apiKey ? `${apiKey.slice(0, 14)}••••` : "Default Workspace"}
+					<p className="truncate font-semibold text-xs text-slate-800">
+						{currentOrg?.name || "Default Organization"}
+					</p>
+					<p className="truncate text-[10px] text-slate-500 font-mono mt-0.5">
+						{oidcUser?.email ||
+							(apiKey ? `${apiKey.slice(0, 14)}••••` : "dev@lensio.dev")}
 					</p>
 				</div>
 			</div>

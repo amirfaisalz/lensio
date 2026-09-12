@@ -10,9 +10,15 @@ const TestConsumer: React.FC = () => {
 		isConnected,
 		authMode,
 		oidcUser,
+		currentOrg,
 		setApiKey,
 		loginOIDC,
+		registerOrLogin,
+		switchOrganization,
 		switchAuthMode,
+		createOrganization,
+		registerUser,
+		verifyUserEmail,
 		logout,
 	} = useAuth();
 	return (
@@ -24,6 +30,7 @@ const TestConsumer: React.FC = () => {
 			</span>
 			<span data-testid="mode">{authMode}</span>
 			<span data-testid="oidc-email">{oidcUser?.email || "none"}</span>
+			<span data-testid="org-name">{currentOrg?.name || "none"}</span>
 			<button type="button" onClick={() => setApiKey("lensio_test_123")}>
 				Set Test Key
 			</button>
@@ -44,11 +51,52 @@ const TestConsumer: React.FC = () => {
 			>
 				Login OIDC
 			</button>
+			<button
+				type="button"
+				onClick={() =>
+					registerOrLogin(
+						"founder@startup.com",
+						"Startup Founder",
+						"Startup Inc",
+						"owner",
+					)
+				}
+			>
+				Register Startup
+			</button>
+			<button
+				type="button"
+				onClick={() =>
+					switchOrganization({
+						id: "org-new",
+						name: "New Enterprise",
+						slug: "new-enterprise",
+						planCode: "pro",
+					})
+				}
+			>
+				Switch New Org
+			</button>
 			<button type="button" onClick={() => switchAuthMode("apikey")}>
 				Switch API Key
 			</button>
 			<button type="button" onClick={() => switchAuthMode("oidc")}>
 				Switch OIDC
+			</button>
+			<button
+				type="button"
+				onClick={() => createOrganization("Fintech Asia", "starter")}
+			>
+				Create Dynamic Org
+			</button>
+			<button
+				type="button"
+				onClick={() => registerUser("Ali", "ali@test.id", "pass1234")}
+			>
+				Register Ali
+			</button>
+			<button type="button" onClick={() => verifyUserEmail("ali@test.id")}>
+				Verify Ali
 			</button>
 			<button type="button" onClick={logout}>
 				Logout
@@ -136,6 +184,73 @@ describe("AuthContext", () => {
 		});
 		expect(screen.getByTestId("oidc-email").textContent).toBe("none");
 		expect(screen.getByTestId("status").textContent).toBe("disconnected");
+	});
+
+	it("supports registering user and establishing organization context", () => {
+		render(
+			<AuthProvider>
+				<TestConsumer />
+			</AuthProvider>,
+		);
+
+		// Register new user and workspace
+		act(() => {
+			screen.getByText("Register Startup").click();
+		});
+
+		expect(screen.getByTestId("status").textContent).toBe("connected");
+		expect(screen.getByTestId("mode").textContent).toBe("oidc");
+		expect(screen.getByTestId("oidc-email").textContent).toBe(
+			"founder@startup.com",
+		);
+		expect(screen.getByTestId("org-name").textContent).toBe("Startup Inc");
+
+		// Switch organization
+		act(() => {
+			screen.getByText("Switch New Org").click();
+		});
+		expect(screen.getByTestId("org-name").textContent).toBe("New Enterprise");
+
+		// Logout clears organization
+		act(() => {
+			screen.getByText("Logout").click();
+		});
+		expect(screen.getByTestId("org-name").textContent).toBe("none");
+		expect(screen.getByTestId("status").textContent).toBe("disconnected");
+	});
+
+	it("supports dynamic organization creation and user email verification lifecycle", async () => {
+		render(
+			<AuthProvider>
+				<TestConsumer />
+			</AuthProvider>,
+		);
+
+		// Initial org is none
+		expect(screen.getByTestId("org-name").textContent).toBe("none");
+
+		// Create dynamic organization
+		await act(async () => {
+			screen.getByText("Create Dynamic Org").click();
+		});
+
+		expect(screen.getByTestId("org-name").textContent).toBe("Fintech Asia");
+
+		// Register user
+		await act(async () => {
+			screen.getByText("Register Ali").click();
+		});
+
+		// Verify user
+		await act(async () => {
+			screen.getByText("Verify Ali").click();
+		});
+
+		// Logout resets organization
+		act(() => {
+			screen.getByText("Logout").click();
+		});
+		expect(screen.getByTestId("org-name").textContent).toBe("none");
 	});
 
 	it("throws error when useAuth is called outside AuthProvider", () => {
