@@ -57,7 +57,7 @@ Lensio demonstrates full-lifecycle engineering capabilities across the entire pl
 | **Relational Database**       | PostgreSQL 16 migrations (`golang-migrate`), connection pooling with `pgx/v5` | [`ADR-002`](docs/decisions/ADR-002-database-schema-and-api-key-hashing-strategy.md)          |
 | **Developer Portal**          | React 19 + TypeScript SPA, type-safe API SDK, Tailwind CSS                    | [`apps/dashboard`](apps/dashboard)                                                           |
 | **Cryptographic Security**    | SHA-256 one-way API key hashing, zero plaintext secrets in storage            | [`docs/security.md`](docs/security.md)                                                       |
-| **Traffic Shaping**           | $O(1)$ in-memory token bucket rate limiting + monthly quota enforcer          | [`ADR-003`](docs/decisions/ADR-003-rate-limiting-and-quota-architecture.md)                  |
+| **Traffic Shaping**           | $O(1)$ in-memory token bucket rate limiting + monthly quota enforcer          | [`ADR-003`](docs/decisions/ADR-003-rate-limiting-and-quota-architecture.md), [`ADR-006`](docs/decisions/ADR-006-multi-instance-rate-limiting-tradeoffs.md) |
 | **Telemetry & Observability** | OpenTelemetry Go SDK, Prometheus RED metrics, Grafana dashboards              | [`docs/observability.md`](docs/observability.md)                                             |
 | **Data Privacy & Compliance** | Ephemeral memory-only image handling, zero PII logs (UU PDP No. 27/2022)      | [`ADR-005`](docs/decisions/ADR-005-data-minimization-and-pii-protection-in-ocr-pipelines.md) |
 | **Infrastructure as Code**    | OpenTofu modules & Terragrunt live environments (Staging/Production)          | [`infra/`](infra/)                                                                           |
@@ -459,6 +459,7 @@ go test -race -cover ./...
 - [`ADR-003: Rate Limiting & Quota Architecture`](docs/decisions/ADR-003-rate-limiting-and-quota-architecture.md)
 - [`ADR-004: Azure Container Apps vs. Kubernetes (Deliberate Simplicity)`](docs/decisions/ADR-004-azure-container-apps-vs-kubernetes.md)
 - [`ADR-005: Data Minimization & PII Protection in OCR Pipelines`](docs/decisions/ADR-005-data-minimization-and-pii-protection-in-ocr-pipelines.md)
+- [`ADR-006: Multi-Instance Rate Limiting Trade-offs (Distributed vs. Local)`](docs/decisions/ADR-006-multi-instance-rate-limiting-tradeoffs.md)
 
 ### Incident Reports & Failure Drills (`docs/incidents/`)
 

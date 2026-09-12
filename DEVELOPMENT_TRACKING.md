@@ -29,7 +29,7 @@
 - [x] **Phase 11.5: Fine-Grained Authorization (SpiceDB / ReBAC)**
 - [x] **Phase 11.6: Deep Incident Engineering & Circuit Breaker Code Fix**
 - [x] **Phase 11.7: Production SLOs & Actionable Alerting Rules**
-- [ ] **Phase 11.8: Architectural Decision Record: Distributed vs Local Rate Limiting**
+- [x] **Phase 11.8: Architectural Decision Record: Distributed vs Local Rate Limiting**
 - [ ] **Phase 11.9: API Versioning Strategy & Contract Evolution**
 
 ---
@@ -202,7 +202,7 @@ Five core ADRs (`ADR-001` to `ADR-005`), production runbooks (`architecture.md`,
 ### Phase 11.8: Architectural Decision Record: Rate Limiting Trade-offs (Priority: MED-HIGH)
 *Goal: Articulate deep distributed systems trade-offs without over-engineering.*
 
-- [ ] Author `docs/decisions/ADR-006-multi-instance-rate-limiting-tradeoffs.md`:
+- [x] Author `docs/decisions/ADR-006-multi-instance-rate-limiting-tradeoffs.md`:
   - Evaluation of current O(1) in-memory token bucket.
   - Impact of multi-replica deployment on Azure Container Apps (drift across $N$ instances).
   - Comparative analysis: In-memory vs Distributed Redis sliding window vs Cloudflare edge rate limiting.

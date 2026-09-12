@@ -15,6 +15,13 @@ type Result struct {
 	RetryAfter int   // Seconds to wait before retry (when Allowed is false)
 }
 
+// RateLimiter defines the pluggable contract for evaluating rate limits across local and distributed topologies.
+type RateLimiter interface {
+	Allow(key string, limitPerMinute int) Result
+}
+
+var _ RateLimiter = (*Limiter)(nil)
+
 type bucket struct {
 	mu         sync.Mutex
 	tokens     float64

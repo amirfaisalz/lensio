@@ -173,3 +173,32 @@ func BenchmarkRateLimiter_Allow_Parallel(b *testing.B) {
 		}
 	})
 }
+
+type mockRateLimiter struct {
+	allowed bool
+}
+
+func (m *mockRateLimiter) Allow(key string, limitPerMinute int) ratelimit.Result {
+	return ratelimit.Result{
+		Allowed:    m.allowed,
+		Limit:      limitPerMinute,
+		Remaining:  0,
+		ResetTime:  time.Now().Unix() + 60,
+		RetryAfter: 60,
+	}
+}
+
+func TestRateLimiter_InterfaceCompliance(t *testing.T) {
+	var limiter ratelimit.RateLimiter = ratelimit.NewLimiter()
+	res := limiter.Allow("test-org-interface", 10)
+	if !res.Allowed {
+		t.Fatalf("expected limiter to allow initial request")
+	}
+
+	var mock ratelimit.RateLimiter = &mockRateLimiter{allowed: false}
+	mockRes := mock.Allow("test-org-mock", 10)
+	if mockRes.Allowed {
+		t.Fatalf("expected mock limiter to deny request")
+	}
+}
+

@@ -28,7 +28,7 @@ type RouterDeps struct {
 	UsageStore       store.UsageStore
 	AccountStore     store.AccountStore
 	AuditStore       store.AuditStore
-	RateLimiter      *ratelimit.Limiter
+	RateLimiter      ratelimit.RateLimiter
 	UsageRecorder    *usage.Recorder
 	IdempotencyStore idempotency.Store
 	OIDCValidator    middleware.TokenValidator

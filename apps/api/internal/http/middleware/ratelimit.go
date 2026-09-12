@@ -22,7 +22,7 @@ type planCacheEntry struct {
 
 // RateLimitMiddleware manages per-tenant rate limits based on subscription tier.
 type RateLimitMiddleware struct {
-	limiter      *ratelimit.Limiter
+	limiter      ratelimit.RateLimiter
 	accountStore store.AccountStore
 	defaultOrgID string
 	mu           sync.RWMutex
@@ -30,7 +30,7 @@ type RateLimitMiddleware struct {
 }
 
 // NewRateLimitMiddleware initializes rate limiting middleware with cached plan limits.
-func NewRateLimitMiddleware(limiter *ratelimit.Limiter, accountStore store.AccountStore, defaultOrgID string) *RateLimitMiddleware {
+func NewRateLimitMiddleware(limiter ratelimit.RateLimiter, accountStore store.AccountStore, defaultOrgID string) *RateLimitMiddleware {
 	if defaultOrgID == "" {
 		defaultOrgID = "00000000-0000-0000-0000-000000000001"
 	}
