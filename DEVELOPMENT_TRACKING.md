@@ -257,12 +257,12 @@ Lensio Product Ecosystem
 
 ## Definition of Done for V2 Release
 
-- [ ] `k6` baseline and stress test scripts exist, executed, and benchmark report is committed.
+- [x] `k6` baseline and stress test scripts exist, executed, and benchmark report is committed.
 - [x] `Idempotency-Key` header is supported on `POST /api/v1/ocr/ktp` with 100% test coverage.
 - [x] Deployment evidence log captures real CI test passes, security scans, and smoke test rollback.
 - [x] Keycloak OIDC JWT validation middleware works with unit tests and Docker Compose.
 - [x] SpiceDB ReBAC authorization model is defined and protects sensitive API key mutations.
 - [x] Circuit breaker protects the OCR engine from upstream latency spikes and has an incident post-mortem.
-- [ ] Prometheus alerting rules and SLO definition document are committed.
-- [ ] ADR-006 (Rate Limiting Trade-offs) and ADR-007 (API Versioning) are committed.
-- [ ] `go test -race ./...` and dashboard tests pass cleanly with zero failures.
+- [x] Prometheus alerting rules and SLO definition document are committed.
+- [x] ADR-006 (Rate Limiting Trade-offs) and ADR-007 (API Versioning) are committed.
+- [x] `go test -race ./...` and dashboard tests pass cleanly with zero failures.

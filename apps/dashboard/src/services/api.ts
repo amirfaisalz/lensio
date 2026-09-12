@@ -23,7 +23,6 @@ import type {
 } from "../types/api";
 
 const API_BASE = import.meta.env.VITE_API_URL || "";
-const STORAGE_KEY_API_KEY = "lensio_api_key";
 
 export interface ApiClientError extends Error {
 	code?: string;
@@ -33,25 +32,12 @@ export interface ApiClientError extends Error {
 class ApiClient {
 	private activeApiKey: string | null = null;
 
-	constructor() {
-		if (typeof window !== "undefined") {
-			this.activeApiKey = localStorage.getItem(STORAGE_KEY_API_KEY);
-		}
-	}
-
 	public getApiKey(): string | null {
 		return this.activeApiKey;
 	}
 
 	public setApiKey(key: string | null): void {
 		this.activeApiKey = key;
-		if (typeof window !== "undefined") {
-			if (key) {
-				localStorage.setItem(STORAGE_KEY_API_KEY, key);
-			} else {
-				localStorage.removeItem(STORAGE_KEY_API_KEY);
-			}
-		}
 	}
 
 	private getHeaders(isMultipart = false): HeadersInit {

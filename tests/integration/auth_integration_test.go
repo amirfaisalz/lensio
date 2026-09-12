@@ -52,14 +52,29 @@ func TestIntegration_APIKeyLifecycleAndAuth(t *testing.T) {
 	}
 	healthResp.Body.Close()
 
+	sessionToken, orgID, err := obtainTestAuthClient(client, apiURL)
+	if err != nil {
+		t.Fatalf("failed obtaining test auth client: %v", err)
+	}
+
 	// 1. Create a key with ocr:write scope
-	createBody, _ := json.Marshal(map[string]any{
+	keyPayload := map[string]any{
 		"name":        "Integration Test Key",
 		"environment": "live",
 		"scopes":      []string{"ocr:write"},
-	})
+	}
+	if orgID != "" {
+		keyPayload["org_id"] = orgID
+	}
+	createBody, _ := json.Marshal(keyPayload)
 
-	resp, err := client.Post(apiURL+"/api/v1/auth/api-keys", "application/json", bytes.NewReader(createBody))
+	req, _ := http.NewRequest(http.MethodPost, apiURL+"/api/v1/auth/api-keys", bytes.NewReader(createBody))
+	req.Header.Set("Content-Type", "application/json")
+	if sessionToken != "" {
+		req.Header.Set("Authorization", "Bearer "+sessionToken)
+	}
+
+	resp, err := client.Do(req)
 	if err != nil {
 		t.Fatalf("failed to create API key: %v", err)
 	}
@@ -81,7 +96,11 @@ func TestIntegration_APIKeyLifecycleAndAuth(t *testing.T) {
 	}
 
 	// 2. List API keys and verify masked key
-	listResp, err := client.Get(apiURL + "/api/v1/auth/api-keys")
+	listReq, _ := http.NewRequest(http.MethodGet, apiURL+"/api/v1/auth/api-keys", nil)
+	if sessionToken != "" {
+		listReq.Header.Set("Authorization", "Bearer "+sessionToken)
+	}
+	listResp, err := client.Do(listReq)
 	if err != nil {
 		t.Fatalf("failed to list API keys: %v", err)
 	}
@@ -143,12 +162,22 @@ func TestIntegration_APIKeyLifecycleAndAuth(t *testing.T) {
 	}
 
 	// 5. Test protected endpoint with insufficient scope
-	createScopeBody, _ := json.Marshal(map[string]any{
+	scopePayload := map[string]any{
 		"name":        "Read Only Key",
 		"environment": "live",
 		"scopes":      []string{"ocr:read"},
-	})
-	scopeResp, err := client.Post(apiURL+"/api/v1/auth/api-keys", "application/json", bytes.NewReader(createScopeBody))
+	}
+	if orgID != "" {
+		scopePayload["org_id"] = orgID
+	}
+	createScopeBody, _ := json.Marshal(scopePayload)
+	scopeReq, _ := http.NewRequest(http.MethodPost, apiURL+"/api/v1/auth/api-keys", bytes.NewReader(createScopeBody))
+	scopeReq.Header.Set("Content-Type", "application/json")
+	if sessionToken != "" {
+		scopeReq.Header.Set("Authorization", "Bearer "+sessionToken)
+	}
+
+	scopeResp, err := client.Do(scopeReq)
 	if err != nil {
 		t.Fatalf("failed creating read-only key: %v", err)
 	}
@@ -180,6 +209,9 @@ func TestIntegration_APIKeyLifecycleAndAuth(t *testing.T) {
 
 	// 6. Revoke key
 	revokeReq, _ := http.NewRequest(http.MethodDelete, apiURL+"/api/v1/auth/api-keys/"+key1.ID, nil)
+	if sessionToken != "" {
+		revokeReq.Header.Set("Authorization", "Bearer "+sessionToken)
+	}
 	revokeResp, err := client.Do(revokeReq)
 	if err != nil {
 		t.Fatalf("failed calling DELETE /api/v1/auth/api-keys/%s: %v", key1.ID, err)

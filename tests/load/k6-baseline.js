@@ -41,6 +41,9 @@ export function setup() {
     return { apiKey: __ENV.API_KEY };
   }
 
+  // Attempt to authenticate via session token if available or dev token
+  let sessionToken = __ENV.SESSION_TOKEN || 'mock_jwt_admin';
+
   const keyPayload = JSON.stringify({
     name: 'k6-baseline-loadtest-key',
     environment: 'loadtest',
@@ -48,7 +51,10 @@ export function setup() {
   });
 
   const res = http.post(`${BASE_URL}/api/v1/auth/api-keys`, keyPayload, {
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${sessionToken}`,
+    },
   });
 
   if (res.status === 201) {
@@ -56,8 +62,18 @@ export function setup() {
     return { apiKey: body.key };
   }
 
-  // If server is in ephemeral mode without DB or if key creation failed
-  return { apiKey: 'lensio_live_ephemeral_test_key_dummy' };
+  // If server rejected unauthenticated key creation, try unauthenticated POST fallback
+  const unauthRes = http.post(`${BASE_URL}/api/v1/auth/api-keys`, keyPayload, {
+    headers: { 'Content-Type': 'application/json' },
+  });
+
+  if (unauthRes.status === 201) {
+    const body = JSON.parse(unauthRes.body);
+    return { apiKey: body.key };
+  }
+
+  // Fail explicitly rather than silently masking load test errors with an invalid key
+  throw new Error(`k6 setup failed to create API key (status ${res.status}: ${res.body}). Pass a valid key via -e API_KEY=<key>.`);
 }
 
 export default function (data) {

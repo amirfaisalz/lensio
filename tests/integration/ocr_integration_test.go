@@ -42,14 +42,29 @@ func TestIntegration_LiveServer_OCR(t *testing.T) {
 	}
 	healthResp.Body.Close()
 
+	sessionToken, orgID, err := obtainTestAuthClient(client, apiURL)
+	if err != nil {
+		t.Fatalf("failed obtaining test auth client: %v", err)
+	}
+
 	// 1. Create a key with ocr:write and ocr:read scopes
-	createBody, _ := json.Marshal(map[string]any{
+	keyPayload := map[string]any{
 		"name":        "OCR Live Test Key",
 		"environment": "live",
 		"scopes":      []string{"ocr:write", "ocr:read"},
-	})
+	}
+	if orgID != "" {
+		keyPayload["org_id"] = orgID
+	}
+	createBody, _ := json.Marshal(keyPayload)
 
-	resp, err := client.Post(apiURL+"/api/v1/auth/api-keys", "application/json", bytes.NewReader(createBody))
+	req, _ := http.NewRequest(http.MethodPost, apiURL+"/api/v1/auth/api-keys", bytes.NewReader(createBody))
+	req.Header.Set("Content-Type", "application/json")
+	if sessionToken != "" {
+		req.Header.Set("Authorization", "Bearer "+sessionToken)
+	}
+
+	resp, err := client.Do(req)
 	if err != nil {
 		t.Fatalf("failed to create API key: %v", err)
 	}
@@ -80,14 +95,14 @@ func TestIntegration_LiveServer_OCR(t *testing.T) {
 	}
 	_ = writer.Close()
 
-	req, err := http.NewRequest(http.MethodPost, apiURL+"/api/v1/ocr/ktp", &body)
+	ocrReq, err := http.NewRequest(http.MethodPost, apiURL+"/api/v1/ocr/ktp", &body)
 	if err != nil {
 		t.Fatalf("failed creating ocr request: %v", err)
 	}
-	req.Header.Set("Content-Type", writer.FormDataContentType())
-	req.Header.Set("Authorization", "Bearer "+keyData.Key)
+	ocrReq.Header.Set("Content-Type", writer.FormDataContentType())
+	ocrReq.Header.Set("Authorization", "Bearer "+keyData.Key)
 
-	ocrResp, err := client.Do(req)
+	ocrResp, err := client.Do(ocrReq)
 	if err != nil {
 		t.Fatalf("failed calling ocr endpoint: %v", err)
 	}

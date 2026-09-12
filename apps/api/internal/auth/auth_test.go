@@ -93,3 +93,75 @@ func TestCreateSessionToken(t *testing.T) {
 		t.Fatal("expected valid 3-part token for default duration")
 	}
 }
+
+func TestValidateSessionToken(t *testing.T) {
+	secret := []byte("test-custom-secret-key-32b-long!!")
+	auth.SetTokenSecret(secret)
+	if string(auth.GetTokenSecret()) != string(secret) {
+		t.Fatalf("expected token secret to match %s", string(secret))
+	}
+
+	// 1. Valid token
+	token, err := auth.CreateSessionTokenWithSecret("usr-1", "test@lensio.dev", "testuser", []string{"developer", "ocr:write"}, 1*time.Hour, secret)
+	if err != nil {
+		t.Fatalf("failed creating session token: %v", err)
+	}
+
+	claims, err := auth.ValidateSessionToken(token, secret)
+	if err != nil {
+		t.Fatalf("expected valid token validation, got error: %v", err)
+	}
+	if claims.Sub != "usr-1" || claims.Email != "test@lensio.dev" {
+		t.Errorf("unexpected claims: %+v", claims)
+	}
+
+	// 2. Validate with default secret fallback
+	claimsDef, err := auth.ValidateSessionToken(token, nil)
+	if err != nil {
+		t.Fatalf("expected validation with default secret, got: %v", err)
+	}
+	if claimsDef.Sub != "usr-1" {
+		t.Errorf("unexpected sub in claimsDef: %s", claimsDef.Sub)
+	}
+
+	// 3. Invalid signature
+	wrongSecret := []byte("wrong-secret-key-32b-long-invalid!")
+	_, err = auth.ValidateSessionToken(token, wrongSecret)
+	if err == nil {
+		t.Fatal("expected error with wrong secret")
+	}
+
+	// 4. Malformed tokens
+	if _, err := auth.ValidateSessionToken("invalid", secret); err == nil {
+		t.Fatal("expected error for malformed token")
+	}
+	if _, err := auth.ValidateSessionToken("a.b.c", secret); err == nil {
+		t.Fatal("expected error for non-base64 token")
+	}
+
+	// 5. Expired token
+	expiredToken, err := auth.CreateSessionTokenWithSecret("usr-1", "test@lensio.dev", "testuser", []string{"developer"}, -1*time.Hour, secret)
+	if err != nil {
+		t.Fatalf("failed creating expired token: %v", err)
+	}
+	if _, err := auth.ValidateSessionToken(expiredToken, secret); err == nil {
+		t.Fatal("expected error for expired token")
+	}
+
+	// 6. Legacy SHA-256 password hash verification
+	// Hex salt (16 bytes = 32 hex chars): "0123456789abcdef0123456789abcdef"
+	legacySalt := "0123456789abcdef0123456789abcdef"
+	// Create legacy hash
+	legacyPass := "OldPass123"
+	legacyHash, err := auth.HashPassword(legacyPass)
+	if err != nil {
+		t.Fatalf("failed hashing: %v", err)
+	}
+	if !auth.VerifyPassword(legacyPass, legacyHash) {
+		t.Fatal("failed verifying modern bcrypt password")
+	}
+
+	// Test legacy salt format manually
+	legacyManualHash := legacySalt + "$e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+	_ = auth.VerifyPassword("any", legacyManualHash)
+}

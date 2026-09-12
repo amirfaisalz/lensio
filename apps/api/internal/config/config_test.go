@@ -112,3 +112,19 @@ func TestLoad_CustomEnv(t *testing.T) {
 		t.Fatalf("expected SpiceDBPresharedKey 'lensio_spicedb_key', got '%s'", cfg.SpiceDBPresharedKey)
 	}
 }
+
+func TestLoad_CORSAndSessionSecret(t *testing.T) {
+	t.Setenv("CORS_ALLOWED_ORIGINS", "https://app.lensio.dev, https://dashboard.lensio.dev")
+	t.Setenv("SESSION_SECRET", "custom-secret-key-12345")
+
+	cfg := config.Load()
+	if len(cfg.CORSAllowedOrigins) != 2 {
+		t.Fatalf("expected 2 CORS origins, got %d", len(cfg.CORSAllowedOrigins))
+	}
+	if cfg.CORSAllowedOrigins[0] != "https://app.lensio.dev" || cfg.CORSAllowedOrigins[1] != "https://dashboard.lensio.dev" {
+		t.Errorf("unexpected CORS origins: %+v", cfg.CORSAllowedOrigins)
+	}
+	if cfg.SessionSecret != "custom-secret-key-12345" {
+		t.Errorf("expected custom session secret, got '%s'", cfg.SessionSecret)
+	}
+}

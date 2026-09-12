@@ -31,8 +31,9 @@ type RouterDeps struct {
 	RateLimiter      ratelimit.RateLimiter
 	UsageRecorder    *usage.Recorder
 	IdempotencyStore idempotency.Store
-	OIDCValidator    middleware.TokenValidator
-	Authorizer       authz.Authorizer
+	OIDCValidator       middleware.TokenValidator
+	Authorizer          authz.Authorizer
+	CORSAllowedOrigins  []string
 }
 
 // NewRouter constructs the root HTTP handler for backward compatibility.
@@ -167,6 +168,7 @@ func NewRouterWithDeps(deps RouterDeps) http.Handler {
 	rootHandler = middleware.UsageMetering(deps.UsageRecorder, handlers.DefaultOrgID)(rootHandler)
 
 	// Global Middleware: Request ID injection, Distributed Tracing, and CORS (PRD Section 16 & 20)
-	return middleware.RequestID(middleware.Tracing(nil)(middleware.CORS(rootHandler)))
+	corsHandler := middleware.NewCORSMiddleware(deps.CORSAllowedOrigins)(rootHandler)
+	return middleware.RequestID(middleware.Tracing(nil)(corsHandler))
 }
 

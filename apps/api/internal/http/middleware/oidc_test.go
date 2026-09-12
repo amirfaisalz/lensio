@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/amirfaisalz/lensio/apps/api/internal/apikey"
+	"github.com/amirfaisalz/lensio/apps/api/internal/auth"
 	"github.com/amirfaisalz/lensio/apps/api/internal/http/middleware"
 	"github.com/amirfaisalz/lensio/apps/api/internal/http/response"
 	"github.com/amirfaisalz/lensio/apps/api/internal/store"
@@ -892,4 +893,62 @@ func TestDevTokenValidator(t *testing.T) {
 		}
 	})
 }
+
+func TestSessionTokenValidator(t *testing.T) {
+	ctx := context.Background()
+	secret := []byte("secret-key-for-session-token-32b")
+	validator := middleware.NewSessionTokenValidator(secret)
+
+	// Valid session token
+	token, err := auth.CreateSessionTokenWithSecret("user-1", "test@lensio.dev", "testuser", []string{"developer", "ocr:write"}, 1*time.Hour, secret)
+	if err != nil {
+		t.Fatalf("failed creating token: %v", err)
+	}
+
+	user, err := validator.ValidateToken(ctx, token)
+	if err != nil {
+		t.Fatalf("expected valid token, got: %v", err)
+	}
+	if user.Subject != "user-1" || user.Email != "test@lensio.dev" {
+		t.Errorf("unexpected user: %+v", user)
+	}
+
+	// Invalid token
+	_, err = validator.ValidateToken(ctx, "invalid.token.signature")
+	if err == nil {
+		t.Fatal("expected error for invalid token signature")
+	}
+}
+
+func TestCompositeTokenValidator(t *testing.T) {
+	ctx := context.Background()
+	secret := []byte("secret-key-for-session-token-32b")
+	sessionVal := middleware.NewSessionTokenValidator(secret)
+	devVal := middleware.NewDevTokenValidator()
+
+	composite := middleware.NewCompositeTokenValidator(sessionVal, devVal)
+
+	// 1. Session token handled by sessionVal
+	sessionToken, err := auth.CreateSessionTokenWithSecret("user-s", "session@lensio.dev", "sess", []string{"developer"}, 1*time.Hour, secret)
+	if err != nil {
+		t.Fatalf("failed creating token: %v", err)
+	}
+	u1, err := composite.ValidateToken(ctx, sessionToken)
+	if err != nil || u1.Email != "session@lensio.dev" {
+		t.Fatalf("expected valid session token, got user: %+v, err: %v", u1, err)
+	}
+
+	// 2. Mock token handled by devVal
+	u2, err := composite.ValidateToken(ctx, "mock_jwt_developer")
+	if err != nil || u2.PreferredUsername != "developer" {
+		t.Fatalf("expected valid dev token, got user: %+v, err: %v", u2, err)
+	}
+
+	// 3. Completely invalid token rejected by both
+	_, err = composite.ValidateToken(ctx, "completely_invalid_garbage")
+	if err == nil {
+		t.Fatal("expected error for garbage token")
+	}
+}
+
 

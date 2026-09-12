@@ -19,6 +19,8 @@ type Config struct {
 	KeycloakAudience    string
 	SpiceDBEndpoint     string
 	SpiceDBPresharedKey string
+	CORSAllowedOrigins  []string
+	SessionSecret       string
 }
 
 // Load reads configuration from environment variables with sensible defaults.
@@ -62,6 +64,23 @@ func Load() *Config {
 	spiceDBEndpoint := strings.TrimSpace(os.Getenv("SPICEDB_ENDPOINT"))
 	spiceDBPresharedKey := strings.TrimSpace(os.Getenv("SPICEDB_PRESHARED_KEY"))
 
+	corsRaw := strings.TrimSpace(os.Getenv("CORS_ALLOWED_ORIGINS"))
+	var corsOrigins []string
+	if corsRaw != "" {
+		for _, part := range strings.Split(corsRaw, ",") {
+			if trimmed := strings.TrimSpace(part); trimmed != "" {
+				corsOrigins = append(corsOrigins, trimmed)
+			}
+		}
+	} else if env == "development" {
+		corsOrigins = []string{"http://localhost:5173", "http://localhost:3000", "http://localhost:8080"}
+	}
+
+	sessionSecret := strings.TrimSpace(os.Getenv("SESSION_SECRET"))
+	if sessionSecret == "" {
+		sessionSecret = "lensio-session-secret-key-development-32b"
+	}
+
 	return &Config{
 		Port:                port,
 		Env:                 env,
@@ -75,5 +94,7 @@ func Load() *Config {
 		KeycloakAudience:    keycloakAudience,
 		SpiceDBEndpoint:     spiceDBEndpoint,
 		SpiceDBPresharedKey: spiceDBPresharedKey,
+		CORSAllowedOrigins:  corsOrigins,
+		SessionSecret:       sessionSecret,
 	}
 }

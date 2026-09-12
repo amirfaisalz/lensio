@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/amirfaisalz/lensio/apps/api/internal/apikey"
+	"github.com/amirfaisalz/lensio/apps/api/internal/auth"
 	"github.com/amirfaisalz/lensio/apps/api/internal/http/response"
 	"github.com/amirfaisalz/lensio/apps/api/internal/store"
 )
@@ -66,6 +67,71 @@ func GetOIDCUser(ctx context.Context) *OIDCUser {
 // TokenValidator defines the contract for validating OIDC JWT bearer tokens.
 type TokenValidator interface {
 	ValidateToken(ctx context.Context, token string) (*OIDCUser, error)
+}
+
+// SessionTokenValidator validates internal HS256 session tokens signed with a secret.
+type SessionTokenValidator struct {
+	secret []byte
+}
+
+// NewSessionTokenValidator creates a validator for internal HMAC-SHA256 session tokens.
+func NewSessionTokenValidator(secret []byte) *SessionTokenValidator {
+	if len(secret) == 0 {
+		secret = auth.GetTokenSecret()
+	}
+	return &SessionTokenValidator{secret: secret}
+}
+
+// ValidateToken validates the HS256 session token and returns the authenticated user identity.
+func (v *SessionTokenValidator) ValidateToken(ctx context.Context, token string) (*OIDCUser, error) {
+	claims, err := auth.ValidateSessionToken(token, v.secret)
+	if err != nil {
+		return nil, err
+	}
+
+	return &OIDCUser{
+		Subject:           claims.Sub,
+		Email:             claims.Email,
+		EmailVerified:     claims.EmailVerified,
+		PreferredUsername: claims.PreferredUsername,
+		Name:              claims.Name,
+		Issuer:            "lensio-internal-auth",
+		Roles:             claims.Roles,
+		ExpiresAt:         claims.Exp,
+		IssuedAt:          claims.Iat,
+	}, nil
+}
+
+// CompositeTokenValidator tries multiple token validators in sequence.
+type CompositeTokenValidator struct {
+	validators []TokenValidator
+}
+
+// NewCompositeTokenValidator creates a composite validator chaining multiple TokenValidators.
+func NewCompositeTokenValidator(validators ...TokenValidator) *CompositeTokenValidator {
+	var nonNil []TokenValidator
+	for _, v := range validators {
+		if v != nil {
+			nonNil = append(nonNil, v)
+		}
+	}
+	return &CompositeTokenValidator{validators: nonNil}
+}
+
+// ValidateToken evaluates each validator in sequence until one succeeds.
+func (c *CompositeTokenValidator) ValidateToken(ctx context.Context, token string) (*OIDCUser, error) {
+	var lastErr error
+	for _, v := range c.validators {
+		user, err := v.ValidateToken(ctx, token)
+		if err == nil && user != nil {
+			return user, nil
+		}
+		lastErr = err
+	}
+	if lastErr != nil {
+		return nil, lastErr
+	}
+	return nil, ErrMalformedToken
 }
 
 type jwksResponse struct {
@@ -476,7 +542,7 @@ func DualAuth(keyStore store.APIKeyStore, oidcValidator TokenValidator) func(htt
 				return
 			}
 
-			// 1. Attempt OIDC JWT authentication with primary validator
+			// 1. Attempt token authentication with the configured TokenValidator
 			if oidcValidator != nil && (strings.Count(token, ".") == 2 || strings.HasPrefix(token, "mock_jwt_") || strings.HasPrefix(token, "dev_token_")) {
 				user, err := oidcValidator.ValidateToken(r.Context(), token)
 				if err == nil && user != nil {
@@ -489,18 +555,7 @@ func DualAuth(keyStore store.APIKeyStore, oidcValidator TokenValidator) func(htt
 				}
 			}
 
-			// 2. Development fallback: allow DevTokenValidator for mock/dev tokens
-			devVal := NewDevTokenValidator()
-			if user, err := devVal.ValidateToken(r.Context(), token); err == nil && user != nil {
-				ctx := WithOIDCUser(r.Context(), user)
-				if car, ok := w.(interface{ SetRequestContext(context.Context) }); ok {
-					car.SetRequestContext(ctx)
-				}
-				next.ServeHTTP(w, r.WithContext(ctx))
-				return
-			}
-
-			// 3. Attempt API Key lookup
+			// 2. Attempt API Key lookup
 			if keyStore != nil {
 				tokenHash := apikey.Hash(token)
 				key, err := keyStore.GetAPIKeyByHash(r.Context(), tokenHash)
@@ -537,11 +592,6 @@ func DualAuth(keyStore store.APIKeyStore, oidcValidator TokenValidator) func(htt
 						cToken := strings.TrimSpace(cookie.Value)
 						if oidcValidator != nil {
 							if u, err := oidcValidator.ValidateToken(r.Context(), cToken); err == nil && u != nil {
-								ctx = WithOIDCUser(ctx, u)
-							}
-						}
-						if GetOIDCUser(ctx) == nil {
-							if u, err := devVal.ValidateToken(r.Context(), cToken); err == nil && u != nil {
 								ctx = WithOIDCUser(ctx, u)
 							}
 						}

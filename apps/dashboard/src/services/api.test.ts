@@ -8,11 +8,11 @@ describe("ApiClient", () => {
 		vi.restoreAllMocks();
 	});
 
-	it("manages API key in memory and localStorage", () => {
+	it("manages API key in memory without persisting to localStorage", () => {
 		expect(api.getApiKey()).toBeNull();
 		api.setApiKey("lensio_live_abc123");
 		expect(api.getApiKey()).toBe("lensio_live_abc123");
-		expect(localStorage.getItem("lensio_api_key")).toBe("lensio_live_abc123");
+		expect(localStorage.getItem("lensio_api_key")).toBeNull();
 
 		api.setApiKey(null);
 		expect(api.getApiKey()).toBeNull();

@@ -11,6 +11,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/amirfaisalz/lensio/apps/api/internal/auth"
 	"github.com/amirfaisalz/lensio/apps/api/internal/authz"
 	"github.com/amirfaisalz/lensio/apps/api/internal/config"
 	internalhttp "github.com/amirfaisalz/lensio/apps/api/internal/http"
@@ -124,6 +125,10 @@ func main() {
 		idempotencyStore = idempotency.NewMemoryStore(24 * time.Hour)
 	}
 
+	// Configure session secret and validators
+	auth.SetTokenSecret([]byte(cfg.SessionSecret))
+	sessionVal := middleware.NewSessionTokenValidator([]byte(cfg.SessionSecret))
+
 	var oidcValidator middleware.TokenValidator
 	if cfg.KeycloakJWKSURL != "" {
 		logger.Info("initializing Keycloak OIDC validator", slog.String("jwks_url", cfg.KeycloakJWKSURL))
@@ -134,10 +139,16 @@ func main() {
 		if cfg.KeycloakAudience != "" {
 			validator.SetExpectedAudience(cfg.KeycloakAudience)
 		}
-		oidcValidator = validator
+		if cfg.Env == "development" {
+			oidcValidator = middleware.NewCompositeTokenValidator(validator, sessionVal, middleware.NewDevTokenValidator())
+		} else {
+			oidcValidator = middleware.NewCompositeTokenValidator(validator, sessionVal)
+		}
 	} else if cfg.Env == "development" {
-		logger.Info("Keycloak JWKS URL not configured, enabling DevTokenValidator for local development")
-		oidcValidator = middleware.NewDevTokenValidator()
+		logger.Info("Keycloak JWKS URL not configured, enabling DevTokenValidator & SessionTokenValidator for local development")
+		oidcValidator = middleware.NewCompositeTokenValidator(sessionVal, middleware.NewDevTokenValidator())
+	} else {
+		oidcValidator = sessionVal
 	}
 
 	var authorizer authz.Authorizer
@@ -160,18 +171,19 @@ func main() {
 	}
 
 	router := internalhttp.NewRouterWithDeps(internalhttp.RouterDeps{
-		Pinger:           pinger,
-		KeyStore:         db,
-		OCREngine:        ocrEngine,
-		OCRStore:         db,
-		UsageStore:       db,
-		AccountStore:     db,
-		AuditStore:       db,
-		RateLimiter:      rateLimiter,
-		UsageRecorder:    usageRecorder,
-		IdempotencyStore: idempotencyStore,
-		OIDCValidator:    oidcValidator,
-		Authorizer:       authorizer,
+		Pinger:             pinger,
+		KeyStore:           db,
+		OCREngine:          ocrEngine,
+		OCRStore:           db,
+		UsageStore:         db,
+		AccountStore:       db,
+		AuditStore:         db,
+		RateLimiter:        rateLimiter,
+		UsageRecorder:      usageRecorder,
+		IdempotencyStore:   idempotencyStore,
+		OIDCValidator:      oidcValidator,
+		Authorizer:         authorizer,
+		CORSAllowedOrigins: cfg.CORSAllowedOrigins,
 	})
 
 	srv := &http.Server{

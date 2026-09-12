@@ -11,63 +11,88 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 var (
-	ErrEmptyPassword        = errors.New("password cannot be empty")
-	ErrInvalidStoredHash    = errors.New("invalid stored password hash format")
-	DefaultTokenSecret      = []byte("lensio-session-secret-key-production-32b")
-	DefaultSessionDuration  = 7 * 24 * time.Hour
+	ErrEmptyPassword       = errors.New("password cannot be empty")
+	ErrInvalidStoredHash   = errors.New("invalid stored password hash format")
+	ErrMalformedToken      = errors.New("malformed session token")
+	ErrInvalidSignature    = errors.New("invalid session token signature")
+	ErrTokenExpired        = errors.New("session token has expired")
+	DefaultSessionDuration = 7 * 24 * time.Hour
+
+	tokenSecretMu sync.RWMutex
+	tokenSecret   = []byte("lensio-session-secret-key-development-32b")
 )
 
-// HashPassword creates a cryptographically salted SHA-256 hash of the given password.
-// Format: <hex_salt>$<hex_sha256_hash>
+// SetTokenSecret configures the HMAC signing key for internal session tokens.
+func SetTokenSecret(secret []byte) {
+	tokenSecretMu.Lock()
+	defer tokenSecretMu.Unlock()
+	if len(secret) > 0 {
+		tokenSecret = secret
+	}
+}
+
+// GetTokenSecret returns the current HMAC signing key for session tokens.
+func GetTokenSecret() []byte {
+	tokenSecretMu.RLock()
+	defer tokenSecretMu.RUnlock()
+	return tokenSecret
+}
+
+// HashPassword creates a secure bcrypt hash of the given password.
 func HashPassword(password string) (string, error) {
 	if strings.TrimSpace(password) == "" {
 		return "", ErrEmptyPassword
 	}
 
-	salt := make([]byte, 16)
-	if _, err := rand.Read(salt); err != nil {
-		return "", fmt.Errorf("generating salt: %w", err)
+	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return "", fmt.Errorf("generating bcrypt hash: %w", err)
 	}
 
-	h := sha256.New()
-	h.Write(salt)
-	h.Write([]byte(password))
-	sum := h.Sum(nil)
-
-	return hex.EncodeToString(salt) + "$" + hex.EncodeToString(sum), nil
+	return string(hash), nil
 }
 
-// VerifyPassword performs a constant-time comparison of the password against the stored hash.
+// VerifyPassword verifies a plaintext password against a stored hash.
+// Supports modern bcrypt ($2a$, $2b$, $2y$) and maintains legacy salted SHA-256 compatibility.
 func VerifyPassword(password, storedHash string) bool {
 	if password == "" || storedHash == "" {
 		return false
 	}
 
+	// 1. Check bcrypt hashes
+	if strings.HasPrefix(storedHash, "$2a$") || strings.HasPrefix(storedHash, "$2b$") || strings.HasPrefix(storedHash, "$2y$") {
+		return bcrypt.CompareHashAndPassword([]byte(storedHash), []byte(password)) == nil
+	}
+
+	// 2. Legacy fallback for salted SHA-256: <hex_salt>$<hex_sha256_hash>
 	parts := strings.Split(storedHash, "$")
-	if len(parts) != 2 {
-		return false
+	if len(parts) == 2 {
+		salt, err := hex.DecodeString(parts[0])
+		if err != nil || len(salt) == 0 {
+			return false
+		}
+
+		expectedHash, err := hex.DecodeString(parts[1])
+		if err != nil || len(expectedHash) == 0 {
+			return false
+		}
+
+		h := sha256.New()
+		h.Write(salt)
+		h.Write([]byte(password))
+		actualHash := h.Sum(nil)
+
+		return subtle.ConstantTimeCompare(actualHash, expectedHash) == 1
 	}
 
-	salt, err := hex.DecodeString(parts[0])
-	if err != nil || len(salt) == 0 {
-		return false
-	}
-
-	expectedHash, err := hex.DecodeString(parts[1])
-	if err != nil || len(expectedHash) == 0 {
-		return false
-	}
-
-	h := sha256.New()
-	h.Write(salt)
-	h.Write([]byte(password))
-	actualHash := h.Sum(nil)
-
-	return subtle.ConstantTimeCompare(actualHash, expectedHash) == 1
+	return false
 }
 
 // GenerateVerificationToken returns a cryptographically secure hex-encoded 16-byte random token.
@@ -91,10 +116,18 @@ type TokenClaims struct {
 	Exp               int64    `json:"exp"`
 }
 
-// CreateSessionToken generates a signed 3-part base64URL JWT session token.
+// CreateSessionToken generates a signed 3-part base64URL JWT session token using the default secret.
 func CreateSessionToken(userID, email, username string, roles []string, duration time.Duration) (string, error) {
-	if duration <= 0 {
+	return CreateSessionTokenWithSecret(userID, email, username, roles, duration, GetTokenSecret())
+}
+
+// CreateSessionTokenWithSecret generates a signed 3-part base64URL JWT session token using the specified secret.
+func CreateSessionTokenWithSecret(userID, email, username string, roles []string, duration time.Duration, secret []byte) (string, error) {
+	if duration == 0 {
 		duration = DefaultSessionDuration
+	}
+	if len(secret) == 0 {
+		secret = GetTokenSecret()
 	}
 
 	now := time.Now()
@@ -128,9 +161,61 @@ func CreateSessionToken(userID, email, username string, roles []string, duration
 	payloadB64 := base64.RawURLEncoding.EncodeToString(payloadJSON)
 	signingInput := headerB64 + "." + payloadB64
 
-	mac := hmac.New(sha256.New, DefaultTokenSecret)
+	mac := hmac.New(sha256.New, secret)
 	mac.Write([]byte(signingInput))
 	sigB64 := base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
 
 	return signingInput + "." + sigB64, nil
+}
+
+// ValidateSessionToken strictly validates an HS256 JWT session token against the secret.
+func ValidateSessionToken(token string, secret []byte) (*TokenClaims, error) {
+	if len(secret) == 0 {
+		secret = GetTokenSecret()
+	}
+
+	parts := strings.Split(token, ".")
+	if len(parts) != 3 {
+		return nil, ErrMalformedToken
+	}
+
+	headerBytes, err := base64.RawURLEncoding.DecodeString(parts[0])
+	if err != nil {
+		return nil, fmt.Errorf("%w: invalid header base64", ErrMalformedToken)
+	}
+
+	var header struct {
+		Alg string `json:"alg"`
+		Typ string `json:"typ"`
+	}
+	if err := json.Unmarshal(headerBytes, &header); err != nil || header.Alg != "HS256" {
+		return nil, fmt.Errorf("%w: expected HS256 algorithm", ErrMalformedToken)
+	}
+
+	// Verify HMAC-SHA256 signature
+	signingInput := parts[0] + "." + parts[1]
+	mac := hmac.New(sha256.New, secret)
+	mac.Write([]byte(signingInput))
+	expectedSig := mac.Sum(nil)
+
+	sigBytes, err := base64.RawURLEncoding.DecodeString(parts[2])
+	if err != nil || !hmac.Equal(sigBytes, expectedSig) {
+		return nil, ErrInvalidSignature
+	}
+
+	payloadBytes, err := base64.RawURLEncoding.DecodeString(parts[1])
+	if err != nil {
+		return nil, fmt.Errorf("%w: invalid payload base64", ErrMalformedToken)
+	}
+
+	var claims TokenClaims
+	if err := json.Unmarshal(payloadBytes, &claims); err != nil {
+		return nil, fmt.Errorf("%w: invalid payload json", ErrMalformedToken)
+	}
+
+	if claims.Exp > 0 && time.Now().Unix() > claims.Exp {
+		return nil, ErrTokenExpired
+	}
+
+	return &claims, nil
 }
