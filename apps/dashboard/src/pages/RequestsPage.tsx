@@ -62,6 +62,7 @@ export const RequestsPage: React.FC = () => {
 				offset,
 				status_code: statusCodeFilter,
 				endpoint: endpointFilter || undefined,
+				org_id: currentOrg?.id,
 			});
 			setRecords(res.data || []);
 			setTotal(res.total || 0);

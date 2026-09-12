@@ -43,8 +43,8 @@ export const UsagePage: React.FC = () => {
 			setIsLoading(true);
 			setError(null);
 			const [dailyRes, endpointRes] = await Promise.all([
-				api.fetchDailyUsage(),
-				api.fetchEndpointUsage(),
+				api.fetchDailyUsage(currentOrg?.id),
+				api.fetchEndpointUsage(currentOrg?.id),
 			]);
 			setDaily(dailyRes);
 			setEndpoints(endpointRes);
