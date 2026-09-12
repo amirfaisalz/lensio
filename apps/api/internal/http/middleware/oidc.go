@@ -523,12 +523,8 @@ func DualAuth(keyStore store.APIKeyStore, oidcValidator TokenValidator) func(htt
 						return
 					}
 
-					// Async touch last_used_at
-					go func(id string) {
-						ctx, cancel := context.WithTimeout(context.WithoutCancel(r.Context()), 2*time.Second)
-						defer cancel()
-						_ = keyStore.TouchAPIKeyLastUsed(ctx, id, time.Now())
-					}(key.ID)
+					// Asynchronously touch last_used_at with debounced pooling (Issue #5)
+					touchKeyAsync(r.Context(), keyStore, key.ID)
 
 					ctx := WithAPIKey(r.Context(), key)
 					next.ServeHTTP(w, r.WithContext(ctx))
