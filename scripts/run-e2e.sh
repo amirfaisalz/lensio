@@ -39,14 +39,17 @@ echo " 🎭 Lensio Playwright E2E Suite Runner (PRD Section 28)"
 echo "======================================================================"
 
 # 1. Start Go API Server
+echo "🔨 Building Lensio API binary..."
+go build -o /tmp/lensio-api ./apps/api/cmd/server
+
 echo "🚀 Starting Lensio API on ${API_URL}..."
 PORT="${PORT}" DATABASE_URL="${DB_URL}" ENV="test" LOG_LEVEL="warn" \
-    go run ./apps/api/cmd/server > /tmp/lensio_api_e2e.log 2>&1 &
+    /tmp/lensio-api > /tmp/lensio_api_e2e.log 2>&1 &
 API_PID=$!
 
 echo "Waiting for API server readiness..."
 READY=false
-for i in $(seq 1 30); do
+for i in $(seq 1 60); do
     if curl -s "${API_URL}/ready" | grep -q '"database":"connected"'; then
         READY=true
         echo "✅ API server and database ready!"
