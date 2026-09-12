@@ -121,7 +121,14 @@ func main() {
 	var oidcValidator middleware.TokenValidator
 	if cfg.KeycloakJWKSURL != "" {
 		logger.Info("initializing Keycloak OIDC validator", slog.String("jwks_url", cfg.KeycloakJWKSURL))
-		oidcValidator = middleware.NewOIDCValidator(cfg.KeycloakJWKSURL, nil)
+		validator := middleware.NewOIDCValidator(cfg.KeycloakJWKSURL, nil)
+		if cfg.KeycloakIssuer != "" {
+			validator.SetExpectedIssuer(cfg.KeycloakIssuer)
+		}
+		if cfg.KeycloakAudience != "" {
+			validator.SetExpectedAudience(cfg.KeycloakAudience)
+		}
+		oidcValidator = validator
 	}
 
 	var authorizer authz.Authorizer

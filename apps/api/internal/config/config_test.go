@@ -17,6 +17,8 @@ func TestLoad_Defaults(t *testing.T) {
 	os.Unsetenv("GEMINI_API_KEY")
 	os.Unsetenv("GEMINI_MODEL")
 	os.Unsetenv("KEYCLOAK_JWKS_URL")
+	os.Unsetenv("KEYCLOAK_ISSUER")
+	os.Unsetenv("KEYCLOAK_AUDIENCE")
 	os.Unsetenv("SPICEDB_ENDPOINT")
 	os.Unsetenv("SPICEDB_PRESHARED_KEY")
 
@@ -45,6 +47,12 @@ func TestLoad_Defaults(t *testing.T) {
 	if cfg.KeycloakJWKSURL != "" {
 		t.Fatalf("expected empty KeycloakJWKSURL, got '%s'", cfg.KeycloakJWKSURL)
 	}
+	if cfg.KeycloakIssuer != "" {
+		t.Fatalf("expected empty KeycloakIssuer, got '%s'", cfg.KeycloakIssuer)
+	}
+	if cfg.KeycloakAudience != "" {
+		t.Fatalf("expected empty KeycloakAudience, got '%s'", cfg.KeycloakAudience)
+	}
 	if cfg.SpiceDBEndpoint != "" {
 		t.Fatalf("expected empty SpiceDBEndpoint, got '%s'", cfg.SpiceDBEndpoint)
 	}
@@ -62,6 +70,7 @@ func TestLoad_CustomEnv(t *testing.T) {
 	t.Setenv("GEMINI_API_KEY", "test-key-123")
 	t.Setenv("GEMINI_MODEL", "gemini-1.5-flash")
 	t.Setenv("KEYCLOAK_JWKS_URL", "http://keycloak:8080/realms/lensio/protocol/openid-connect/certs")
+	t.Setenv("KEYCLOAK_AUDIENCE", "lensio-api")
 	t.Setenv("SPICEDB_ENDPOINT", "http://spicedb:8443")
 	t.Setenv("SPICEDB_PRESHARED_KEY", "lensio_spicedb_key")
 
@@ -89,6 +98,12 @@ func TestLoad_CustomEnv(t *testing.T) {
 	}
 	if cfg.KeycloakJWKSURL != "http://keycloak:8080/realms/lensio/protocol/openid-connect/certs" {
 		t.Fatalf("expected KeycloakJWKSURL, got '%s'", cfg.KeycloakJWKSURL)
+	}
+	if cfg.KeycloakIssuer != "http://keycloak:8080/realms/lensio" {
+		t.Fatalf("expected derived KeycloakIssuer 'http://keycloak:8080/realms/lensio', got '%s'", cfg.KeycloakIssuer)
+	}
+	if cfg.KeycloakAudience != "lensio-api" {
+		t.Fatalf("expected KeycloakAudience 'lensio-api', got '%s'", cfg.KeycloakAudience)
 	}
 	if cfg.SpiceDBEndpoint != "http://spicedb:8443" {
 		t.Fatalf("expected SpiceDBEndpoint 'http://spicedb:8443', got '%s'", cfg.SpiceDBEndpoint)

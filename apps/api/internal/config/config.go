@@ -12,9 +12,11 @@ type Config struct {
 	DatabaseURL  string
 	LogLevel     string
 	OCRProvider  string
-	GeminiAPIKey    string
-	GeminiModel     string
+	GeminiAPIKey        string
+	GeminiModel         string
 	KeycloakJWKSURL     string
+	KeycloakIssuer      string
+	KeycloakAudience    string
 	SpiceDBEndpoint     string
 	SpiceDBPresharedKey string
 }
@@ -51,6 +53,11 @@ func Load() *Config {
 	}
 
 	keycloakJWKSURL := strings.TrimSpace(os.Getenv("KEYCLOAK_JWKS_URL"))
+	keycloakIssuer := strings.TrimSpace(os.Getenv("KEYCLOAK_ISSUER"))
+	if keycloakIssuer == "" && keycloakJWKSURL != "" && strings.HasSuffix(keycloakJWKSURL, "/protocol/openid-connect/certs") {
+		keycloakIssuer = strings.TrimSuffix(keycloakJWKSURL, "/protocol/openid-connect/certs")
+	}
+	keycloakAudience := strings.TrimSpace(os.Getenv("KEYCLOAK_AUDIENCE"))
 
 	spiceDBEndpoint := strings.TrimSpace(os.Getenv("SPICEDB_ENDPOINT"))
 	spiceDBPresharedKey := strings.TrimSpace(os.Getenv("SPICEDB_PRESHARED_KEY"))
@@ -64,6 +71,8 @@ func Load() *Config {
 		GeminiAPIKey:        geminiAPIKey,
 		GeminiModel:         geminiModel,
 		KeycloakJWKSURL:     keycloakJWKSURL,
+		KeycloakIssuer:      keycloakIssuer,
+		KeycloakAudience:    keycloakAudience,
 		SpiceDBEndpoint:     spiceDBEndpoint,
 		SpiceDBPresharedKey: spiceDBPresharedKey,
 	}

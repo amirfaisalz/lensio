@@ -301,14 +301,6 @@ func resolveActorSubject(r *http.Request) (authz.Subject, bool) {
 		return authz.NewSubject("user", "api_key_"+authz.SanitizeID(authKey.ID)), true
 	}
 
-	if actorHeader := strings.TrimSpace(r.Header.Get("X-Actor-ID")); actorHeader != "" {
-		return authz.NewSubject("user", authz.SanitizeID(actorHeader)), true
-	}
-
-	if userHeader := strings.TrimSpace(r.Header.Get("X-User-ID")); userHeader != "" {
-		return authz.NewSubject("user", authz.SanitizeID(userHeader)), true
-	}
-
 	return authz.Subject{}, false
 }
 

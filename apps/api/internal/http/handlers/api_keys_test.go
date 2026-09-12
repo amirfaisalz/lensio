@@ -430,7 +430,8 @@ func TestCreateAPIKeyHandler_SpiceDBAuthorization(t *testing.T) {
 		body, _ := json.Marshal(map[string]any{"name": "Unauthorized Key"})
 		rec := httptest.NewRecorder()
 		req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/api-keys", bytes.NewReader(body))
-		req.Header.Set("X-Actor-ID", "unauthorized-user")
+		ctx := middleware.WithOIDCUser(req.Context(), &middleware.OIDCUser{Subject: "unauthorized-user"})
+		req = req.WithContext(ctx)
 
 		handler.ServeHTTP(rec, req)
 
@@ -453,7 +454,8 @@ func TestCreateAPIKeyHandler_SpiceDBAuthorization(t *testing.T) {
 		body, _ := json.Marshal(map[string]any{"name": "Error Key"})
 		rec := httptest.NewRecorder()
 		req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/api-keys", bytes.NewReader(body))
-		req.Header.Set("X-Actor-ID", "admin")
+		ctx := middleware.WithOIDCUser(req.Context(), &middleware.OIDCUser{Subject: "admin"})
+		req = req.WithContext(ctx)
 
 		handler.ServeHTTP(rec, req)
 
@@ -529,7 +531,7 @@ func TestCreateAPIKeyHandler_SpiceDBAuthorization(t *testing.T) {
 		}
 	})
 
-	t.Run("authorized actor via X-User-ID header succeeds", func(t *testing.T) {
+	t.Run("arbitrary X-Actor-ID or X-User-ID header without context authentication is rejected with 401", func(t *testing.T) {
 		s := newMockStore()
 		authorizer := authz.NewMockAuthorizer()
 		authorizer.Allow(projRes, "manage_api_keys", authz.NewSubject("user", "lead_dev"))
@@ -539,11 +541,12 @@ func TestCreateAPIKeyHandler_SpiceDBAuthorization(t *testing.T) {
 		rec := httptest.NewRecorder()
 		req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/api-keys", bytes.NewReader(body))
 		req.Header.Set("X-User-ID", "lead_dev")
+		req.Header.Set("X-Actor-ID", "lead_dev")
 
 		handler.ServeHTTP(rec, req)
 
-		if rec.Code != http.StatusCreated {
-			t.Fatalf("expected 201 Created, got %d", rec.Code)
+		if rec.Code != http.StatusUnauthorized {
+			t.Fatalf("expected 401 Unauthorized for untrusted headers, got %d", rec.Code)
 		}
 	})
 }
@@ -580,6 +583,22 @@ func TestRevokeAPIKeyHandler_SpiceDBAuthorization(t *testing.T) {
 		}
 	})
 
+	t.Run("arbitrary X-Actor-ID header on revoke is rejected with 401 without auth context", func(t *testing.T) {
+		s := setupKey()
+		authorizer := authz.NewMockAuthorizer()
+		mux := http.NewServeMux()
+		mux.HandleFunc("DELETE /api/v1/auth/api-keys/{id}", handlers.RevokeAPIKeyHandler(s, nil, authorizer, orgID))
+
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodDelete, "/api/v1/auth/api-keys/"+keyID, nil)
+		req.Header.Set("X-Actor-ID", "admin")
+		mux.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusUnauthorized {
+			t.Fatalf("expected 401 Unauthorized for spoofed X-Actor-ID header, got %d", rec.Code)
+		}
+	})
+
 	t.Run("unauthorized actor returns 403", func(t *testing.T) {
 		s := setupKey()
 		authorizer := authz.NewMockAuthorizer()
@@ -589,7 +608,7 @@ func TestRevokeAPIKeyHandler_SpiceDBAuthorization(t *testing.T) {
 
 		rec := httptest.NewRecorder()
 		req := httptest.NewRequest(http.MethodDelete, "/api/v1/auth/api-keys/"+keyID, nil)
-		req.Header.Set("X-Actor-ID", "intruder")
+		req = req.WithContext(middleware.WithOIDCUser(req.Context(), &middleware.OIDCUser{Subject: "intruder"}))
 		mux.ServeHTTP(rec, req)
 
 		if rec.Code != http.StatusForbidden {
@@ -606,7 +625,7 @@ func TestRevokeAPIKeyHandler_SpiceDBAuthorization(t *testing.T) {
 
 		rec := httptest.NewRecorder()
 		req := httptest.NewRequest(http.MethodDelete, "/api/v1/auth/api-keys/"+keyID, nil)
-		req.Header.Set("X-Actor-ID", "admin")
+		req = req.WithContext(middleware.WithOIDCUser(req.Context(), &middleware.OIDCUser{Subject: "admin"}))
 		mux.ServeHTTP(rec, req)
 
 		if rec.Code != http.StatusInternalServerError {
@@ -658,7 +677,7 @@ func TestRevokeAPIKeyHandler_SpiceDBAuthorization(t *testing.T) {
 
 		rec := httptest.NewRecorder()
 		req := httptest.NewRequest(http.MethodDelete, "/api/v1/auth/api-keys/"+keyID, nil)
-		req.Header.Set("X-Actor-ID", "admin-user")
+		req = req.WithContext(middleware.WithOIDCUser(req.Context(), &middleware.OIDCUser{Subject: "admin-user"}))
 		mux.ServeHTTP(rec, req)
 
 		if rec.Code != http.StatusOK {

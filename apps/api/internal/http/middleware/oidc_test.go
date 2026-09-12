@@ -226,6 +226,75 @@ func TestOIDCValidator_ValidateToken_Errors(t *testing.T) {
 			t.Errorf("expected expired error, got %v", err)
 		}
 	})
+
+	t.Run("mismatched issuer", func(t *testing.T) {
+		val := middleware.NewStaticOIDCValidator(map[string]*rsa.PublicKey{"key-1": pub})
+		val.SetExpectedIssuer("https://auth.lensio.id/realms/lensio")
+
+		claims := map[string]any{
+			"sub": "user-uuid-1",
+			"iss": "https://malicious-issuer.com/realms/fake",
+			"exp": time.Now().Add(10 * time.Minute).Unix(),
+		}
+		token := signJWT(t, priv, "key-1", "RS256", claims)
+		_, err := val.ValidateToken(context.Background(), token)
+		if err == nil || !strings.Contains(err.Error(), "realm") {
+			t.Fatalf("expected ErrInvalidIssuer, got %v", err)
+		}
+	})
+
+	t.Run("mismatched audience string", func(t *testing.T) {
+		val := middleware.NewStaticOIDCValidator(map[string]*rsa.PublicKey{"key-1": pub})
+		val.SetExpectedAudience("lensio-api")
+
+		claims := map[string]any{
+			"sub": "user-uuid-1",
+			"aud": "wrong-client",
+			"exp": time.Now().Add(10 * time.Minute).Unix(),
+		}
+		token := signJWT(t, priv, "key-1", "RS256", claims)
+		_, err := val.ValidateToken(context.Background(), token)
+		if err == nil || !strings.Contains(err.Error(), "client") {
+			t.Fatalf("expected ErrInvalidAudience, got %v", err)
+		}
+	})
+
+	t.Run("mismatched audience array", func(t *testing.T) {
+		val := middleware.NewStaticOIDCValidator(map[string]*rsa.PublicKey{"key-1": pub})
+		val.SetExpectedAudience("lensio-api")
+
+		claims := map[string]any{
+			"sub": "user-uuid-1",
+			"aud": []string{"wrong-client-1", "wrong-client-2"},
+			"exp": time.Now().Add(10 * time.Minute).Unix(),
+		}
+		token := signJWT(t, priv, "key-1", "RS256", claims)
+		_, err := val.ValidateToken(context.Background(), token)
+		if err == nil || !strings.Contains(err.Error(), "client") {
+			t.Fatalf("expected ErrInvalidAudience, got %v", err)
+		}
+	})
+
+	t.Run("valid issuer and audience matching", func(t *testing.T) {
+		val := middleware.NewStaticOIDCValidator(map[string]*rsa.PublicKey{"key-1": pub})
+		val.SetExpectedIssuer("https://auth.lensio.id/realms/lensio")
+		val.SetExpectedAudience("lensio-api")
+
+		claims := map[string]any{
+			"sub": "user-uuid-1",
+			"iss": "https://auth.lensio.id/realms/lensio",
+			"aud": []any{"account", "lensio-api"},
+			"exp": time.Now().Add(10 * time.Minute).Unix(),
+		}
+		token := signJWT(t, priv, "key-1", "RS256", claims)
+		u, err := val.ValidateToken(context.Background(), token)
+		if err != nil {
+			t.Fatalf("expected valid token, got error: %v", err)
+		}
+		if u.Subject != "user-uuid-1" {
+			t.Fatalf("expected sub 'user-uuid-1', got '%s'", u.Subject)
+		}
+	})
 }
 
 func TestOIDCValidator_DynamicJWKS(t *testing.T) {
@@ -392,6 +461,48 @@ func TestRequireOIDCMiddleware(t *testing.T) {
 		handler.ServeHTTP(rec, req)
 		if rec.Code != http.StatusOK {
 			t.Errorf("expected 200, got %d", rec.Code)
+		}
+	})
+
+	t.Run("mismatched issuer rejected with 401", func(t *testing.T) {
+		v := middleware.NewStaticOIDCValidator(map[string]*rsa.PublicKey{"key-1": pub})
+		v.SetExpectedIssuer("https://auth.lensio.id/realms/lensio")
+		h := middleware.RequireOIDC(v)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+		}))
+
+		token := signJWT(t, priv, "key-1", "RS256", map[string]any{
+			"sub": "test-sub",
+			"iss": "https://attacker-idp.com",
+			"exp": time.Now().Add(1 * time.Hour).Unix(),
+		})
+		req := httptest.NewRequest(http.MethodGet, "/test", nil)
+		req.Header.Set("Authorization", "Bearer "+token)
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, req)
+		if rec.Code != http.StatusUnauthorized {
+			t.Errorf("expected 401, got %d", rec.Code)
+		}
+	})
+
+	t.Run("mismatched audience rejected with 401", func(t *testing.T) {
+		v := middleware.NewStaticOIDCValidator(map[string]*rsa.PublicKey{"key-1": pub})
+		v.SetExpectedAudience("lensio-api")
+		h := middleware.RequireOIDC(v)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+		}))
+
+		token := signJWT(t, priv, "key-1", "RS256", map[string]any{
+			"sub": "test-sub",
+			"aud": "wrong-client",
+			"exp": time.Now().Add(1 * time.Hour).Unix(),
+		})
+		req := httptest.NewRequest(http.MethodGet, "/test", nil)
+		req.Header.Set("Authorization", "Bearer "+token)
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, req)
+		if rec.Code != http.StatusUnauthorized {
+			t.Errorf("expected 401, got %d", rec.Code)
 		}
 	})
 }

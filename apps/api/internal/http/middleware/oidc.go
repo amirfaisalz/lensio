@@ -26,6 +26,8 @@ var (
 	ErrKeyNotFound          = errors.New("public key for token kid not found")
 	ErrInvalidSignature     = errors.New("invalid jwt signature")
 	ErrTokenExpired         = errors.New("jwt token has expired")
+	ErrInvalidIssuer        = errors.New("jwt issuer does not match expected realm")
+	ErrInvalidAudience      = errors.New("jwt audience does not match expected client")
 )
 
 // OIDCUser represents the authenticated human identity extracted from an OIDC JWT.
@@ -92,6 +94,7 @@ type jwtPayload struct {
 	PreferredUsername string   `json:"preferred_username"`
 	Name              string   `json:"name"`
 	Iss               string   `json:"iss"`
+	Aud               any      `json:"aud"`
 	Exp               int64    `json:"exp"`
 	Iat               int64    `json:"iat"`
 	Roles             []string `json:"roles"`
@@ -108,6 +111,8 @@ type OIDCValidator struct {
 	keys             map[string]*rsa.PublicKey
 	lastFetch        time.Time
 	minFetchInterval time.Duration
+	expectedIssuer   string
+	expectedAudience string
 }
 
 // NewOIDCValidator creates a validator that dynamically fetches and caches public keys from jwksURL.
@@ -134,6 +139,20 @@ func NewStaticOIDCValidator(keys map[string]*rsa.PublicKey) *OIDCValidator {
 		keys:             copied,
 		minFetchInterval: 3 * time.Second,
 	}
+}
+
+// SetExpectedIssuer configures the expected 'iss' claim in validated JWT tokens.
+func (v *OIDCValidator) SetExpectedIssuer(iss string) {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	v.expectedIssuer = strings.TrimSpace(iss)
+}
+
+// SetExpectedAudience configures the expected 'aud' claim in validated JWT tokens.
+func (v *OIDCValidator) SetExpectedAudience(aud string) {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	v.expectedAudience = strings.TrimSpace(aud)
 }
 
 // SetKey directly registers or overrides an RSA public key in the cache.
@@ -200,6 +219,21 @@ func (v *OIDCValidator) ValidateToken(ctx context.Context, token string) (*OIDCU
 	now := time.Now().Unix()
 	if payload.Exp > 0 && now > payload.Exp {
 		return nil, ErrTokenExpired
+	}
+
+	// 6. Issuer check
+	v.mu.RLock()
+	expIss := v.expectedIssuer
+	expAud := v.expectedAudience
+	v.mu.RUnlock()
+
+	if expIss != "" && payload.Iss != expIss {
+		return nil, ErrInvalidIssuer
+	}
+
+	// 7. Audience check
+	if expAud != "" && !matchAudience(payload.Aud, expAud) {
+		return nil, ErrInvalidAudience
 	}
 
 	// Collect and deduplicate roles
@@ -340,6 +374,29 @@ func parseRSAPublicKey(nStr, eStr string) (*rsa.PublicKey, error) {
 func decodeBase64URL(input string) ([]byte, error) {
 	clean := strings.TrimRight(input, "=")
 	return base64.RawURLEncoding.DecodeString(clean)
+}
+
+func matchAudience(audClaim any, expected string) bool {
+	if expected == "" {
+		return true
+	}
+	switch v := audClaim.(type) {
+	case string:
+		return v == expected
+	case []any:
+		for _, item := range v {
+			if s, ok := item.(string); ok && s == expected {
+				return true
+			}
+		}
+	case []string:
+		for _, s := range v {
+			if s == expected {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // RequireOIDC returns a middleware enforcing valid OIDC JWT bearer tokens.
