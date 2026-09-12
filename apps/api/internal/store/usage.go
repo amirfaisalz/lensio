@@ -107,7 +107,7 @@ func (db *DB) GetUsageSummary(ctx context.Context, orgID string, since time.Time
 			COALESCE(COUNT(*) FILTER (WHERE status_code >= 400), 0),
 			COALESCE(PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY latency_ms), 0)::int,
 			COALESCE(COUNT(*) FILTER (WHERE status_code = 429), 0),
-			COALESCE(COUNT(*) FILTER (WHERE endpoint = '/api/v1/ocr/ktp'), 0)
+			COALESCE(COUNT(*) FILTER (WHERE endpoint = '/api/v1/ocr/ktp' AND status_code < 400), 0)
 		FROM usage_records
 		WHERE org_id = $1 AND timestamp >= $2;
 	`
@@ -237,7 +237,7 @@ func (db *DB) GetEndpointUsage(ctx context.Context, orgID string, since time.Tim
 	return results, nil
 }
 
-// GetMonthlyOCRCount counts total successful or attempted OCR requests during the current billing cycle.
+// GetMonthlyOCRCount counts total successful OCR requests during the current billing cycle.
 func (db *DB) GetMonthlyOCRCount(ctx context.Context, orgID string, since time.Time) (int, error) {
 	if orgID == "" {
 		return 0, errors.New("orgID is required")
@@ -248,7 +248,8 @@ func (db *DB) GetMonthlyOCRCount(ctx context.Context, orgID string, since time.T
 		FROM usage_records
 		WHERE org_id = $1 
 		  AND timestamp >= $2 
-		  AND endpoint = '/api/v1/ocr/ktp';
+		  AND endpoint = '/api/v1/ocr/ktp'
+		  AND status_code < 400;
 	`
 
 	var count int

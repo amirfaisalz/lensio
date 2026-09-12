@@ -106,6 +106,9 @@ func TestUsageStore_LiveDB(t *testing.T) {
 	if summary.QuotaLimit != 100 {
 		t.Errorf("expected quota limit 100, got %d", summary.QuotaLimit)
 	}
+	if summary.QuotaRemaining != 99 {
+		t.Errorf("expected quota remaining 99, got %d", summary.QuotaRemaining)
+	}
 
 	// 3. Query Daily Usage
 	daily, err := db.GetDailyUsage(ctx, defaultOrgID, since)
@@ -125,13 +128,13 @@ func TestUsageStore_LiveDB(t *testing.T) {
 		t.Errorf("expected non-empty endpoint usage results")
 	}
 
-	// 5. Query Monthly OCR Count
+	// 5. Query Monthly OCR Count (only status_code < 400 counts towards quota)
 	ocrCount, err := db.GetMonthlyOCRCount(ctx, defaultOrgID, since)
 	if err != nil {
 		t.Fatalf("failed querying monthly ocr count: %v", err)
 	}
-	if ocrCount < 2 {
-		t.Errorf("expected at least 2 ocr requests, got %d", ocrCount)
+	if ocrCount != 1 {
+		t.Errorf("expected exactly 1 successful ocr request (status_code < 400), got %d", ocrCount)
 	}
 
 	// 6. Query Usage Records (paginated)
