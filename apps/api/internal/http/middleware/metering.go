@@ -30,9 +30,7 @@ func (w *statusResponseWriter) SetRequestContext(ctx context.Context) {
 // UsageMetering returns a middleware that measures request latency, captures status codes,
 // and asynchronously dispatches usage records to the non-blocking usage recorder.
 func UsageMetering(recorder *usage.Recorder, defaultOrgID string) func(http.Handler) http.Handler {
-	if defaultOrgID == "" {
-		defaultOrgID = "00000000-0000-0000-0000-000000000001"
-	}
+	_ = defaultOrgID
 
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

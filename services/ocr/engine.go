@@ -40,6 +40,7 @@ type KTPData struct {
 }
 
 // OCRResult represents the complete structured result of an OCR extraction.
+//nolint:revive // spec mandates ocr.OCRResult naming
 type OCRResult struct {
 	DocumentType string   `json:"document_type"`
 	Confidence   float64  `json:"confidence"`
@@ -48,6 +49,7 @@ type OCRResult struct {
 }
 
 // OCREngine defines the pluggable document extraction contract.
+//nolint:revive // spec mandates ocr.OCREngine naming
 type OCREngine interface {
 	Extract(ctx context.Context, image []byte) (*OCRResult, error)
 }

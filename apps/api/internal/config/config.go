@@ -72,12 +72,13 @@ func Load() *Config {
 				corsOrigins = append(corsOrigins, trimmed)
 			}
 		}
-	} else if env == "development" {
+	} else if env == "development" || env == "test" {
 		corsOrigins = []string{"http://localhost:5173", "http://localhost:3000", "http://localhost:8080"}
 	}
 
 	sessionSecret := strings.TrimSpace(os.Getenv("SESSION_SECRET"))
 	if sessionSecret == "" {
+		// #nosec G101 -- default dev fallback secret
 		sessionSecret = "lensio-session-secret-key-development-32b"
 	}
 

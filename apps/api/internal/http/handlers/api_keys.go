@@ -336,10 +336,6 @@ func resolveActorSubject(r *http.Request) (authz.Subject, bool) {
 	return authz.Subject{}, false
 }
 
-func resolveOrgID(r *http.Request, explicit string, fallback string) string {
-	return resolveOrgIDWithAccount(r, explicit, nil, fallback)
-}
-
 func resolveOrgIDWithAccount(r *http.Request, explicit string, accountStore store.AccountStore, fallback string) string {
 	if explicit = strings.TrimSpace(explicit); explicit != "" {
 		return explicit

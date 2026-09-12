@@ -24,6 +24,7 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
 FROM alpine:3.20
 
 RUN apk --no-cache add ca-certificates tzdata && \
+    apk upgrade --no-cache && \
     addgroup -g 65532 -S appgroup && \
     adduser -u 65532 -S appuser -G appgroup -s /sbin/nologin
 

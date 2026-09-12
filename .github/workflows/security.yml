@@ -47,8 +47,8 @@ jobs:
       - name: Run govulncheck (Go)
         uses: golang/govulncheck-action@v1
         with:
-          go-version-input: '1.23'
-          package-path: './...'
+          go-version-file: 'go.mod'
+          go-package: './...'
           check-latest: false
 
       - name: Run npm audit (Dashboard)
@@ -69,7 +69,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.23'
+          go-version-file: 'go.mod'
 
       - name: Install & Run gosec
         run: |

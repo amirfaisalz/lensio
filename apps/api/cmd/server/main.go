@@ -139,13 +139,13 @@ func main() {
 		if cfg.KeycloakAudience != "" {
 			validator.SetExpectedAudience(cfg.KeycloakAudience)
 		}
-		if cfg.Env == "development" {
+		if cfg.Env == "development" || cfg.Env == "test" {
 			oidcValidator = middleware.NewCompositeTokenValidator(validator, sessionVal, middleware.NewDevTokenValidator())
 		} else {
 			oidcValidator = middleware.NewCompositeTokenValidator(validator, sessionVal)
 		}
-	} else if cfg.Env == "development" {
-		logger.Info("Keycloak JWKS URL not configured, enabling DevTokenValidator & SessionTokenValidator for local development")
+	} else if cfg.Env == "development" || cfg.Env == "test" {
+		logger.Info("Keycloak JWKS URL not configured, enabling DevTokenValidator & SessionTokenValidator for local development/test")
 		oidcValidator = middleware.NewCompositeTokenValidator(sessionVal, middleware.NewDevTokenValidator())
 	} else {
 		oidcValidator = sessionVal

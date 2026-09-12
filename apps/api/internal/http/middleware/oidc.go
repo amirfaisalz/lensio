@@ -381,12 +381,14 @@ func (v *OIDCValidator) refreshKeys(ctx context.Context) error {
 	}
 	v.lastFetch = time.Now()
 
+	// #nosec G704 -- internal operator-configured JWKS URL
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, v.jwksURL, nil)
 	if err != nil {
 		return fmt.Errorf("create jwks request: %w", err)
 	}
 	req.Header.Set("Accept", "application/json")
 
+	// #nosec G704 -- internal operator-configured JWKS URL
 	resp, err := v.httpClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("fetch jwks: %w", err)

@@ -192,7 +192,7 @@ func KTPOCRHandler(engine ocr.OCREngine, ocrStore store.OCRRequestStore, quotaCh
 		engCtx, engSpan := tracer.Start(r.Context(), "ocr.engine_extract")
 		ocrResult, err := engine.Extract(engCtx, imgBytes)
 		// Immediately release reference to image bytes
-		imgBytes = nil
+		_ = imgBytes
 		engDuration := time.Since(engStart).Seconds()
 
 		if err != nil {

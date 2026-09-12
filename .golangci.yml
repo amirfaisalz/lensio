@@ -13,7 +13,7 @@ linters:
     - unused
     - typecheck
     - revive
-    - exportloopref
+    - copyloopvar
     - gosec
     - misspell
 
@@ -45,3 +45,7 @@ issues:
         - gosec
         - errcheck
         - funlen
+    - path: _test\.go
+      text: "SA1012"
+      linters:
+        - staticcheck
