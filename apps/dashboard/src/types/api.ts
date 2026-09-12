@@ -44,6 +44,7 @@ export interface CreateKeyRequest {
 	environment: "live" | "test";
 	scopes: string[];
 	expires_at?: string | null;
+	org_id?: string;
 }
 
 export interface CreateKeyResponse {

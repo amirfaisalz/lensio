@@ -184,8 +184,11 @@ class ApiClient {
 		return this.handleResponse<UsageRecordsResponse>(res);
 	}
 
-	public async fetchAPIKeys(): Promise<APIKeyListItem[]> {
-		const res = await this.fetchWithAuth(`${API_BASE}/api/v1/auth/api-keys`, {
+	public async fetchAPIKeys(orgId?: string): Promise<APIKeyListItem[]> {
+		const url = orgId
+			? `${API_BASE}/api/v1/auth/api-keys?org_id=${encodeURIComponent(orgId)}`
+			: `${API_BASE}/api/v1/auth/api-keys`;
+		const res = await this.fetchWithAuth(url, {
 			method: "GET",
 		});
 		const result = await this.handleResponse<{ data: APIKeyListItem[] }>(res);
@@ -202,13 +205,14 @@ class ApiClient {
 
 	public async revokeAPIKey(
 		id: string,
+		orgId?: string,
 	): Promise<{ message: string; id: string }> {
-		const res = await this.fetchWithAuth(
-			`${API_BASE}/api/v1/auth/api-keys/${id}`,
-			{
-				method: "DELETE",
-			},
-		);
+		const url = orgId
+			? `${API_BASE}/api/v1/auth/api-keys/${id}?org_id=${encodeURIComponent(orgId)}`
+			: `${API_BASE}/api/v1/auth/api-keys/${id}`;
+		const res = await this.fetchWithAuth(url, {
+			method: "DELETE",
+		});
 		return this.handleResponse<{ message: string; id: string }>(res);
 	}
 

@@ -686,3 +686,192 @@ func TestRevokeAPIKeyHandler_SpiceDBAuthorization(t *testing.T) {
 	})
 }
 
+type mockAPIKeyAndAccountStore struct {
+	*mockAPIKeyStore
+	orgs     map[string]*store.Organization
+	userOrgs map[string]*store.Organization
+}
+
+func (m *mockAPIKeyAndAccountStore) GetOrganization(ctx context.Context, orgID string) (*store.Organization, error) {
+	if org, ok := m.orgs[orgID]; ok {
+		return org, nil
+	}
+	return nil, store.ErrNotFound
+}
+
+func (m *mockAPIKeyAndAccountStore) GetOrganizationPlan(ctx context.Context, orgID string) (*store.Plan, error) {
+	return nil, nil
+}
+
+func (m *mockAPIKeyAndAccountStore) UpdateOrganizationPlan(ctx context.Context, orgID string, planCode string) error {
+	return nil
+}
+
+func (m *mockAPIKeyAndAccountStore) GetOrganizationMembers(ctx context.Context, orgID string) ([]store.User, error) {
+	return nil, nil
+}
+
+func (m *mockAPIKeyAndAccountStore) CreateUser(ctx context.Context, fullName, email, passwordHash, verificationToken string) (*store.User, error) {
+	return nil, nil
+}
+
+func (m *mockAPIKeyAndAccountStore) GetUserByEmail(ctx context.Context, email string) (*store.UserWithAuth, error) {
+	return nil, nil
+}
+
+func (m *mockAPIKeyAndAccountStore) GetUserByID(ctx context.Context, userID string) (*store.User, error) {
+	return nil, nil
+}
+
+func (m *mockAPIKeyAndAccountStore) VerifyUserEmail(ctx context.Context, email, token string) error {
+	return nil
+}
+
+func (m *mockAPIKeyAndAccountStore) CreateOrganization(ctx context.Context, name, slug, planCode string) (*store.Organization, error) {
+	return nil, nil
+}
+
+func (m *mockAPIKeyAndAccountStore) AssignUserToOrg(ctx context.Context, userID, orgID, role string) error {
+	return nil
+}
+
+func (m *mockAPIKeyAndAccountStore) GetUserOrganization(ctx context.Context, userID string) (*store.Organization, error) {
+	if org, ok := m.userOrgs[userID]; ok {
+		return org, nil
+	}
+	return nil, store.ErrNotFound
+}
+
+func TestAPIKeyHandlers_WithAccountStore(t *testing.T) {
+	baseStore := newMockStore()
+	validOrg := &store.Organization{
+		ID:   "org-uuid-123",
+		Name: "Test Company",
+		Slug: "test-co",
+	}
+	as := &mockAPIKeyAndAccountStore{
+		mockAPIKeyStore: baseStore,
+		orgs: map[string]*store.Organization{
+			"org-uuid-123": validOrg,
+		},
+		userOrgs: map[string]*store.Organization{
+			"user-uuid-999": validOrg,
+		},
+	}
+
+	t.Run("CreateAPIKey - resolves org from user when req.OrgID is empty", func(t *testing.T) {
+		body := map[string]any{
+			"name":        "OIDC Session Key",
+			"environment": "live",
+		}
+		b, _ := json.Marshal(body)
+
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/api-keys", bytes.NewReader(b))
+		req = req.WithContext(middleware.WithOIDCUser(req.Context(), &middleware.OIDCUser{Subject: "user-uuid-999"}))
+		rec := httptest.NewRecorder()
+
+		handlers.CreateAPIKeyHandler(as, nil, nil, "")(rec, req)
+
+		if rec.Code != http.StatusCreated {
+			t.Fatalf("expected 201 Created, got %d. Body: %s", rec.Code, rec.Body.String())
+		}
+
+		var resp handlers.CreateKeyResponse
+		_ = json.NewDecoder(rec.Body).Decode(&resp)
+		if resp.OrgID != "org-uuid-123" {
+			t.Errorf("expected org ID %q, got %q", "org-uuid-123", resp.OrgID)
+		}
+	})
+
+	t.Run("CreateAPIKey - returns 400 when explicit org not found in account store", func(t *testing.T) {
+		body := map[string]any{
+			"name":        "Invalid Org Key",
+			"environment": "live",
+			"org_id":      "org-non-existent",
+		}
+		b, _ := json.Marshal(body)
+
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/api-keys", bytes.NewReader(b))
+		rec := httptest.NewRecorder()
+
+		handlers.CreateAPIKeyHandler(as, nil, nil, "")(rec, req)
+
+		if rec.Code != http.StatusBadRequest {
+			t.Fatalf("expected 400 Bad Request, got %d. Body: %s", rec.Code, rec.Body.String())
+		}
+	})
+
+	t.Run("CreateAPIKey - returns 400 when org cannot be resolved", func(t *testing.T) {
+		body := map[string]any{
+			"name":        "No Org Key",
+			"environment": "live",
+		}
+		b, _ := json.Marshal(body)
+
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/api-keys", bytes.NewReader(b))
+		// user with no organization
+		req = req.WithContext(middleware.WithOIDCUser(req.Context(), &middleware.OIDCUser{Subject: "orphan-user"}))
+		rec := httptest.NewRecorder()
+
+		handlers.CreateAPIKeyHandler(as, nil, nil, "")(rec, req)
+
+		if rec.Code != http.StatusBadRequest {
+			t.Fatalf("expected 400 Bad Request, got %d. Body: %s", rec.Code, rec.Body.String())
+		}
+	})
+
+	t.Run("ListAPIKeys - resolves org from user when query param empty", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/auth/api-keys", nil)
+		req = req.WithContext(middleware.WithOIDCUser(req.Context(), &middleware.OIDCUser{Subject: "user-uuid-999"}))
+		rec := httptest.NewRecorder()
+
+		handlers.ListAPIKeysHandler(as, "")(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Fatalf("expected 200 OK, got %d. Body: %s", rec.Code, rec.Body.String())
+		}
+	})
+
+	t.Run("ListAPIKeys - returns empty list when org cannot be resolved", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/auth/api-keys", nil)
+		req = req.WithContext(middleware.WithOIDCUser(req.Context(), &middleware.OIDCUser{Subject: "orphan-user"}))
+		rec := httptest.NewRecorder()
+
+		handlers.ListAPIKeysHandler(as, "")(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Fatalf("expected 200 OK, got %d. Body: %s", rec.Code, rec.Body.String())
+		}
+		var result map[string][]handlers.APIKeyListItem
+		_ = json.NewDecoder(rec.Body).Decode(&result)
+		if len(result["data"]) != 0 {
+			t.Errorf("expected empty data list, got %d items", len(result["data"]))
+		}
+	})
+
+	t.Run("RevokeAPIKey - resolves org from user when query param empty", func(t *testing.T) {
+		// First create a key in org-uuid-123
+		key := &store.APIKey{
+			OrgID:       "org-uuid-123",
+			Name:        "To Revoke",
+			KeyHash:     "hash-revoke-1",
+			Prefix:      "lensio_live_rev1",
+			Environment: "live",
+		}
+		_ = as.CreateAPIKey(context.Background(), key)
+
+		mux := http.NewServeMux()
+		mux.HandleFunc("DELETE /api/v1/auth/api-keys/{id}", handlers.RevokeAPIKeyHandler(as, nil, nil, ""))
+
+		req := httptest.NewRequest(http.MethodDelete, "/api/v1/auth/api-keys/"+key.ID, nil)
+		req = req.WithContext(middleware.WithOIDCUser(req.Context(), &middleware.OIDCUser{Subject: "user-uuid-999"}))
+		rec := httptest.NewRecorder()
+
+		mux.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Fatalf("expected 200 OK, got %d. Body: %s", rec.Code, rec.Body.String())
+		}
+	})
+}
+

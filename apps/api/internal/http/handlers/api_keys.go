@@ -85,8 +85,26 @@ func CreateAPIKeyHandler(keyStore store.APIKeyStore, auditStore store.AuditStore
 			req.Scopes = []string{"ocr:read", "ocr:write", "usage:read"}
 		}
 
+		var accountStore store.AccountStore
+		if as, ok := keyStore.(store.AccountStore); ok {
+			accountStore = as
+		}
+
 		// Resolve org ID
-		orgID := resolveOrgID(r, req.OrgID, defaultOrgID)
+		orgID := resolveOrgIDWithAccount(r, req.OrgID, accountStore, defaultOrgID)
+		if orgID == "" {
+			response.ErrorWithRequest(w, r, http.StatusBadRequest, response.CodeInvalidRequest, "Organisasi belum dipilih atau tidak valid")
+			return
+		}
+
+		if accountStore != nil {
+			if _, err := accountStore.GetOrganization(r.Context(), orgID); err != nil {
+				if errors.Is(err, store.ErrNotFound) {
+					response.ErrorWithRequest(w, r, http.StatusBadRequest, response.CodeInvalidRequest, "Organisasi tidak ditemukan")
+					return
+				}
+			}
+		}
 
 		// Enforce SpiceDB ReBAC authorization if authorizer is configured
 		var actorSubject authz.Subject
@@ -183,7 +201,17 @@ func CreateAPIKeyHandler(keyStore store.APIKeyStore, auditStore store.AuditStore
 // ListAPIKeysHandler handles GET /api/v1/auth/api-keys.
 func ListAPIKeysHandler(keyStore store.APIKeyStore, defaultOrgID string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		orgID := resolveOrgID(r, r.URL.Query().Get("org_id"), defaultOrgID)
+		var accountStore store.AccountStore
+		if as, ok := keyStore.(store.AccountStore); ok {
+			accountStore = as
+		}
+		orgID := resolveOrgIDWithAccount(r, r.URL.Query().Get("org_id"), accountStore, defaultOrgID)
+		if orgID == "" {
+			response.JSON(w, http.StatusOK, map[string]any{
+				"data": []APIKeyListItem{},
+			})
+			return
+		}
 
 		keys, err := keyStore.ListAPIKeysByOrg(r.Context(), orgID)
 		if err != nil {
@@ -223,7 +251,11 @@ func RevokeAPIKeyHandler(keyStore store.APIKeyStore, auditStore store.AuditStore
 			return
 		}
 
-		orgID := resolveOrgID(r, r.URL.Query().Get("org_id"), defaultOrgID)
+		var accountStore store.AccountStore
+		if as, ok := keyStore.(store.AccountStore); ok {
+			accountStore = as
+		}
+		orgID := resolveOrgIDWithAccount(r, r.URL.Query().Get("org_id"), accountStore, defaultOrgID)
 
 		var actorSubject authz.Subject
 		if authorizer != nil {

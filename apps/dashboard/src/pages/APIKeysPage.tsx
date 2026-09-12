@@ -59,7 +59,7 @@ export const APIKeysPage: React.FC = () => {
 		try {
 			setIsLoading(true);
 			setError(null);
-			const data = await api.fetchAPIKeys();
+			const data = await api.fetchAPIKeys(currentOrg.id);
 			setKeys(data);
 		} catch (err) {
 			setError(err instanceof Error ? err.message : "Failed to load API keys");
@@ -90,6 +90,7 @@ export const APIKeysPage: React.FC = () => {
 				name: newKeyName.trim(),
 				environment: newKeyEnv,
 				scopes: newKeyScopes,
+				org_id: currentOrg?.id,
 			});
 
 			setIsCreateModalOpen(false);
@@ -123,7 +124,7 @@ export const APIKeysPage: React.FC = () => {
 
 		try {
 			setIsRevoking(true);
-			await api.revokeAPIKey(keyToRevoke.id);
+			await api.revokeAPIKey(keyToRevoke.id, currentOrg?.id);
 			setKeyToRevoke(null);
 			await loadKeys();
 		} catch (err) {
