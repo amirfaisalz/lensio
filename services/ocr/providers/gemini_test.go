@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -234,4 +235,101 @@ func TestGeminiOCREngine(t *testing.T) {
 			t.Fatalf("expected ErrOCRFailed, got %v", err)
 		}
 	})
+
+	t.Run("marshal error", func(t *testing.T) {
+		reset := providers.SetJSONMarshalForTest(func(v any) ([]byte, error) {
+			return nil, errors.New("forced marshal fail")
+		})
+		defer reset()
+
+		engine := providers.NewGeminiEngine("test-api-key", "gemini-2.0-flash")
+		_, err := engine.Extract(ctx, validImg)
+		if !errors.Is(err, ocr.ErrOCRFailed) {
+			t.Fatalf("expected ErrOCRFailed, got %v", err)
+		}
+	})
+
+	t.Run("invalid base url creating request error", func(t *testing.T) {
+		engine := providers.NewGeminiEngine("test-api-key", "gemini-2.0-flash",
+			providers.WithBaseURL("::://invalid-url"),
+		)
+		_, err := engine.Extract(ctx, validImg)
+		if !errors.Is(err, ocr.ErrOCRFailed) {
+			t.Fatalf("expected ErrOCRFailed, got %v", err)
+		}
+	})
+
+	t.Run("response body read error", func(t *testing.T) {
+		client := &http.Client{
+			Transport: &mockErrorTransport{},
+		}
+		engine := providers.NewGeminiEngine("test-api-key", "gemini-2.0-flash",
+			providers.WithHTTPClient(client),
+		)
+		_, err := engine.Extract(ctx, validImg)
+		if !errors.Is(err, ocr.ErrOCRFailed) {
+			t.Fatalf("expected ErrOCRFailed, got %v", err)
+		}
+	})
+
+	t.Run("malformed json response body", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte("not valid json"))
+		}))
+		defer server.Close()
+
+		engine := providers.NewGeminiEngine("test-api-key", "gemini-2.0-flash",
+			providers.WithBaseURL(server.URL),
+			providers.WithHTTPClient(server.Client()),
+		)
+		_, err := engine.Extract(ctx, validImg)
+		if !errors.Is(err, ocr.ErrOCRFailed) {
+			t.Fatalf("expected ErrOCRFailed, got %v", err)
+		}
+	})
+
+	t.Run("candidate with empty text parts", func(t *testing.T) {
+		mockEmptyText := map[string]any{
+			"candidates": []map[string]any{
+				{
+					"content": map[string]any{
+						"parts": []map[string]any{
+							{"text": ""},
+						},
+					},
+				},
+			},
+		}
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(mockEmptyText)
+		}))
+		defer server.Close()
+
+		engine := providers.NewGeminiEngine("test-api-key", "gemini-2.0-flash",
+			providers.WithBaseURL(server.URL),
+			providers.WithHTTPClient(server.Client()),
+		)
+		_, err := engine.Extract(ctx, validImg)
+		if !errors.Is(err, ocr.ErrOCRFailed) {
+			t.Fatalf("expected ErrOCRFailed, got %v", err)
+		}
+	})
+}
+
+type mockErrorTransport struct{}
+
+func (m *mockErrorTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	return &http.Response{
+		StatusCode: http.StatusOK,
+		Body:       io.NopCloser(&errReader{}),
+		Header:     make(http.Header),
+	}, nil
+}
+
+type errReader struct{}
+
+func (e *errReader) Read(p []byte) (n int, err error) {
+	return 0, errors.New("simulated read error")
 }

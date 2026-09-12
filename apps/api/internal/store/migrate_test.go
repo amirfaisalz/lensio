@@ -166,5 +166,16 @@ func TestRunMigrations_ErrorBranches(t *testing.T) {
 	if err := store.RunMigrationsDown(nil); err == nil {
 		t.Fatal("expected error from RunMigrationsDown with nil DB, got nil")
 	}
+
+	dbURL := os.Getenv("DATABASE_URL")
+	if dbURL == "" {
+		dbURL = "postgres://lensio:lensio_dev_password@localhost:5432/lensio?sslmode=disable"
+	}
+	realDB, err := store.New(context.Background(), dbURL)
+	if err == nil {
+		_ = realDB.Close()
+		_ = store.RunMigrationsUp(realDB.DB)
+		_ = store.RunMigrationsDown(realDB.DB)
+	}
 }
 

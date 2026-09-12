@@ -93,4 +93,20 @@ func TestMockOCREngine(t *testing.T) {
 			t.Fatalf("expected reset to default fixture, got %v", res)
 		}
 	})
+
+	t.Run("call count tracking", func(t *testing.T) {
+		eng := providers.NewMockEngine()
+		if count := eng.GetCallCount(); count != 0 {
+			t.Errorf("expected initial call count 0, got %d", count)
+		}
+		_, _ = eng.Extract(ctx, []byte("call-1"))
+		_, _ = eng.Extract(ctx, []byte("call-2"))
+		if count := eng.GetCallCount(); count != 2 {
+			t.Errorf("expected call count 2, got %d", count)
+		}
+		eng.Reset()
+		if count := eng.GetCallCount(); count != 0 {
+			t.Errorf("expected reset call count 0, got %d", count)
+		}
+	})
 }

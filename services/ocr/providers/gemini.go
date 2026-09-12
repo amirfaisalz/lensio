@@ -148,6 +148,8 @@ If it IS an Indonesian KTP, extract all visible fields into this exact JSON stru
   "kewarganegaraan": "WNI or WNA"
 }`
 
+var jsonMarshal = json.Marshal
+
 // Extract invokes Gemini 2.0 Flash / 1.5 Flash Vision API with inline image bytes.
 func (g *GeminiOCREngine) Extract(ctx context.Context, imageBytes []byte) (*ocr.OCRResult, error) {
 	if g.apiKey == "" {
@@ -181,7 +183,7 @@ func (g *GeminiOCREngine) Extract(ctx context.Context, imageBytes []byte) (*ocr.
 		},
 	}
 
-	reqBody, err := json.Marshal(reqPayload)
+	reqBody, err := jsonMarshal(reqPayload)
 	if err != nil {
 		return nil, fmt.Errorf("%w: failed marshaling gemini request: %v", ocr.ErrOCRFailed, err)
 	}
