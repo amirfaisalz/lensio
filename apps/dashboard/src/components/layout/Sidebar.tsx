@@ -138,7 +138,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
 			{/* Sidebar / Slide-Over Drawer Container */}
 			<aside
-				className={`fixed inset-y-0 left-0 z-50 w-72 sm:w-64 bg-white border-r border-slate-200 flex flex-col shrink-0 h-screen transition-transform duration-300 ease-in-out select-none lg:static lg:z-auto lg:h-screen lg:translate-x-0 ${
+				className={`fixed inset-y-0 left-0 z-50 w-72 sm:w-64 bg-white border-r border-slate-200 flex flex-col shrink-0 h-screen transition-transform duration-300 ease-in-out select-none lg:sticky lg:top-0 lg:z-30 lg:h-screen lg:translate-x-0 ${
 					isOpenMobile ? "translate-x-0 shadow-2xl" : "-translate-x-full"
 				}`}
 			>

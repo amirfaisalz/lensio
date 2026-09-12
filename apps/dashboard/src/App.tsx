@@ -112,7 +112,7 @@ export const DashboardLayout: React.FC = () => {
 
 	return (
 		<div className="flex min-h-screen bg-[#F0F2F5] text-slate-900 font-sans antialiased">
-			{/* Sidebar navigation (responsive drawer on mobile, static on desktop) */}
+			{/* Sidebar navigation (responsive drawer on mobile, sticky on desktop) */}
 			<Sidebar
 				currentPage={currentPage}
 				onNavigate={handleNavigate}
