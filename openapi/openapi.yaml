@@ -244,6 +244,53 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
+  /api/v1/auth/verify:
+    get:
+      summary: Verify Authentication
+      description: Verifies current API key or OIDC bearer token and returns caller identity and scopes.
+      operationId: verifyAuth
+      tags:
+        - Authentication
+      security:
+        - BearerAuth: []
+        - OIDCAuth: []
+      responses:
+        '200':
+          description: Successfully authenticated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: authenticated
+                  auth_type:
+                    type: string
+                    example: oidc
+                  key_id:
+                    type: string
+                    format: uuid
+                  org_id:
+                    type: string
+                    format: uuid
+                  scopes:
+                    type: array
+                    items:
+                      type: string
+                  subject:
+                    type: string
+                  email:
+                    type: string
+                  preferred_username:
+                    type: string
+                  roles:
+                    type: array
+                    items:
+                      type: string
+        '401':
+          $ref: '#/components/responses/InvalidAPIKey'
+
   /api/v1/ocr/ktp:
     post:
       summary: Extract Indonesian KTP OCR Data
@@ -599,6 +646,10 @@ components:
       type: http
       scheme: bearer
       bearerFormat: Lensio API Key (lensio_live_... or lensio_test_...)
+    OIDCAuth:
+      type: openIdConnect
+      openIdConnectUrl: http://localhost:8082/realms/lensio/.well-known/openid-configuration
+      description: OpenID Connect Bearer token from Keycloak
 
   headers:
     X-RateLimit-Limit:

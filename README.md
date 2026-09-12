@@ -54,7 +54,7 @@ Lensio demonstrates full-lifecycle engineering capabilities across the entire pl
 | Domain                        | Lensio Production Evidence                                                    | Reference                                                                                    |
 | ----------------------------- | ----------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
 | **Language & Runtime**        | Go 1.22+ clean architecture, native `net/http.ServeMux`, sub-80ms startup     | [`ADR-001`](docs/decisions/ADR-001-why-go-for-api-and-ocr-service.md)                        |
-| **Relational Database**       | PostgreSQL 16 migrations (`golang-migrate`), connection pooling with `pgx/v5` | [`ADR-002`](docs/decisions/ADR-002-database-schema-and-api-key-hashing-strategy.md)          |
+| **Relational Database**       | PostgreSQL 16 migrations (`golang-migrate`), connection pooling with `database/sql` + `pgx/v5/stdlib` | [`ADR-002`](docs/decisions/ADR-002-database-schema-and-api-key-hashing-strategy.md)          |
 | **Developer Portal**          | React 19 + TypeScript SPA, type-safe API SDK, Tailwind CSS                    | [`apps/dashboard`](apps/dashboard)                                                           |
 | **Cryptographic Security**    | SHA-256 one-way API key hashing, zero plaintext secrets in storage            | [`docs/security.md`](docs/security.md)                                                       |
 | **Traffic Shaping**           | $O(1)$ in-memory token bucket rate limiting + monthly quota enforcer          | [`ADR-003`](docs/decisions/ADR-003-rate-limiting-and-quota-architecture.md), [`ADR-006`](docs/decisions/ADR-006-multi-instance-rate-limiting-tradeoffs.md) |
@@ -82,7 +82,9 @@ graph TD
         DASH[React Developer Dashboard]
     end
 
-    API -->|1. Auth & Rate Limit| MemRL[In-Memory Token Bucket]
+    API -->|1. Dual Auth & Rate Limit| MemRL[In-Memory Token Bucket]
+    API -->|OIDC JWT Validation| KC[Keycloak Identity Provider]
+    API -->|ReBAC Permission Check| SDB[SpiceDB Authzed ReBAC]
     API -->|2. Scoped Lookup| PG[(PostgreSQL 16 Flexible Server)]
     API -->|3. Ephemeral Buffer| OCR[Pluggable OCREngine]
     OCR -.->|Production| Gemini[Google Gemini 2.0 Flash Vision]
@@ -107,8 +109,12 @@ Lensio combines a high-performance Go backend, a reactive TypeScript developer p
 - **PostgreSQL 16**:
   - Primary relational datastore storing organizations, hashed API keys (`api_keys`), monthly quota plans (`plans`), append-only usage logs (`usage_records`), and administrative audit logs (`audit_logs`).
   - Schema migrations are version-controlled and executed using `golang-migrate`.
-- **`jackc/pgx/v5`**:
-  - High-performance native PostgreSQL driver and connection pool (`pgxpool`) providing low-latency database queries with connection lifecycle management and health checks (`/ready` probe).
+- **`jackc/pgx/v5/stdlib` & Go `database/sql`**:
+  - High-performance PostgreSQL driver integrated with Go standard library `database/sql` connection pooling, providing low-latency database queries with connection lifecycle management and health checks (`/ready` probe).
+- **Keycloak (OIDC Identity Provider)**:
+  - Enterprise OpenID Connect identity provider delivering RS256-signed JWT tokens and public JWKS verification (`/realms/lensio/protocol/openid-connect/certs`) for administrative SSO and secure dashboard access.
+- **SpiceDB (Authzed ReBAC)**:
+  - Fine-grained Relationship-Based Access Control (ReBAC) engine implementing Google Zanzibar schemas (`organization`, `api_key`, `audit_log`) for strict tenant isolation and permission evaluation (`check_permission`).
 
 ### 2. Vision AI & Document Extraction
 

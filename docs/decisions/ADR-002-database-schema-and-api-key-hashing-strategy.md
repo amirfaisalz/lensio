@@ -62,7 +62,7 @@ Storing API keys in plaintext or using reversible encryption creates severe secu
    - `key_hash`: `VARCHAR(64)` storing the hex-encoded SHA-256 digest (Indexed `UNIQUE`)
    - `prefix`: `VARCHAR(16)` storing the identifiable prefix (e.g., `lensio_live_9f8a...`)
    - `scopes`: `TEXT[]` array containing permissions (`ocr:read`, `ocr:write`, `usage:read`)
-   - `environment`: `VARCHAR(16)` (`production`, `staging`, `development`)
+   - `environment`: `VARCHAR(16)` (`live`, `test`)
    - `last_used_at`: Timestamp updated asynchronously on access
    - `expires_at`: Optional timestamp for automated expiration
    - `revoked_at`: Nullable timestamp; non-null immediately denies authorization

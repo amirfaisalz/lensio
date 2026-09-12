@@ -68,7 +68,7 @@ HTTP Request
 [HTTP Response: 200 OK] (Sent to client immediately)
      │
      ▼
-[Buffered Usage Channel] (chan store.UsageRecord, capacity: 10,000)
+[Buffered Usage Channel] (chan store.UsageRecord, capacity: 1,024)
      │
      ▼ (Asynchronous Background Worker)
 [PostgreSQL usage_records]

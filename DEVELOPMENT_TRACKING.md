@@ -43,7 +43,7 @@ Repository conventions, `.githooks/pre-commit` (lint, typecheck, strict tests), 
 Monorepo layout (`apps/api`, `apps/dashboard`, `services/ocr`, `infra`, `openapi`), PostgreSQL schema migrations (organizations, users, plans, api_keys, ocr_requests, usage_records, audit_logs), `/health` & `/ready` probes, and local Docker Compose.
 
 ### [x] Phase 2: API Contract, Authentication & Security Core
-OpenAPI 3.1 specification (`openapi.yaml`), Swagger/Scalar UI, standardized error envelope (`request_id`), SHA-256 API key hashing lifecycle, and scoped middleware (`ocr:read`, `ocr:write`, `usage:read`).
+OpenAPI 3.0.3 specification (`openapi.yaml`), Swagger/Scalar UI, standardized error envelope (`request_id`), SHA-256 API key hashing lifecycle, and scoped middleware (`ocr:read`, `ocr:write`, `usage:read`).
 
 ### [x] Phase 3: OCR Engine Abstraction & Processing Pipeline
 Pluggable `OCREngine` interface, synthetic `MockOCREngine`, Google Gemini Flash vision engine adapter, multipart image validation, strict 16-digit NIK validation, field confidence scoring, and zero-PII data minimization.

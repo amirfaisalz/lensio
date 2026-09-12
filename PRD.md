@@ -203,6 +203,7 @@ Response:
 POST /api/v1/auth/api-keys
 GET /api/v1/auth/api-keys
 DELETE /api/v1/auth/api-keys/:id
+GET /api/v1/auth/verify
 ```
 
 ## OCR
@@ -218,6 +219,7 @@ GET /api/v1/ocr/:id
 GET /api/v1/usage
 GET /api/v1/usage/daily
 GET /api/v1/usage/endpoints
+GET /api/v1/usage/records
 ```
 
 ## Account
@@ -225,6 +227,8 @@ GET /api/v1/usage/endpoints
 ```http
 GET /api/v1/account
 GET /api/v1/account/plan
+PUT /api/v1/account/plan
+GET /api/v1/account/members
 ```
 
 ## Health
