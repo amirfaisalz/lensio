@@ -15,6 +15,7 @@ import {
 import type React from "react";
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "../../context/AuthContext";
+import { APP_VERSION } from "../../version";
 import { Modal } from "../common/Modal";
 
 export type NavigationPage =
@@ -332,6 +333,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
 						</div>
 						<ChevronsUpDown className="w-4 h-4 text-slate-400 group-hover:text-slate-600 shrink-0 ml-1" />
 					</button>
+				</div>
+
+				{/* Footer Version & Info Bar */}
+				<div className="px-4 py-2.5 border-t border-slate-200/60 bg-slate-50/50 flex items-center justify-between text-[11px] text-slate-400">
+					<span className="font-medium">Lensio Dashboard</span>
+					<span
+						data-testid="app-version-footer"
+						className="font-mono text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded border border-slate-200 font-semibold"
+					>
+						v{APP_VERSION}
+					</span>
 				</div>
 			</aside>
 

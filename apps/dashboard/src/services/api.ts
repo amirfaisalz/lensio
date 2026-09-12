@@ -22,7 +22,12 @@ import type {
 	VerifyEmailResponse,
 } from "../types/api";
 
-const API_BASE = import.meta.env.VITE_API_URL || "";
+const API_BASE =
+	import.meta.env.VITE_API_URL ||
+	(typeof window !== "undefined" &&
+	window.location.hostname.includes("azurecontainerapps.io")
+		? "https://ca-api-lensio-staging.wittymoss-ad389f76.southeastasia.azurecontainerapps.io"
+		: "");
 
 export interface ApiClientError extends Error {
 	code?: string;

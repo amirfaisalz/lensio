@@ -140,6 +140,7 @@ describe("App & Dashboard Navigation with Routes", () => {
 		await waitFor(() => {
 			expect(window.location.pathname).toBe("/dashboard");
 			expect(screen.getByText("System Overview")).toBeDefined();
+			expect(screen.getByTestId("app-version-footer")).toBeDefined();
 		});
 
 		// Navigate to API Keys

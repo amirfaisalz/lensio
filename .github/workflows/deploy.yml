@@ -83,8 +83,8 @@ jobs:
         run: |
           chmod +x scripts/smoke-test.sh
           # Run smoke tests against staging endpoint (or localhost fallback if in sandbox)
-          STAGING_API_URL="${{ vars.STAGING_API_URL || 'https://api.staging.lensio.dev' }}"
-          STAGING_DASH_URL="${{ vars.STAGING_DASH_URL || 'https://staging.lensio.dev' }}"
+          STAGING_API_URL="${{ vars.STAGING_API_URL || 'https://ca-api-lensio-staging.wittymoss-ad389f76.southeastasia.azurecontainerapps.io' }}"
+          STAGING_DASH_URL="${{ vars.STAGING_DASH_URL || 'https://ca-dash-lensio-staging.wittymoss-ad389f76.southeastasia.azurecontainerapps.io' }}"
           if curl -s --connect-timeout 2 "${STAGING_API_URL}/health" >/dev/null 2>&1; then
             ./scripts/smoke-test.sh "${STAGING_API_URL}" "${STAGING_DASH_URL}"
           else
