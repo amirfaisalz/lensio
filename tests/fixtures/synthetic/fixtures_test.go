@@ -52,7 +52,11 @@ func TestSyntheticFixtures(t *testing.T) {
 		t.Fatal("expected error validating oversized image, got nil")
 	}
 
-	// Write static fixtures for frontend / E2E test suites
-	_ = os.WriteFile("valid_ktp.jpg", jpegImg, 0644)
-	_ = os.WriteFile("valid_ktp.png", pngImg, 0644)
+	// Write static fixtures for frontend / E2E test suites only if they don't already exist
+	if _, err := os.Stat("valid_ktp.jpg"); os.IsNotExist(err) {
+		_ = os.WriteFile("valid_ktp.jpg", jpegImg, 0644)
+	}
+	if _, err := os.Stat("valid_ktp.png"); os.IsNotExist(err) {
+		_ = os.WriteFile("valid_ktp.png", pngImg, 0644)
+	}
 }
