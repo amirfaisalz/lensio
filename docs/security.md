@@ -3,6 +3,7 @@
 > Comprehensive security specification, threat model, compliance posture, and automated security controls.
 > Governed by `AGENTS.md` (Mandatory Rules 4 & 5) and `PRD Section 15`.
 > Prod secrets: NEVER commit real keys. `docker-compose.yml` / `.env.example` contain dev-only values (`lensio_dev_password`, `admin/admin`, `lensio_spicedb_key`); production must inject via environment / Azure Key Vault. See `PRIVACY.md`, `SECURITY.md`, `USE_POLICY.md`.
+> Report vulnerabilities per root `SECURITY.md` (do not open public issues for suspected leaks).
 
 ---
 

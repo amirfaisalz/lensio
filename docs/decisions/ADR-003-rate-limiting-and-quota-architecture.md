@@ -101,3 +101,6 @@ HTTP Request
 - `PRD Section 9` - Rate Limiting
 - `PRD Section 10` - Quota System
 - `PRD Section 11` - Usage Metering
+
+## 7. Amendment 2026-09-13: No-Bypass Per-Identity Buckets
+Historical bypasses for OIDC/dashboard sessions and unresolved orgs were removed (`apps/api/internal/http/middleware/ratelimit.go`). The bucket key is now `API-key org → oidc:sub → default org → ip → anonymous`; non-org keys (`oidc:`, `ip:`, `anonymous`) resolve to the default free-tier limit without a plan lookup. Rationale: an unlimited dashboard/OIDC path is a DoS vector. Prior behavior is preserved in git history.
