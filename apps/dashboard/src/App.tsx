@@ -17,6 +17,7 @@ import { APIKeysPage } from "./pages/APIKeysPage";
 import { DocsPage } from "./pages/DocsPage";
 import { LoginPage } from "./pages/LoginPage";
 import { OverviewPage } from "./pages/OverviewPage";
+import { PlaygroundPage } from "./pages/PlaygroundPage";
 import { RequestsPage } from "./pages/RequestsPage";
 import { UsagePage } from "./pages/UsagePage";
 import { api } from "./services/api";
@@ -24,7 +25,12 @@ import { api } from "./services/api";
 const pageMeta: Record<NavigationPage, { title: string; subtitle: string }> = {
 	overview: {
 		title: "Overview",
-		subtitle: "Lensio Identity OCR developer analytics & quick test harness",
+		subtitle: "System overview, quota monitoring, and service metrics",
+	},
+	playground: {
+		title: "OCR Playground",
+		subtitle:
+			"Interactive test harness for Indonesian KTP & SIM OCR extraction",
 	},
 	keys: {
 		title: "API Keys",
@@ -50,6 +56,7 @@ const pageMeta: Record<NavigationPage, { title: string; subtitle: string }> = {
 
 const VALID_PAGES: NavigationPage[] = [
 	"overview",
+	"playground",
 	"keys",
 	"usage",
 	"requests",
@@ -93,6 +100,8 @@ export const DashboardLayout: React.FC = () => {
 		switch (currentPage) {
 			case "overview":
 				return <OverviewPage onNavigate={handleNavigate} />;
+			case "playground":
+				return <PlaygroundPage onNavigate={handleNavigate} />;
 			case "keys":
 				return <APIKeysPage />;
 			case "usage":

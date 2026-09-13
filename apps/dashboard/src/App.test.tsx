@@ -143,6 +143,13 @@ describe("App & Dashboard Navigation with Routes", () => {
 			expect(screen.getByTestId("app-version-footer")).toBeDefined();
 		});
 
+		// Navigate to OCR Playground
+		fireEvent.click(screen.getByText("OCR Playground"));
+		await waitFor(() => {
+			expect(window.location.pathname).toBe("/dashboard/playground");
+			expect(screen.getByText("Live OCR Playground")).toBeDefined();
+		});
+
 		// Navigate to API Keys
 		fireEvent.click(screen.getByText("API Keys"));
 		await waitFor(() => {

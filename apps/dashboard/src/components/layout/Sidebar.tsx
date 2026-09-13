@@ -10,6 +10,7 @@ import {
 	Plus,
 	Settings,
 	ShieldCheck,
+	Sparkles,
 	X,
 } from "lucide-react";
 import type React from "react";
@@ -20,6 +21,7 @@ import { Modal } from "../common/Modal";
 
 export type NavigationPage =
 	| "overview"
+	| "playground"
 	| "keys"
 	| "usage"
 	| "requests"
@@ -118,6 +120,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 		icon: React.FC<{ className?: string }>;
 	}[] = [
 		{ id: "overview", label: "Overview", icon: LayoutDashboard },
+		{ id: "playground", label: "OCR Playground", icon: Sparkles },
 		{ id: "keys", label: "API Keys", icon: KeyRound },
 		{ id: "usage", label: "Usage & Analytics", icon: BarChart3 },
 		{ id: "requests", label: "Requests Explorer", icon: ListFilter },

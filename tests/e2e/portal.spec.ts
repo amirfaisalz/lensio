@@ -247,7 +247,7 @@ test.describe.serial(
 
 			// 2. Also verify through Dashboard UI Live Playground
 			await page.goto("/dashboard");
-			await page.getByRole("button", { name: "Overview" }).click();
+			await page.getByRole("button", { name: "OCR Playground" }).click();
 
 			// Click Load Synthetic Fixture in Playground
 			const loadSampleBtn = page.getByRole("button", {

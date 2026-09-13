@@ -36,7 +36,7 @@ describe("OverviewPage", () => {
 		vi.restoreAllMocks();
 	});
 
-	it("does not render the playground when currentOrg is null", async () => {
+	it("renders onboarding callout when currentOrg is null", async () => {
 		const mockSummary = {
 			total_requests: 0,
 			success_count: 0,
@@ -56,25 +56,25 @@ describe("OverviewPage", () => {
 			return { ok: true, json: async () => ({}) } as Response;
 		});
 
-		renderWithAuth(<OverviewPage />);
+		const onNavigate = vi.fn();
+		renderWithAuth(<OverviewPage onNavigate={onNavigate} />);
 
 		await waitFor(() => {
 			expect(screen.getByText("System Overview")).toBeDefined();
 		});
 
-		// Playground must be hidden when there is no organization
-		expect(screen.queryByText("Live OCR Playground")).toBeNull();
-		expect(
-			screen.queryByRole("button", { name: /Load Synthetic Fixture/i }),
-		).toBeNull();
 		expect(
 			screen.getByText(
 				"Selamat Datang di Lensio! Buat organisasi Anda terlebih dahulu",
 			),
 		).toBeDefined();
+
+		const btn = screen.getByRole("button", { name: /Buat Organisasi/i });
+		fireEvent.click(btn);
+		expect(onNavigate).toHaveBeenCalledWith("keys");
 	});
 
-	it("renders loading skeleton and then metric cards", async () => {
+	it("renders loading skeleton and then metric cards, quota progress, and quick action cards", async () => {
 		const mockSummary = {
 			total_requests: 1250,
 			success_count: 1200,
@@ -94,7 +94,11 @@ describe("OverviewPage", () => {
 			return { ok: true, json: async () => ({}) } as Response;
 		});
 
-		renderWithAuth(<OverviewPage />);
+		const onNavigate = vi.fn();
+		renderWithAuth(<OverviewPage onNavigate={onNavigate} />, {
+			initialOrg: TEST_ORG,
+			initialApiKey: "lensio_live_testkey123",
+		});
 
 		await waitFor(() => {
 			expect(screen.getAllByText("1,250").length).toBe(2);
@@ -102,17 +106,50 @@ describe("OverviewPage", () => {
 			expect(screen.getByText("210ms")).toBeDefined();
 			expect(screen.getByText("25% Used")).toBeDefined();
 			expect(screen.getByText(/of 5,000 requests used/)).toBeDefined();
+			expect(screen.getByText("4")).toBeDefined();
 		});
+
+		// Verify Quick Action cards
+		expect(screen.getByText("Live OCR Playground")).toBeDefined();
+		expect(screen.getByText("Kelola API Key")).toBeDefined();
+		expect(screen.getByText("Dokumentasi API")).toBeDefined();
+
+		// Click "Buka Playground"
+		fireEvent.click(screen.getByRole("button", { name: /Buka Playground/i }));
+		expect(onNavigate).toHaveBeenCalledWith("playground");
+
+		// Click "Atur Kunci API"
+		fireEvent.click(screen.getByRole("button", { name: /Atur Kunci API/i }));
+		expect(onNavigate).toHaveBeenCalledWith("keys");
+
+		// Click "Lihat Dokumentasi"
+		fireEvent.click(screen.getByRole("button", { name: /Lihat Dokumentasi/i }));
+		expect(onNavigate).toHaveBeenCalledWith("docs");
 	});
 
-	it("displays error banner when loading metrics fails", async () => {
-		vi.spyOn(globalThis, "fetch").mockResolvedValueOnce({
-			ok: false,
-			status: 500,
-			json: async () => ({
-				error: { message: "Metrics service temporarily unavailable" },
-			}),
-		} as Response);
+	it("displays error banner when loading metrics fails and allows retrying", async () => {
+		const fetchSpy = vi
+			.spyOn(globalThis, "fetch")
+			.mockResolvedValueOnce({
+				ok: false,
+				status: 500,
+				json: async () => ({
+					error: { message: "Metrics service temporarily unavailable" },
+				}),
+			} as Response)
+			.mockResolvedValueOnce({
+				ok: true,
+				json: async () => ({
+					total_requests: 10,
+					success_count: 10,
+					error_count: 0,
+					quota_limit: 100,
+					quota_remaining: 90,
+					p95_latency_ms: 100,
+					rate_limit_violations: 0,
+					billing_cycle_reset: "2026-10-01T00:00:00Z",
+				}),
+			} as Response);
 
 		renderWithAuth(<OverviewPage />);
 
@@ -121,169 +158,16 @@ describe("OverviewPage", () => {
 				screen.getByText("Metrics service temporarily unavailable"),
 			).toBeDefined();
 		});
-	});
 
-	it("tests synthetic fixture OCR execution in playground when organization and apiKey exist", async () => {
-		const mockSummary = {
-			total_requests: 10,
-			success_count: 10,
-			error_count: 0,
-			quota_limit: 1000,
-			quota_remaining: 990,
-			p95_latency_ms: 120,
-			rate_limit_violations: 0,
-			billing_cycle_reset: "2026-10-01T00:00:00Z",
-		};
-
-		const mockOcrResult = {
-			id: "ocr_play_1",
-			status: "completed",
-			confidence: 0.99,
-			latency_ms: 115,
-			data: {
-				nik: "3273012345670001",
-				nama: "JOKO WIDODO SYNTHETIC",
-				tempat_lahir: "SURAKARTA",
-				tanggal_lahir: "1961-06-21",
-				jenis_kelamin: "LAKI-LAKI",
-				alamat: "JL. VETERAN NO. 1",
-				rt_rw: "001/001",
-				kelurahan: "MANAHAN",
-				kecamatan: "BANJARSARI",
-				agama: "ISLAM",
-				status_perkawinan: "KAWIN",
-				pekerjaan: "PEGAWAI NEGERI",
-				kewarganegaraan: "WNI",
-			},
-			field_confidence: {
-				nik: 1.0,
-				nama: 0.99,
-			},
-		};
-
-		vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
-			const url = String(input);
-			if (url.includes("/api/v1/usage")) {
-				return { ok: true, json: async () => mockSummary } as Response;
-			}
-			return { ok: true, json: async () => ({}) } as Response;
-		});
-
-		const ocrSpy = vi
-			.spyOn(api, "executeKTPOCR")
-			.mockResolvedValue(mockOcrResult);
-
-		renderWithAuth(<OverviewPage />, {
-			initialOrg: TEST_ORG,
-			initialApiKey: "lensio_live_testkey123",
-		});
+		// Click Retry button
+		fireEvent.click(screen.getByRole("button", { name: /Retry/i }));
 
 		await waitFor(() => {
-			expect(screen.getByText("System Overview")).toBeDefined();
-			expect(screen.getByText("Live OCR Playground")).toBeDefined();
-		});
-
-		// Click "Load Synthetic Fixture"
-		const fixtureBtn = screen.getByRole("button", {
-			name: /Load Synthetic Fixture/i,
-		});
-		fireEvent.click(fixtureBtn);
-
-		await waitFor(() => {
-			expect(ocrSpy).toHaveBeenCalledTimes(1);
-			expect(screen.getByText(/Normalized Field Verification/)).toBeDefined();
-			expect(screen.getByText("3273012345670001")).toBeDefined();
-			expect(screen.getByText("JOKO WIDODO SYNTHETIC")).toBeDefined();
-			expect(screen.getByText(/99% Confidence/)).toBeDefined();
+			expect(fetchSpy).toHaveBeenCalledTimes(2);
 		});
 	});
 
-	it("tests synthetic fixture SIM OCR execution when switched to SIM tab", async () => {
-		const mockSummary = {
-			total_requests: 10,
-			success_count: 10,
-			error_count: 0,
-			quota_limit: 1000,
-			quota_remaining: 990,
-			p95_latency_ms: 120,
-			rate_limit_violations: 0,
-			billing_cycle_reset: "2026-10-01T00:00:00Z",
-		};
-
-		const mockSimResult = {
-			id: "ocr_sim_play_1",
-			document_type: "sim",
-			status: "completed",
-			confidence: 0.98,
-			processing: {
-				latency_ms: 125,
-			},
-			data: {
-				nomor_sim: "123456789012",
-				golongan: "A",
-				nama: "JOKO WIDODO SYNTHETIC",
-				alamat: "JL. VETERAN NO. 1",
-				rt_rw: "001/001",
-				kelurahan: "MANAHAN",
-				kecamatan: "BANJARSARI",
-				kota: "SURAKARTA",
-				pekerjaan: "SWASTA",
-				tempat_lahir: "SURAKARTA",
-				tanggal_lahir: "1961-06-21",
-				jenis_kelamin: "PRIA",
-				golongan_darah: "O",
-				masa_berlaku: "2029-06-21",
-				polda: "POLDA JAWA TENGAH",
-			},
-			field_confidence: {
-				nomor_sim: 1.0,
-				golongan: 1.0,
-				nama: 0.98,
-			},
-		};
-
-		vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
-			const url = String(input);
-			if (url.includes("/api/v1/usage")) {
-				return { ok: true, json: async () => mockSummary } as Response;
-			}
-			return { ok: true, json: async () => ({}) } as Response;
-		});
-
-		const simSpy = vi
-			.spyOn(api, "executeSIMOCR")
-			.mockResolvedValue(mockSimResult);
-
-		renderWithAuth(<OverviewPage />, {
-			initialOrg: TEST_ORG,
-			initialApiKey: "lensio_live_testkey123",
-		});
-
-		await waitFor(() => {
-			expect(screen.getByText("System Overview")).toBeDefined();
-			expect(screen.getByText("Live OCR Playground")).toBeDefined();
-		});
-
-		// Switch to SIM tab
-		const simTabBtn = screen.getByRole("button", { name: /^SIM$/i });
-		fireEvent.click(simTabBtn);
-
-		// Click "Load Synthetic Fixture"
-		const fixtureBtn = screen.getByRole("button", {
-			name: /Load Synthetic Fixture/i,
-		});
-		fireEvent.click(fixtureBtn);
-
-		await waitFor(() => {
-			expect(simSpy).toHaveBeenCalledTimes(1);
-			expect(screen.getByText(/Normalized Field Verification/)).toBeDefined();
-			expect(screen.getByText("123456789012")).toBeDefined();
-			expect(screen.getByText("POLDA JAWA TENGAH")).toBeDefined();
-			expect(screen.getByText(/98% Confidence/)).toBeDefined();
-		});
-	});
-
-	it("shows warning and blocks execution when organization exists but apiKey is missing", async () => {
+	it("renders first API key banner when organization exists but apiKey is missing", async () => {
 		const mockSummary = {
 			total_requests: 0,
 			success_count: 0,
@@ -303,82 +187,23 @@ describe("OverviewPage", () => {
 			return { ok: true, json: async () => ({}) } as Response;
 		});
 
-		const ocrSpy = vi.spyOn(api, "executeKTPOCR");
-
-		renderWithAuth(<OverviewPage />, { initialOrg: TEST_ORG });
+		const onNavigate = vi.fn();
+		renderWithAuth(<OverviewPage onNavigate={onNavigate} />, {
+			initialOrg: TEST_ORG,
+		});
 
 		await waitFor(() => {
-			expect(screen.getByText("Live OCR Playground")).toBeDefined();
 			expect(
 				screen.getByText(
-					/API Key diperlukan untuk menguji OCR di playground ini/,
+					`Welcome to ${TEST_ORG.name}! Create your first API Key`,
 				),
 			).toBeDefined();
 		});
 
-		// Try clicking "Load Synthetic Fixture"
-		const fixtureBtn = screen.getByRole("button", {
-			name: /Load Synthetic Fixture/i,
+		const createKeyBtn = screen.getByRole("button", {
+			name: /Create API Key/i,
 		});
-		fireEvent.click(fixtureBtn);
-
-		// Must NOT call api.executeKTPOCR and must display error banner
-		await waitFor(() => {
-			expect(ocrSpy).not.toHaveBeenCalled();
-			expect(
-				screen.getByText(/API Key aktif diperlukan untuk menjalankan OCR/),
-			).toBeDefined();
-		});
-	});
-
-	it("handles file upload error in playground", async () => {
-		const mockSummary = {
-			total_requests: 5,
-			success_count: 5,
-			error_count: 0,
-			quota_limit: 1000,
-			quota_remaining: 995,
-			p95_latency_ms: 150,
-			rate_limit_violations: 0,
-			billing_cycle_reset: "2026-10-01T00:00:00Z",
-		};
-
-		vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
-			const url = String(input);
-			if (url.includes("/api/v1/usage")) {
-				return { ok: true, json: async () => mockSummary } as Response;
-			}
-			return { ok: true, json: async () => ({}) } as Response;
-		});
-
-		vi.spyOn(api, "executeKTPOCR").mockRejectedValue(
-			new Error("Image blur score too low for OCR extraction"),
-		);
-
-		renderWithAuth(<OverviewPage />, {
-			initialOrg: TEST_ORG,
-			initialApiKey: "lensio_live_testkey123",
-		});
-
-		await waitFor(() => {
-			expect(screen.getByText("System Overview")).toBeDefined();
-			expect(screen.getByText("Live OCR Playground")).toBeDefined();
-		});
-
-		const fileInput = document.getElementById(
-			"ktp-file-input",
-		) as HTMLInputElement;
-		expect(fileInput).toBeDefined();
-
-		const file = new File(["dummy content"], "test_ktp.jpg", {
-			type: "image/jpeg",
-		});
-		fireEvent.change(fileInput, { target: { files: [file] } });
-
-		await waitFor(() => {
-			expect(
-				screen.getByText("Image blur score too low for OCR extraction"),
-			).toBeDefined();
-		});
+		fireEvent.click(createKeyBtn);
+		expect(onNavigate).toHaveBeenCalledWith("keys");
 	});
 });
