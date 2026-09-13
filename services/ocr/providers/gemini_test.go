@@ -97,6 +97,62 @@ func TestGeminiOCREngine(t *testing.T) {
 		}
 	})
 
+	t.Run("successful SIM extraction", func(t *testing.T) {
+		mockGeminiResponse := map[string]any{
+			"candidates": []map[string]any{
+				{
+					"content": map[string]any{
+						"parts": []map[string]any{
+							{
+								"text": `{
+									"document_type": "sim",
+									"confidence": 0.98,
+									"raw_text": "SURAT IZIN MENGEMUDI SIM A 1234-5678-9012 BUDI SANTOSO",
+									"nomor_sim": "1234-5678-9012",
+									"golongan": "A",
+									"nama": "BUDI SANTOSO",
+									"tempat_lahir": "JAKARTA",
+									"tanggal_lahir": "1990-01-01",
+									"golongan_darah": "O",
+									"jenis_kelamin": "PRIA",
+									"alamat": "JL. MERDEKA NO. 10",
+									"pekerjaan": "KARYAWAN SWASTA",
+									"polda": "METRO JAYA",
+									"masa_berlaku": "2029-01-01"
+								}`,
+							},
+						},
+					},
+				},
+			},
+		}
+
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(mockGeminiResponse)
+		}))
+		defer server.Close()
+
+		engine := providers.NewGeminiEngine("test-api-key", "gemini-2.0-flash",
+			providers.WithBaseURL(server.URL),
+			providers.WithHTTPClient(server.Client()),
+		)
+
+		res, err := engine.Extract(ctx, []byte("sim-image-bytes"))
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if res.DocumentType != "sim" {
+			t.Errorf("expected doc_type sim, got %s", res.DocumentType)
+		}
+		if res.SIMData == nil || res.SIMData.NomorSIM != "123456789012" {
+			t.Errorf("expected SIMData with NomorSIM 123456789012, got %v", res.SIMData)
+		}
+		if res.Confidence < 0.90 {
+			t.Errorf("expected high confidence, got %f", res.Confidence)
+		}
+	})
+
 	t.Run("unsupported document returns ErrUnsupportedDocument", func(t *testing.T) {
 		mockGeminiResponse := map[string]any{
 			"candidates": []map[string]any{

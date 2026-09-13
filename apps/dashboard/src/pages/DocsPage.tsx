@@ -5,19 +5,23 @@ import { useAuth } from "../context/AuthContext";
 
 export const DocsPage: React.FC = () => {
 	const { apiKey } = useAuth();
+	const [docType, setDocType] = useState<"ktp" | "sim">("ktp");
 	const [activeTab, setActiveTab] = useState<
 		"curl" | "go" | "python" | "nodejs"
 	>("curl");
 	const [copied, setCopied] = useState(false);
 
 	const displayKey = apiKey || "lensio_live_sample_key_12345678";
+	const endpoint = docType === "sim" ? "/api/v1/ocr/sim" : "/api/v1/ocr/ktp";
+	const sampleFile = docType === "sim" ? "sim.jpg" : "ktp.jpg";
+	const docLabel = docType === "sim" ? "SIM" : "KTP";
 
 	const snippets = {
-		curl: `# Extract KTP data via cURL
+		curl: `# Extract ${docLabel} data via cURL
 curl -X POST \\
-  http://localhost:8080/api/v1/ocr/ktp \\
+  http://localhost:8080${endpoint} \\
   -H "Authorization: Bearer ${displayKey}" \\
-  -F "document=@/path/to/ktp.jpg"`,
+  -F "document=@/path/to/${sampleFile}"`,
 
 		go: `package main
 
@@ -31,16 +35,16 @@ import (
 )
 
 func main() {
-	file, _ := os.Open("ktp.jpg")
+	file, _ := os.Open("${sampleFile}")
 	defer file.Close()
 
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
-	part, _ := writer.CreateFormFile("document", "ktp.jpg")
+	part, _ := writer.CreateFormFile("document", "${sampleFile}")
 	io.Copy(part, file)
 	writer.Close()
 
-	req, _ := http.NewRequest("POST", "http://localhost:8080/api/v1/ocr/ktp", body)
+	req, _ := http.NewRequest("POST", "http://localhost:8080${endpoint}", body)
 	req.Header.Set("Authorization", "Bearer ${displayKey}")
 	req.Header.Set("Content-Type", writer.FormDataContentType())
 
@@ -54,12 +58,12 @@ func main() {
 
 		python: `import requests
 
-url = "http://localhost:8080/api/v1/ocr/ktp"
+url = "http://localhost:8080${endpoint}"
 headers = {
     "Authorization": "Bearer ${displayKey}"
 }
 files = {
-    "document": open("ktp.jpg", "rb")
+    "document": open("${sampleFile}", "rb")
 }
 
 response = requests.post(url, headers=headers, files=files)
@@ -70,9 +74,9 @@ import FormData from 'form-data';
 import fetch from 'node-fetch';
 
 const form = new FormData();
-form.append('document', fs.createReadStream('ktp.jpg'));
+form.append('document', fs.createReadStream('${sampleFile}'));
 
-const response = await fetch('http://localhost:8080/api/v1/ocr/ktp', {
+const response = await fetch('http://localhost:8080${endpoint}', {
   method: 'POST',
   headers: {
     'Authorization': 'Bearer ${displayKey}',
@@ -128,7 +132,8 @@ console.log(data);`,
 		{
 			code: "unsupported_document",
 			status: "422 Unprocessable",
-			description: "Uploaded image is not an Indonesian KTP document.",
+			description:
+				"Uploaded image is not a recognized Indonesian KTP or SIM document.",
 		},
 		{
 			code: "ocr_failed",
@@ -173,11 +178,31 @@ console.log(data);`,
 			{/* Code Snippets Box */}
 			<div className="bg-slate-900 rounded-xl overflow-hidden shadow-lg border border-slate-800">
 				<div className="px-4 py-3 bg-slate-950/80 border-b border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-					<div className="flex items-center gap-2">
-						<Terminal className="w-4 h-4 text-[#1877F2]" />
-						<span className="text-xs font-semibold text-slate-300">
-							Quickstart Integration Snippet
-						</span>
+					<div className="flex items-center gap-3">
+						<div className="flex items-center gap-2">
+							<Terminal className="w-4 h-4 text-[#1877F2]" />
+							<span className="text-xs font-semibold text-slate-300">
+								Quickstart Integration Snippet
+							</span>
+						</div>
+
+						{/* Document Selector */}
+						<div className="flex bg-slate-900 p-0.5 rounded-lg border border-slate-800 text-[11px] font-mono">
+							{(["ktp", "sim"] as const).map((type) => (
+								<button
+									key={type}
+									type="button"
+									onClick={() => setDocType(type)}
+									className={`px-2.5 py-1 rounded transition-colors cursor-pointer uppercase font-semibold ${
+										docType === type
+											? "bg-[#1877F2] text-white"
+											: "text-slate-400 hover:text-slate-200"
+									}`}
+								>
+									{type}
+								</button>
+							))}
+						</div>
 					</div>
 
 					<div className="flex items-center justify-between sm:justify-end gap-2 w-full sm:w-auto">
@@ -189,7 +214,7 @@ console.log(data);`,
 									onClick={() => setActiveTab(lang)}
 									className={`px-3 py-1 rounded transition-colors cursor-pointer ${
 										activeTab === lang
-											? "bg-[#1877F2] text-white font-semibold"
+											? "bg-slate-700 text-white font-semibold"
 											: "text-slate-400 hover:text-slate-200"
 									}`}
 								>

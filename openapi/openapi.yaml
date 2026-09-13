@@ -356,6 +356,71 @@ paths:
         '502':
           $ref: '#/components/responses/OCRFailed'
 
+  /api/v1/ocr/sim:
+    post:
+      summary: Extract Indonesian SIM OCR Data
+      description: |
+        Processes an uploaded Indonesian Driver's License (SIM - Surat Izin Mengemudi) image,
+        performs classification, extracts text fields, and validates them deterministically.
+      operationId: extractSIM
+      tags:
+        - OCR
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: false
+          schema:
+            type: string
+            maxLength: 256
+          description: Unique client token to guarantee safe retries without duplicate processing or billing.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - document
+              properties:
+                document:
+                  type: string
+                  format: binary
+                  description: SIM image file (JPEG, PNG, WebP up to 5MB)
+      responses:
+        '200':
+          description: Successfully extracted and validated SIM data
+          headers:
+            Idempotent-Replayed:
+              schema:
+                type: boolean
+              description: True if the response was served from the idempotency cache without re-processing.
+            X-RateLimit-Limit:
+              $ref: '#/components/headers/X-RateLimit-Limit'
+            X-RateLimit-Remaining:
+              $ref: '#/components/headers/X-RateLimit-Remaining'
+            X-RateLimit-Reset:
+              $ref: '#/components/headers/X-RateLimit-Reset'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SIMResponse'
+        '400':
+          $ref: '#/components/responses/InvalidDocument'
+        '401':
+          $ref: '#/components/responses/InvalidAPIKey'
+        '403':
+          $ref: '#/components/responses/InsufficientScope'
+        '409':
+          $ref: '#/components/responses/RequestInProgress'
+        '422':
+          $ref: '#/components/responses/UnsupportedDocument'
+        '429':
+          $ref: '#/components/responses/RateLimitExceeded'
+        '502':
+          $ref: '#/components/responses/OCRFailed'
+
   /api/v1/ocr/{id}:
     get:
       summary: Get OCR Request Status / Metadata
@@ -811,6 +876,62 @@ components:
             kewarganegaraan:
               type: string
               example: "WNI"
+        processing:
+          type: object
+          properties:
+            latency_ms:
+              type: integer
+              example: 1250
+
+    SIMResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        document_type:
+          type: string
+          example: sim
+        confidence:
+          type: number
+          format: float
+          example: 0.98
+        data:
+          type: object
+          properties:
+            nomor_sim:
+              type: string
+              example: "123456789012"
+            golongan:
+              type: string
+              example: "A"
+            nama:
+              type: string
+              example: "BUDI SANTOSO"
+            tempat_lahir:
+              type: string
+              example: "JAKARTA"
+            tanggal_lahir:
+              type: string
+              example: "1990-01-01"
+            golongan_darah:
+              type: string
+              example: "O"
+            jenis_kelamin:
+              type: string
+              example: "PRIA"
+            alamat:
+              type: string
+              example: "JL. MERDEKA NO. 10"
+            pekerjaan:
+              type: string
+              example: "KARYAWAN SWASTA"
+            polda:
+              type: string
+              example: "METRO JAYA"
+            masa_berlaku:
+              type: string
+              example: "2029-01-01"
         processing:
           type: object
           properties:

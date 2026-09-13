@@ -25,20 +25,49 @@ var ktpKeywords = []string{
 	"BERLAKU HINGGA",
 }
 
-// ClassifyDocument analyzes raw text tokens to classify if the document is an Indonesian KTP.
-// Returns document type string ("ktp" or "unsupported") and a boolean indicator.
-// Minimum 2 strong markers required for positive classification.
+// List of distinctive textual markers present on official Indonesian SIMs.
+var simKeywords = []string{
+	"SURAT IZIN MENGEMUDI",
+	"DRIVING LICENSE",
+	"KEPOLISIAN NEGARA REPUBLIK INDONESIA",
+	"POLRI",
+	"KORLANTAS",
+	"GOL. SIM",
+	"GOLONGAN SIM",
+	"MASA BERLAKU",
+	"BERLAKU S/D",
+	"BERLAKU HINGGA",
+	"SIM A",
+	"SIM B",
+	"SIM C",
+	"SIM D",
+	"POLDA",
+}
+
+// ClassifyDocument analyzes raw text tokens to classify if the document is an Indonesian KTP or SIM.
+// Returns document type string ("ktp", "sim", or "unsupported") and a boolean indicator of recognition.
+// Minimum 2 strong markers required for positive classification (or 1 explicit title marker).
 func ClassifyDocument(rawText string) (string, bool) {
 	upper := strings.ToUpper(rawText)
-	matches := 0
 
-	for _, kw := range ktpKeywords {
+	// Check SIM first if explicit title marker exists
+	simMatches := 0
+	hasExplicitSIMTitle := strings.Contains(upper, "SURAT IZIN MENGEMUDI") || strings.Contains(upper, "DRIVING LICENSE")
+	for _, kw := range simKeywords {
 		if strings.Contains(upper, kw) {
-			matches++
+			simMatches++
 		}
 	}
 
-	// Also check for 16-digit numeric pattern which strongly indicates an Indonesian identity card
+	ktpMatches := 0
+	hasExplicitKTPTitle := strings.Contains(upper, "KARTU TANDA PENDUDUK") || strings.Contains(upper, "KTP")
+	for _, kw := range ktpKeywords {
+		if strings.Contains(upper, kw) {
+			ktpMatches++
+		}
+	}
+
+	// Check for 16-digit numeric pattern
 	has16Digits := false
 	for _, word := range strings.Fields(upper) {
 		clean := strings.Trim(word, ":;,-.")
@@ -57,8 +86,16 @@ func ClassifyDocument(rawText string) (string, bool) {
 		}
 	}
 
-	if matches >= 2 || (matches >= 1 && has16Digits) {
+	if hasExplicitSIMTitle || (simMatches >= 2 && simMatches > ktpMatches) {
+		return "sim", true
+	}
+
+	if hasExplicitKTPTitle || ktpMatches >= 2 || (ktpMatches >= 1 && has16Digits) {
 		return "ktp", true
+	}
+
+	if simMatches >= 2 {
+		return "sim", true
 	}
 
 	return "unsupported", false

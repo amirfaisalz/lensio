@@ -63,7 +63,7 @@ describe("OverviewPage", () => {
 		});
 
 		// Playground must be hidden when there is no organization
-		expect(screen.queryByText("Live KTP OCR Playground")).toBeNull();
+		expect(screen.queryByText("Live OCR Playground")).toBeNull();
 		expect(
 			screen.queryByRole("button", { name: /Load Synthetic Fixture/i }),
 		).toBeNull();
@@ -180,7 +180,7 @@ describe("OverviewPage", () => {
 
 		await waitFor(() => {
 			expect(screen.getByText("System Overview")).toBeDefined();
-			expect(screen.getByText("Live KTP OCR Playground")).toBeDefined();
+			expect(screen.getByText("Live OCR Playground")).toBeDefined();
 		});
 
 		// Click "Load Synthetic Fixture"
@@ -191,10 +191,95 @@ describe("OverviewPage", () => {
 
 		await waitFor(() => {
 			expect(ocrSpy).toHaveBeenCalledTimes(1);
-			expect(screen.getByText("Normalized Field Verification")).toBeDefined();
+			expect(screen.getByText(/Normalized Field Verification/)).toBeDefined();
 			expect(screen.getByText("3273012345670001")).toBeDefined();
 			expect(screen.getByText("JOKO WIDODO SYNTHETIC")).toBeDefined();
 			expect(screen.getByText(/99% Confidence/)).toBeDefined();
+		});
+	});
+
+	it("tests synthetic fixture SIM OCR execution when switched to SIM tab", async () => {
+		const mockSummary = {
+			total_requests: 10,
+			success_count: 10,
+			error_count: 0,
+			quota_limit: 1000,
+			quota_remaining: 990,
+			p95_latency_ms: 120,
+			rate_limit_violations: 0,
+			billing_cycle_reset: "2026-10-01T00:00:00Z",
+		};
+
+		const mockSimResult = {
+			id: "ocr_sim_play_1",
+			document_type: "sim",
+			status: "completed",
+			confidence: 0.98,
+			processing: {
+				latency_ms: 125,
+			},
+			data: {
+				nomor_sim: "123456789012",
+				golongan: "A",
+				nama: "JOKO WIDODO SYNTHETIC",
+				alamat: "JL. VETERAN NO. 1",
+				rt_rw: "001/001",
+				kelurahan: "MANAHAN",
+				kecamatan: "BANJARSARI",
+				kota: "SURAKARTA",
+				pekerjaan: "SWASTA",
+				tempat_lahir: "SURAKARTA",
+				tanggal_lahir: "1961-06-21",
+				jenis_kelamin: "PRIA",
+				golongan_darah: "O",
+				masa_berlaku: "2029-06-21",
+				polda: "POLDA JAWA TENGAH",
+			},
+			field_confidence: {
+				nomor_sim: 1.0,
+				golongan: 1.0,
+				nama: 0.98,
+			},
+		};
+
+		vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+			const url = String(input);
+			if (url.includes("/api/v1/usage")) {
+				return { ok: true, json: async () => mockSummary } as Response;
+			}
+			return { ok: true, json: async () => ({}) } as Response;
+		});
+
+		const simSpy = vi
+			.spyOn(api, "executeSIMOCR")
+			.mockResolvedValue(mockSimResult);
+
+		renderWithAuth(<OverviewPage />, {
+			initialOrg: TEST_ORG,
+			initialApiKey: "lensio_live_testkey123",
+		});
+
+		await waitFor(() => {
+			expect(screen.getByText("System Overview")).toBeDefined();
+			expect(screen.getByText("Live OCR Playground")).toBeDefined();
+		});
+
+		// Switch to SIM tab
+		const simTabBtn = screen.getByRole("button", { name: /^SIM$/i });
+		fireEvent.click(simTabBtn);
+
+		// Click "Load Synthetic Fixture"
+		const fixtureBtn = screen.getByRole("button", {
+			name: /Load Synthetic Fixture/i,
+		});
+		fireEvent.click(fixtureBtn);
+
+		await waitFor(() => {
+			expect(simSpy).toHaveBeenCalledTimes(1);
+			expect(screen.getByText(/Normalized Field Verification/)).toBeDefined();
+			expect(screen.getByText("123456789012")).toBeDefined();
+			expect(screen.getByText("POLDA JAWA TENGAH")).toBeDefined();
+			expect(screen.getByText(/98% Confidence/)).toBeDefined();
 		});
 	});
 
@@ -223,7 +308,7 @@ describe("OverviewPage", () => {
 		renderWithAuth(<OverviewPage />, { initialOrg: TEST_ORG });
 
 		await waitFor(() => {
-			expect(screen.getByText("Live KTP OCR Playground")).toBeDefined();
+			expect(screen.getByText("Live OCR Playground")).toBeDefined();
 			expect(
 				screen.getByText(
 					/API Key diperlukan untuk menguji OCR di playground ini/,
@@ -277,7 +362,7 @@ describe("OverviewPage", () => {
 
 		await waitFor(() => {
 			expect(screen.getByText("System Overview")).toBeDefined();
-			expect(screen.getByText("Live KTP OCR Playground")).toBeDefined();
+			expect(screen.getByText("Live OCR Playground")).toBeDefined();
 		});
 
 		const fileInput = document.getElementById(

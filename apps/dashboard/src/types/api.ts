@@ -26,6 +26,33 @@ export interface KTPResponse {
 	warnings?: string[];
 }
 
+export interface SIMData {
+	nomor_sim: string;
+	golongan: string;
+	nama: string;
+	tempat_lahir: string;
+	tanggal_lahir: string;
+	golongan_darah: string;
+	jenis_kelamin: string;
+	alamat: string;
+	pekerjaan: string;
+	polda: string;
+	masa_berlaku: string;
+}
+
+export interface SIMResponse {
+	id: string;
+	document_type: "sim" | string;
+	status?: "completed" | "failed" | "low_confidence" | string;
+	confidence: number;
+	processing: {
+		latency_ms: number;
+	};
+	data: SIMData;
+	field_confidence?: FieldConfidence;
+	warnings?: string[];
+}
+
 export interface APIKeyListItem {
 	id: string;
 	name: string;

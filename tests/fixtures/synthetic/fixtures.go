@@ -25,6 +25,26 @@ func GenerateValidKTPJPEG() []byte {
 	return buf.Bytes()
 }
 
+// GenerateValidSIMImage returns a valid in-memory PNG image meeting dimensions and embedded with MarkerSIMDoc.
+func GenerateValidSIMImage() []byte {
+	return GenerateCustomImage(400, 250, color.RGBA{R: 240, G: 230, B: 200, A: 255}, providers.MarkerSIMDoc)
+}
+
+// GenerateValidSIMJPEG returns a valid in-memory JPEG image with SIM marker.
+func GenerateValidSIMJPEG() []byte {
+	img := image.NewRGBA(image.Rect(0, 0, 400, 250))
+	draw.Draw(img, img.Bounds(), &image.Uniform{C: color.RGBA{R: 245, G: 235, B: 205, A: 255}}, image.Point{}, draw.Src)
+	var buf bytes.Buffer
+	_ = jpeg.Encode(&buf, img, &jpeg.Options{Quality: 90})
+	buf.Write(providers.MarkerSIMDoc)
+	return buf.Bytes()
+}
+
+// GenerateSIMLowConfidenceImage returns an image containing the SIM low confidence test marker.
+func GenerateSIMLowConfidenceImage() []byte {
+	return GenerateCustomImage(300, 200, color.RGBA{R: 230, G: 230, B: 210, A: 255}, providers.MarkerSIMLowConfidence)
+}
+
 // GenerateUnsupportedDocImage returns an image containing the unsupported doc test marker.
 func GenerateUnsupportedDocImage() []byte {
 	return GenerateCustomImage(300, 200, color.RGBA{R: 255, G: 240, B: 240, A: 255}, providers.MarkerUnsupportedDoc)

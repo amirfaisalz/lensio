@@ -47,5 +47,14 @@ describe("DocsPage", () => {
 		expect(writeTextMock).toHaveBeenCalledWith(
 			expect.stringContaining("/api/v1/ocr/ktp"),
 		);
+
+		// Switch to SIM tab
+		const simTab = screen.getByRole("button", { name: /sim/i });
+		fireEvent.click(simTab);
+
+		fireEvent.click(copyButton);
+		expect(writeTextMock).toHaveBeenCalledWith(
+			expect.stringContaining("/api/v1/ocr/sim"),
+		);
 	});
 });

@@ -49,6 +49,18 @@ func TestClassifyDocument(t *testing.T) {
 			wantDocType: "unsupported",
 			wantIsKTP:   false,
 		},
+		{
+			name:        "official SIM header",
+			text:        "KEPOLISIAN NEGARA REPUBLIK INDONESIA SURAT IZIN MENGEMUDI DRIVING LICENSE SIM A",
+			wantDocType: "sim",
+			wantIsKTP:   true,
+		},
+		{
+			name:        "SIM markers without full header",
+			text:        "POLRI GOL. SIM C MASA BERLAKU 2028-05-15 POLDA JAWA TIMUR",
+			wantDocType: "sim",
+			wantIsKTP:   true,
+		},
 	}
 
 	for _, tc := range tests {

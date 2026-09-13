@@ -521,6 +521,26 @@ func TestNewRouterWithDeps_Phase4(t *testing.T) {
 		}
 	})
 
+	// 7.1 Test POST /api/v1/ocr/sim with valid synthetic image
+	t.Run("POST /api/v1/ocr/sim", func(t *testing.T) {
+		validImg := synthetic.GenerateValidSIMImage()
+		var body bytes.Buffer
+		writer := multipart.NewWriter(&body)
+		part, _ := writer.CreateFormFile("document", "sim.png")
+		_, _ = part.Write(validImg)
+		writer.Close()
+
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/ocr/sim", &body)
+		req.Header.Set("Content-Type", writer.FormDataContentType())
+		req.Header.Set("Authorization", authHeader)
+		rec := httptest.NewRecorder()
+		router.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Fatalf("expected 200, got %d. Body: %s", rec.Code, rec.Body.String())
+		}
+	})
+
 	// 8. Test Rate Limiter 429
 	t.Run("Rate Limiting Exceeded triggers 429", func(t *testing.T) {
 		exhaustOrg := "org-exhaust"

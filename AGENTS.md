@@ -21,9 +21,9 @@
 
 ## 2. Current Strategic Focus (Strict MVP Scope)
 
-- **Target Document**: **Indonesian KTP only** (`POST /api/v1/ocr/ktp`).
+- **Target Documents**: **Indonesian KTP** (`POST /api/v1/ocr/ktp`) and **Indonesian SIM** (`POST /api/v1/ocr/sim`).
 - **Target Platform**: API authentication, scoped API keys, rate limiting, quota enforcement, non-blocking usage metering, `/health` and `/ready` probes, OpenTelemetry instrumentation.
-- **Future Product Lines**: SIM, Passport, NPWP, KK, Invoices, and Identity Verification are explicitly deferred to post-MVP iterations. **Do not implement them now.**
+- **Future Product Lines**: Passport, NPWP, KK, Invoices, and Identity Verification are explicitly deferred to post-MVP iterations. **Do not implement them now.**
 
 ---
 

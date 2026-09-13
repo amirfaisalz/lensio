@@ -17,7 +17,7 @@ import { Badge } from "../components/common/Badge";
 import { Skeleton } from "../components/common/Skeleton";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../services/api";
-import type { KTPResponse, UsageSummary } from "../types/api";
+import type { KTPResponse, SIMResponse, UsageSummary } from "../types/api";
 
 // 400x250 valid synthetic KTP JPEG fixture
 const SYNTHETIC_KTP_BASE64 =
@@ -45,8 +45,11 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({ onNavigate }) => {
 	const [error, setError] = useState<string | null>(null);
 
 	// Quick Test Playground state
+	const [docType, setDocType] = useState<"ktp" | "sim">("ktp");
 	const [ocrLoading, setOcrLoading] = useState(false);
-	const [ocrResult, setOcrResult] = useState<KTPResponse | null>(null);
+	const [ocrResult, setOcrResult] = useState<KTPResponse | SIMResponse | null>(
+		null,
+	);
 	const [ocrError, setOcrError] = useState<string | null>(null);
 	const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
 
@@ -78,10 +81,16 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({ onNavigate }) => {
 		}
 
 		try {
-			setSelectedFileName(file.name || "ktp_document.jpg");
+			setSelectedFileName(
+				file.name ||
+					(docType === "sim" ? "sim_document.jpg" : "ktp_document.jpg"),
+			);
 			setOcrLoading(true);
 			setOcrError(null);
-			const res = await api.executeKTPOCR(file, apiKey);
+			const res =
+				docType === "sim"
+					? await api.executeSIMOCR(file, apiKey)
+					: await api.executeKTPOCR(file, apiKey);
 			setOcrResult(res);
 			// Refresh summary metrics after request
 			loadMetrics();
@@ -93,21 +102,29 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({ onNavigate }) => {
 		}
 	};
 
-	// Helper to load synthetic KTP sample image fixture
+	// Helper to load synthetic sample image fixture
 	const handleLoadSyntheticSample = async () => {
 		try {
-			setSelectedFileName("synthetic_ktp_fixture.jpg");
+			const filename =
+				docType === "sim"
+					? "synthetic_sim_fixture.jpg"
+					: "synthetic_ktp_fixture.jpg";
+			setSelectedFileName(filename);
 			setOcrLoading(true);
 			setOcrError(null);
 
-			const bytes = base64ToUint8Array(SYNTHETIC_KTP_BASE64);
-			const file = new File(
-				[bytes.buffer as ArrayBuffer],
-				"synthetic_ktp_fixture.jpg",
-				{
-					type: "image/jpeg",
-				},
-			);
+			let bytes = base64ToUint8Array(SYNTHETIC_KTP_BASE64);
+			if (docType === "sim") {
+				const marker = new TextEncoder().encode("MOCK_SIM_DOC");
+				const combined = new Uint8Array(bytes.length + marker.length);
+				combined.set(bytes);
+				combined.set(marker, bytes.length);
+				bytes = combined;
+			}
+
+			const file = new File([bytes as unknown as BlobPart], filename, {
+				type: "image/jpeg",
+			});
 			await handleFileUpload(file);
 		} catch (err) {
 			setOcrError(
@@ -434,22 +451,58 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({ onNavigate }) => {
 							<div className="flex items-center gap-2">
 								<Sparkles className="w-4 h-4 text-[#1877F2]" />
 								<h3 className="text-sm font-bold text-slate-900">
-									Live KTP OCR Playground
+									Live OCR Playground
 								</h3>
 							</div>
 							<p className="text-xs text-slate-500">
-								Upload an Indonesian KTP image or test with synthetic fixtures.
+								Upload an Indonesian{" "}
+								{docType === "sim" ? "SIM (Driver's License)" : "KTP"} image or
+								test with synthetic fixtures.
 							</p>
 						</div>
-						<button
-							type="button"
-							onClick={handleLoadSyntheticSample}
-							disabled={ocrLoading}
-							className="inline-flex items-center justify-center gap-1.5 px-3 py-2 sm:py-1.5 text-xs font-semibold text-[#1877F2] bg-[#E7F3FF] hover:bg-[#d5eaff] rounded-lg transition-colors cursor-pointer w-full sm:w-auto"
-						>
-							<FileCheck className="w-3.5 h-3.5" />
-							<span>Load Synthetic Fixture</span>
-						</button>
+						<div className="flex items-center gap-2.5">
+							<div className="flex items-center bg-slate-200/70 p-0.5 rounded-lg text-xs font-semibold">
+								<button
+									type="button"
+									onClick={() => {
+										setDocType("ktp");
+										setOcrResult(null);
+										setSelectedFileName(null);
+									}}
+									className={`px-3 py-1 rounded-md transition-all cursor-pointer ${
+										docType === "ktp"
+											? "bg-white text-[#1877F2] shadow-xs"
+											: "text-slate-600 hover:text-slate-900"
+									}`}
+								>
+									KTP
+								</button>
+								<button
+									type="button"
+									onClick={() => {
+										setDocType("sim");
+										setOcrResult(null);
+										setSelectedFileName(null);
+									}}
+									className={`px-3 py-1 rounded-md transition-all cursor-pointer ${
+										docType === "sim"
+											? "bg-white text-[#1877F2] shadow-xs"
+											: "text-slate-600 hover:text-slate-900"
+									}`}
+								>
+									SIM
+								</button>
+							</div>
+							<button
+								type="button"
+								onClick={handleLoadSyntheticSample}
+								disabled={ocrLoading}
+								className="inline-flex items-center justify-center gap-1.5 px-3 py-2 sm:py-1.5 text-xs font-semibold text-[#1877F2] bg-[#E7F3FF] hover:bg-[#d5eaff] rounded-lg transition-colors cursor-pointer w-full sm:w-auto"
+							>
+								<FileCheck className="w-3.5 h-3.5" />
+								<span>Load Synthetic Fixture</span>
+							</button>
+						</div>
 					</div>
 
 					{!apiKey && (
@@ -526,8 +579,10 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({ onNavigate }) => {
 								<span>RESPONSE PAYLOAD</span>
 								{ocrResult && (
 									<span className="text-emerald-400">
-										{ocrResult.latency_ms}ms ·{" "}
-										{Math.round(ocrResult.confidence * 100)}% Confidence
+										{"processing" in ocrResult
+											? ocrResult.processing.latency_ms
+											: ocrResult.latency_ms}
+										ms · {Math.round(ocrResult.confidence * 100)}% Confidence
 									</span>
 								)}
 							</div>
@@ -536,7 +591,10 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({ onNavigate }) => {
 								{ocrLoading ? (
 									<div className="h-full flex items-center justify-center text-slate-500 py-12">
 										<RefreshCw className="w-5 h-5 animate-spin mr-2 text-[#1877F2]" />
-										<span>Processing KTP OCR extraction...</span>
+										<span>
+											Processing {docType === "sim" ? "SIM" : "KTP"} OCR
+											extraction...
+										</span>
 									</div>
 								) : ocrResult ? (
 									<pre className="text-[11px] sm:text-xs leading-relaxed text-slate-200 whitespace-pre-wrap">
@@ -559,64 +617,152 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({ onNavigate }) => {
 					{ocrResult?.data && (
 						<div className="px-4 sm:px-6 py-4 bg-slate-50/80 border-t border-slate-100">
 							<h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-3">
-								Normalized Field Verification
+								Normalized Field Verification (
+								{"nomor_sim" in ocrResult.data ? "SIM" : "KTP"})
 							</h4>
-							<div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-3 text-xs">
-								<div className="bg-white p-2.5 rounded border border-slate-200">
-									<span className="text-slate-400 block text-[10px] uppercase font-semibold">
-										NIK
-									</span>
-									<span className="font-mono font-bold text-slate-900">
-										{ocrResult.data.nik}
-									</span>
+							{"nomor_sim" in ocrResult.data ? (
+								<div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-3 text-xs">
+									<div className="bg-white p-2.5 rounded border border-slate-200">
+										<span className="text-slate-400 block text-[10px] uppercase font-semibold">
+											Nomor SIM
+										</span>
+										<span className="font-mono font-bold text-slate-900">
+											{ocrResult.data.nomor_sim}
+										</span>
+									</div>
+									<div className="bg-white p-2.5 rounded border border-slate-200">
+										<span className="text-slate-400 block text-[10px] uppercase font-semibold">
+											Golongan
+										</span>
+										<span className="font-semibold text-slate-900">
+											{ocrResult.data.golongan}
+										</span>
+									</div>
+									<div className="bg-white p-2.5 rounded border border-slate-200">
+										<span className="text-slate-400 block text-[10px] uppercase font-semibold">
+											Nama
+										</span>
+										<span className="font-semibold text-slate-900 truncate block">
+											{ocrResult.data.nama}
+										</span>
+									</div>
+									<div className="bg-white p-2.5 rounded border border-slate-200">
+										<span className="text-slate-400 block text-[10px] uppercase font-semibold">
+											Tanggal Lahir
+										</span>
+										<span className="font-mono text-slate-900">
+											{ocrResult.data.tanggal_lahir}
+										</span>
+									</div>
+									<div className="bg-white p-2.5 rounded border border-slate-200">
+										<span className="text-slate-400 block text-[10px] uppercase font-semibold">
+											Jenis Kelamin
+										</span>
+										<span className="text-slate-900">
+											{ocrResult.data.jenis_kelamin}
+										</span>
+									</div>
+									<div className="bg-white p-2.5 rounded border border-slate-200">
+										<span className="text-slate-400 block text-[10px] uppercase font-semibold">
+											Golongan Darah
+										</span>
+										<span className="text-slate-900">
+											{ocrResult.data.golongan_darah}
+										</span>
+									</div>
+									<div className="bg-white p-2.5 rounded border border-slate-200 sm:col-span-2">
+										<span className="text-slate-400 block text-[10px] uppercase font-semibold">
+											Alamat
+										</span>
+										<span className="text-slate-900 truncate block">
+											{ocrResult.data.alamat}
+										</span>
+									</div>
+									<div className="bg-white p-2.5 rounded border border-slate-200">
+										<span className="text-slate-400 block text-[10px] uppercase font-semibold">
+											Pekerjaan
+										</span>
+										<span className="text-slate-900">
+											{ocrResult.data.pekerjaan}
+										</span>
+									</div>
+									<div className="bg-white p-2.5 rounded border border-slate-200">
+										<span className="text-slate-400 block text-[10px] uppercase font-semibold">
+											Polda
+										</span>
+										<span className="text-slate-900">
+											{ocrResult.data.polda}
+										</span>
+									</div>
+									<div className="bg-white p-2.5 rounded border border-slate-200">
+										<span className="text-slate-400 block text-[10px] uppercase font-semibold">
+											Masa Berlaku
+										</span>
+										<span className="font-mono text-emerald-600 font-semibold">
+											{ocrResult.data.masa_berlaku}
+										</span>
+									</div>
 								</div>
-								<div className="bg-white p-2.5 rounded border border-slate-200">
-									<span className="text-slate-400 block text-[10px] uppercase font-semibold">
-										Nama
-									</span>
-									<span className="font-semibold text-slate-900 truncate block">
-										{ocrResult.data.nama}
-									</span>
+							) : (
+								<div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-3 text-xs">
+									<div className="bg-white p-2.5 rounded border border-slate-200">
+										<span className="text-slate-400 block text-[10px] uppercase font-semibold">
+											NIK
+										</span>
+										<span className="font-mono font-bold text-slate-900">
+											{ocrResult.data.nik}
+										</span>
+									</div>
+									<div className="bg-white p-2.5 rounded border border-slate-200">
+										<span className="text-slate-400 block text-[10px] uppercase font-semibold">
+											Nama
+										</span>
+										<span className="font-semibold text-slate-900 truncate block">
+											{ocrResult.data.nama}
+										</span>
+									</div>
+									<div className="bg-white p-2.5 rounded border border-slate-200">
+										<span className="text-slate-400 block text-[10px] uppercase font-semibold">
+											Tanggal Lahir
+										</span>
+										<span className="font-mono text-slate-900">
+											{ocrResult.data.tanggal_lahir}
+										</span>
+									</div>
+									<div className="bg-white p-2.5 rounded border border-slate-200">
+										<span className="text-slate-400 block text-[10px] uppercase font-semibold">
+											Jenis Kelamin
+										</span>
+										<span className="text-slate-900">
+											{ocrResult.data.jenis_kelamin}
+										</span>
+									</div>
+									<div className="bg-white p-2.5 rounded border border-slate-200 sm:col-span-2">
+										<span className="text-slate-400 block text-[10px] uppercase font-semibold">
+											Alamat
+										</span>
+										<span className="text-slate-900 truncate block">
+											{ocrResult.data.alamat}
+										</span>
+									</div>
+									<div className="bg-white p-2.5 rounded border border-slate-200">
+										<span className="text-slate-400 block text-[10px] uppercase font-semibold">
+											Agama
+										</span>
+										<span className="text-slate-900">
+											{ocrResult.data.agama}
+										</span>
+									</div>
+									<div className="bg-white p-2.5 rounded border border-slate-200">
+										<span className="text-slate-400 block text-[10px] uppercase font-semibold">
+											Status Perkawinan
+										</span>
+										<span className="text-slate-900">
+											{ocrResult.data.status_perkawinan}
+										</span>
+									</div>
 								</div>
-								<div className="bg-white p-2.5 rounded border border-slate-200">
-									<span className="text-slate-400 block text-[10px] uppercase font-semibold">
-										Tanggal Lahir
-									</span>
-									<span className="font-mono text-slate-900">
-										{ocrResult.data.tanggal_lahir}
-									</span>
-								</div>
-								<div className="bg-white p-2.5 rounded border border-slate-200">
-									<span className="text-slate-400 block text-[10px] uppercase font-semibold">
-										Jenis Kelamin
-									</span>
-									<span className="text-slate-900">
-										{ocrResult.data.jenis_kelamin}
-									</span>
-								</div>
-								<div className="bg-white p-2.5 rounded border border-slate-200 sm:col-span-2">
-									<span className="text-slate-400 block text-[10px] uppercase font-semibold">
-										Alamat
-									</span>
-									<span className="text-slate-900 truncate block">
-										{ocrResult.data.alamat}
-									</span>
-								</div>
-								<div className="bg-white p-2.5 rounded border border-slate-200">
-									<span className="text-slate-400 block text-[10px] uppercase font-semibold">
-										Agama
-									</span>
-									<span className="text-slate-900">{ocrResult.data.agama}</span>
-								</div>
-								<div className="bg-white p-2.5 rounded border border-slate-200">
-									<span className="text-slate-400 block text-[10px] uppercase font-semibold">
-										Status Perkawinan
-									</span>
-									<span className="text-slate-900">
-										{ocrResult.data.status_perkawinan}
-									</span>
-								</div>
-							</div>
+							)}
 						</div>
 					)}
 				</div>

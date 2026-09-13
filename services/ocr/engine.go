@@ -12,6 +12,9 @@ var (
 	// ErrUnsupportedDocument indicates the image is not an Indonesian KTP.
 	ErrUnsupportedDocument = errors.New("uploaded document was not identified as an Indonesian KTP")
 
+	// ErrUnsupportedSIMDocument indicates the image is not an Indonesian SIM.
+	ErrUnsupportedSIMDocument = errors.New("uploaded document was not identified as an Indonesian SIM")
+
 	// ErrOCRFailed indicates upstream OCR engine processing error or timeout.
 	ErrOCRFailed = errors.New("upstream ocr engine failure")
 
@@ -39,6 +42,21 @@ type KTPData struct {
 	Kewarganegaraan  string `json:"kewarganegaraan"`   // WNI | WNA
 }
 
+// SIMData represents structured fields extracted from an Indonesian SIM (Surat Izin Mengemudi).
+type SIMData struct {
+	NomorSIM      string `json:"nomor_sim"`
+	Golongan      string `json:"golongan"`          // A | B I | B II | C | C I | C II | D | D I | A UMUM | B I UMUM | B II UMUM
+	Nama          string `json:"nama"`
+	TempatLahir   string `json:"tempat_lahir"`
+	TanggalLahir  string `json:"tanggal_lahir"`     // YYYY-MM-DD
+	GolonganDarah string `json:"golongan_darah"`   // A | B | AB | O | -
+	JenisKelamin  string `json:"jenis_kelamin"`     // PRIA | WANITA
+	Alamat        string `json:"alamat"`
+	Pekerjaan     string `json:"pekerjaan"`
+	Polda         string `json:"polda"`             // e.g. METRO JAYA
+	MasaBerlaku   string `json:"masa_berlaku"`      // YYYY-MM-DD
+}
+
 // OCRResult represents the complete structured result of an OCR extraction.
 //nolint:revive // spec mandates ocr.OCRResult naming
 type OCRResult struct {
@@ -46,6 +64,7 @@ type OCRResult struct {
 	Confidence   float64  `json:"confidence"`
 	RawText      string   `json:"raw_text,omitempty"`
 	Data         *KTPData `json:"data,omitempty"`
+	SIMData      *SIMData `json:"sim_data,omitempty"`
 }
 
 // OCREngine defines the pluggable document extraction contract.

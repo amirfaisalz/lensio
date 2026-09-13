@@ -289,6 +289,59 @@ func TestRouter_E2E_OCRPipeline(t *testing.T) {
 		}
 	})
 
+	t.Run("POST /api/v1/ocr/sim execution and retrieval", func(t *testing.T) {
+		validImg := synthetic.GenerateValidSIMImage()
+		reqBody, contentType := buildTestMultipart("document", "sim.png", validImg)
+
+		req, _ := http.NewRequest(http.MethodPost, server.URL+"/api/v1/ocr/sim", reqBody)
+		req.Header.Set("Content-Type", contentType)
+		req.Header.Set("Authorization", "Bearer "+fullKey.Key)
+
+		ocrResp, err := client.Do(req)
+		if err != nil {
+			t.Fatalf("failed POST /api/v1/ocr/sim: %v", err)
+		}
+		defer ocrResp.Body.Close()
+
+		if ocrResp.StatusCode != http.StatusOK {
+			t.Fatalf("expected 200, got %d", ocrResp.StatusCode)
+		}
+
+		var simResp handlers.SIMResponse
+		if err := json.NewDecoder(ocrResp.Body).Decode(&simResp); err != nil {
+			t.Fatalf("failed decoding SIM response: %v", err)
+		}
+
+		if simResp.ID == "" || simResp.DocumentType != "sim" {
+			t.Errorf("unexpected SIM response: %+v", simResp)
+		}
+		if simResp.Data == nil || simResp.Data.NomorSIM != "123456789012" {
+			t.Errorf("expected NomorSIM 123456789012, got %+v", simResp.Data)
+		}
+
+		// Query metadata via GET /api/v1/ocr/{id}
+		getReq, _ := http.NewRequest(http.MethodGet, server.URL+"/api/v1/ocr/"+simResp.ID, nil)
+		getReq.Header.Set("Authorization", "Bearer "+fullKey.Key)
+
+		getResp, err := client.Do(getReq)
+		if err != nil {
+			t.Fatalf("failed GET /api/v1/ocr/:id: %v", err)
+		}
+		defer getResp.Body.Close()
+
+		if getResp.StatusCode != http.StatusOK {
+			t.Fatalf("expected 200 from GET metadata, got %d", getResp.StatusCode)
+		}
+
+		var meta handlers.OCRRequestMetadata
+		if err := json.NewDecoder(getResp.Body).Decode(&meta); err != nil {
+			t.Fatalf("failed decoding metadata: %v", err)
+		}
+		if meta.ID != simResp.ID || meta.Status != "completed" || meta.DocType != "sim" {
+			t.Errorf("unexpected metadata: %+v", meta)
+		}
+	})
+
 	t.Run("unsupported document returns 422", func(t *testing.T) {
 		unsupportedImg := synthetic.GenerateUnsupportedDocImage()
 		reqBody, contentType := buildTestMultipart("document", "receipt.png", unsupportedImg)
@@ -642,6 +695,135 @@ func TestRouter_E2E_Idempotency_ZeroDuplicateQuotaAndBilling(t *testing.T) {
 	// Zero duplicate billing verified: delta must be exactly 0!
 	if usageAfterReplay != usageAfterFirst {
 		t.Fatalf("quota violation: replayed request recorded duplicate usage record! before=%d, after=%d", usageAfterFirst, usageAfterReplay)
+	}
+}
+
+func TestRouter_E2E_SIMOCR_CompleteWorkflow(t *testing.T) {
+	kStore := newDummyKeyStore()
+	ocrStore := newDummyOCRStore()
+	memIdempStore := idempotency.NewMemoryStore(time.Hour)
+	engine := providers.NewMockEngine()
+
+	router := internalhttp.NewRouterWithDeps(internalhttp.RouterDeps{
+		KeyStore:         kStore,
+		OCREngine:        engine,
+		OCRStore:         ocrStore,
+		IdempotencyStore: memIdempStore,
+	})
+	server := httptest.NewServer(router)
+	defer server.Close()
+
+	client := server.Client()
+	adminToken := seedTestAPIKey(t, kStore, handlers.DefaultOrgID, []string{"*"})
+
+	// 1. Create API key with ocr:write and ocr:read
+	createPayload := map[string]any{
+		"name":   "SIM OCR Key",
+		"scopes": []string{"ocr:write", "ocr:read"},
+	}
+	body, _ := json.Marshal(createPayload)
+	createReq, _ := http.NewRequest(http.MethodPost, server.URL+"/api/v1/auth/api-keys", bytes.NewReader(body))
+	createReq.Header.Set("Content-Type", "application/json")
+	createReq.Header.Set("Authorization", "Bearer "+adminToken)
+	resp, err := client.Do(createReq)
+	if err != nil {
+		t.Fatalf("failed creating key: %v", err)
+	}
+	var apiKey handlers.CreateKeyResponse
+	_ = json.NewDecoder(resp.Body).Decode(&apiKey)
+	resp.Body.Close()
+
+	validSIM := synthetic.GenerateValidSIMImage()
+	idempKey := "sim-e2e-idemp-key"
+
+	// 2. Initial POST /api/v1/ocr/sim request
+	reqBody1, contentType1 := buildTestMultipart("document", "sim.png", validSIM)
+	rawBytes := reqBody1.Bytes()
+	req1, _ := http.NewRequest(http.MethodPost, server.URL+"/api/v1/ocr/sim", bytes.NewReader(rawBytes))
+	req1.Header.Set("Content-Type", contentType1)
+	req1.Header.Set("Authorization", "Bearer "+apiKey.Key)
+	req1.Header.Set("Idempotency-Key", idempKey)
+
+	resp1, err := client.Do(req1)
+	if err != nil {
+		t.Fatalf("initial SIM request failed: %v", err)
+	}
+	defer resp1.Body.Close()
+
+	if resp1.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200 OK for SIM OCR, got %d", resp1.StatusCode)
+	}
+
+	var simResp handlers.SIMResponse
+	if err := json.NewDecoder(resp1.Body).Decode(&simResp); err != nil {
+		t.Fatalf("failed decoding SIMResponse: %v", err)
+	}
+	if simResp.DocumentType != "sim" {
+		t.Errorf("expected document_type sim, got %s", simResp.DocumentType)
+	}
+	if simResp.Data == nil || simResp.Data.NomorSIM == "" {
+		t.Errorf("expected valid data.nomor_sim, got %v", simResp.Data)
+	}
+
+	// 3. Replay with same Idempotency-Key
+	req2, _ := http.NewRequest(http.MethodPost, server.URL+"/api/v1/ocr/sim", bytes.NewReader(rawBytes))
+	req2.Header.Set("Content-Type", contentType1)
+	req2.Header.Set("Authorization", "Bearer "+apiKey.Key)
+	req2.Header.Set("Idempotency-Key", idempKey)
+
+	resp2, err := client.Do(req2)
+	if err != nil {
+		t.Fatalf("replay SIM request failed: %v", err)
+	}
+	defer resp2.Body.Close()
+
+	if resp2.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200 OK on replay, got %d", resp2.StatusCode)
+	}
+	if resp2.Header.Get("Idempotent-Replayed") != "true" {
+		t.Errorf("expected Idempotent-Replayed header: true")
+	}
+
+	// 4. Retrieve saved metadata via GET /api/v1/ocr/{id}
+	getReq, _ := http.NewRequest(http.MethodGet, server.URL+"/api/v1/ocr/"+simResp.ID, nil)
+	getReq.Header.Set("Authorization", "Bearer "+apiKey.Key)
+
+	getResp, err := client.Do(getReq)
+	if err != nil {
+		t.Fatalf("failed GET /api/v1/ocr/{id}: %v", err)
+	}
+	defer getResp.Body.Close()
+
+	if getResp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200 for GET /api/v1/ocr/{id}, got %d", getResp.StatusCode)
+	}
+
+	var meta handlers.OCRRequestMetadata
+	if err := json.NewDecoder(getResp.Body).Decode(&meta); err != nil {
+		t.Fatalf("failed decoding metadata: %v", err)
+	}
+	if meta.DocType != "sim" {
+		t.Errorf("expected metadata.doc_type sim, got %s", meta.DocType)
+	}
+	if meta.Status != "completed" {
+		t.Errorf("expected metadata.status completed, got %s", meta.Status)
+	}
+
+	// 5. Test unsupported document on /api/v1/ocr/sim returns 422
+	unsupportedImg := synthetic.GenerateUnsupportedDocImage()
+	reqBodyUnsupp, contentTypeUnsupp := buildTestMultipart("document", "unsupp.png", unsupportedImg)
+	reqUnsupp, _ := http.NewRequest(http.MethodPost, server.URL+"/api/v1/ocr/sim", reqBodyUnsupp)
+	reqUnsupp.Header.Set("Content-Type", contentTypeUnsupp)
+	reqUnsupp.Header.Set("Authorization", "Bearer "+apiKey.Key)
+
+	respUnsupp, err := client.Do(reqUnsupp)
+	if err != nil {
+		t.Fatalf("unsupported doc request failed: %v", err)
+	}
+	defer respUnsupp.Body.Close()
+
+	if respUnsupp.StatusCode != http.StatusUnprocessableEntity {
+		t.Fatalf("expected 422 for unsupported document on /api/v1/ocr/sim, got %d", respUnsupp.StatusCode)
 	}
 }
 

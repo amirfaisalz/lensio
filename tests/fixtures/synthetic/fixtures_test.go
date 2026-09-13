@@ -27,6 +27,29 @@ func TestSyntheticFixtures(t *testing.T) {
 		t.Fatalf("expected valid jpeg, got mime=%s err=%v", mime, err)
 	}
 
+	simPng := synthetic.GenerateValidSIMImage()
+	if len(simPng) == 0 {
+		t.Fatal("expected non-empty sim png image")
+	}
+	mime, err = ocr.ValidateImage(simPng)
+	if err != nil || mime != ocr.MIMEPNG {
+		t.Fatalf("expected valid sim png, got mime=%s err=%v", mime, err)
+	}
+
+	simJpeg := synthetic.GenerateValidSIMJPEG()
+	if len(simJpeg) == 0 {
+		t.Fatal("expected non-empty sim jpeg image")
+	}
+	mime, err = ocr.ValidateImage(simJpeg)
+	if err != nil || mime != ocr.MIMEJPEG {
+		t.Fatalf("expected valid sim jpeg, got mime=%s err=%v", mime, err)
+	}
+
+	simLowConf := synthetic.GenerateSIMLowConfidenceImage()
+	if len(simLowConf) == 0 {
+		t.Fatal("expected non-empty sim low confidence image")
+	}
+
 	unsupported := synthetic.GenerateUnsupportedDocImage()
 	if len(unsupported) == 0 {
 		t.Fatal("expected non-empty unsupported doc image")

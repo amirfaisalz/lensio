@@ -115,28 +115,38 @@ type geminiResponse struct {
 }
 
 type geminiExtractedJSON struct {
-	DocumentType     string   `json:"document_type"`
-	Confidence       float64  `json:"confidence"`
-	RawText          string   `json:"raw_text"`
-	NIK              string   `json:"nik"`
-	Nama             string   `json:"nama"`
-	TempatLahir      string   `json:"tempat_lahir"`
-	TanggalLahir     string   `json:"tanggal_lahir"`
-	JenisKelamin     string   `json:"jenis_kelamin"`
-	Alamat           string   `json:"alamat"`
-	RTRW             string   `json:"rt_rw"`
-	Kelurahan        string   `json:"kelurahan"`
-	Kecamatan        string   `json:"kecamatan"`
-	Agama            string   `json:"agama"`
-	StatusPerkawinan string   `json:"status_perkawinan"`
-	Pekerjaan        string   `json:"pekerjaan"`
-	Kewarganegaraan  string   `json:"kewarganegaraan"`
+	DocumentType string  `json:"document_type"`
+	Confidence   float64 `json:"confidence"`
+	RawText      string  `json:"raw_text"`
+
+	// KTP fields
+	NIK              string `json:"nik"`
+	Nama             string `json:"nama"`
+	TempatLahir      string `json:"tempat_lahir"`
+	TanggalLahir     string `json:"tanggal_lahir"`
+	JenisKelamin     string `json:"jenis_kelamin"`
+	Alamat           string `json:"alamat"`
+	RTRW             string `json:"rt_rw"`
+	Kelurahan        string `json:"kelurahan"`
+	Kecamatan        string `json:"kecamatan"`
+	Agama            string `json:"agama"`
+	StatusPerkawinan string `json:"status_perkawinan"`
+	Pekerjaan        string `json:"pekerjaan"`
+	Kewarganegaraan  string `json:"kewarganegaraan"`
+
+	// SIM fields
+	NomorSIM      string `json:"nomor_sim"`
+	Golongan      string `json:"golongan"`
+	GolonganDarah string `json:"golongan_darah"`
+	Polda         string `json:"polda"`
+	MasaBerlaku   string `json:"masa_berlaku"`
 }
 
-const geminiKTPPrompt = `You are a strict, high-accuracy Indonesian KTP OCR extraction engine.
+const geminiDocumentPrompt = `You are a strict, high-accuracy Indonesian identity document OCR extraction engine.
 Analyze the provided image.
-First determine if the image is an Indonesian Kartu Tanda Penduduk (KTP).
-If it is NOT an Indonesian KTP, output JSON with "document_type": "unsupported".
+First determine if the image is an Indonesian Kartu Tanda Penduduk (KTP) or Surat Izin Mengemudi (SIM).
+If it is neither, output JSON with "document_type": "unsupported".
+
 If it IS an Indonesian KTP, extract all visible fields into this exact JSON structure:
 {
   "document_type": "ktp",
@@ -155,7 +165,27 @@ If it IS an Indonesian KTP, extract all visible fields into this exact JSON stru
   "status_perkawinan": "MARITAL STATUS",
   "pekerjaan": "OCCUPATION",
   "kewarganegaraan": "WNI or WNA"
+}
+
+If it IS an Indonesian SIM (Surat Izin Mengemudi), extract all visible fields into this exact JSON structure:
+{
+  "document_type": "sim",
+  "confidence": 0.95,
+  "raw_text": "all raw text recognized on the card",
+  "nomor_sim": "12-16 digit SIM number",
+  "golongan": "A, B I, B II, C, C I, C II, D, or D I",
+  "nama": "FULL NAME",
+  "tempat_lahir": "BIRTH PLACE",
+  "tanggal_lahir": "YYYY-MM-DD",
+  "golongan_darah": "A, B, AB, O, or -",
+  "jenis_kelamin": "PRIA or WANITA",
+  "alamat": "STREET ADDRESS",
+  "pekerjaan": "OCCUPATION",
+  "polda": "POLDA REGION",
+  "masa_berlaku": "YYYY-MM-DD"
 }`
+
+const geminiKTPPrompt = geminiDocumentPrompt
 
 var jsonMarshal = json.Marshal
 
@@ -255,33 +285,61 @@ func (g *GeminiOCREngine) Extract(ctx context.Context, imageBytes []byte) (*ocr.
 		return nil, fmt.Errorf("%w: failed parsing model json output: %v", ocr.ErrOCRFailed, err)
 	}
 
-	if strings.EqualFold(extracted.DocumentType, "unsupported") || !strings.EqualFold(extracted.DocumentType, "ktp") {
+	if strings.EqualFold(extracted.DocumentType, "unsupported") {
 		return nil, ocr.ErrUnsupportedDocument
 	}
 
-	// Validate and score extracted fields through our deterministic pipeline
-	rawKTP := &ocr.KTPData{
-		NIK:              extracted.NIK,
-		Nama:             extracted.Nama,
-		TempatLahir:      extracted.TempatLahir,
-		TanggalLahir:     extracted.TanggalLahir,
-		JenisKelamin:     extracted.JenisKelamin,
-		Alamat:           extracted.Alamat,
-		RTRW:             extracted.RTRW,
-		Kelurahan:        extracted.Kelurahan,
-		Kecamatan:        extracted.Kecamatan,
-		Agama:            extracted.Agama,
-		StatusPerkawinan: extracted.StatusPerkawinan,
-		Pekerjaan:        extracted.Pekerjaan,
-		Kewarganegaraan:  extracted.Kewarganegaraan,
+	if strings.EqualFold(extracted.DocumentType, "sim") {
+		rawSIM := &ocr.SIMData{
+			NomorSIM:      extracted.NomorSIM,
+			Golongan:      extracted.Golongan,
+			Nama:          extracted.Nama,
+			TempatLahir:   extracted.TempatLahir,
+			TanggalLahir:  extracted.TanggalLahir,
+			GolonganDarah: extracted.GolonganDarah,
+			JenisKelamin:  extracted.JenisKelamin,
+			Alamat:        extracted.Alamat,
+			Pekerjaan:     extracted.Pekerjaan,
+			Polda:         extracted.Polda,
+			MasaBerlaku:   extracted.MasaBerlaku,
+		}
+
+		validatedSIM, confidence, _ := ocr.ValidateSIM(rawSIM)
+
+		return &ocr.OCRResult{
+			DocumentType: "sim",
+			Confidence:   confidence,
+			RawText:      extracted.RawText,
+			SIMData:      validatedSIM,
+		}, nil
 	}
 
-	validatedKTP, confidence, _ := ocr.ValidateKTP(rawKTP)
+	if strings.EqualFold(extracted.DocumentType, "ktp") {
+		rawKTP := &ocr.KTPData{
+			NIK:              extracted.NIK,
+			Nama:             extracted.Nama,
+			TempatLahir:      extracted.TempatLahir,
+			TanggalLahir:     extracted.TanggalLahir,
+			JenisKelamin:     extracted.JenisKelamin,
+			Alamat:           extracted.Alamat,
+			RTRW:             extracted.RTRW,
+			Kelurahan:        extracted.Kelurahan,
+			Kecamatan:        extracted.Kecamatan,
+			Agama:            extracted.Agama,
+			StatusPerkawinan: extracted.StatusPerkawinan,
+			Pekerjaan:        extracted.Pekerjaan,
+			Kewarganegaraan:  extracted.Kewarganegaraan,
+		}
 
-	return &ocr.OCRResult{
-		DocumentType: "ktp",
-		Confidence:   confidence,
-		RawText:      extracted.RawText,
-		Data:         validatedKTP,
-	}, nil
+		validatedKTP, confidence, _ := ocr.ValidateKTP(rawKTP)
+
+		return &ocr.OCRResult{
+			DocumentType: "ktp",
+			Confidence:   confidence,
+			RawText:      extracted.RawText,
+			Data:         validatedKTP,
+		}, nil
+	}
+
+	return nil, ocr.ErrUnsupportedDocument
 }

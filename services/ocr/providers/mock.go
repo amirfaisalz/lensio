@@ -10,9 +10,11 @@ import (
 
 // Magic markers in image bytes to trigger specific mock behaviors during testing.
 var (
-	MarkerUnsupportedDoc = []byte("MOCK_UNSUPPORTED_DOC")
-	MarkerOCRFailure     = []byte("MOCK_OCR_FAILURE")
-	MarkerLowConfidence  = []byte("MOCK_LOW_CONFIDENCE")
+	MarkerUnsupportedDoc   = []byte("MOCK_UNSUPPORTED_DOC")
+	MarkerOCRFailure       = []byte("MOCK_OCR_FAILURE")
+	MarkerLowConfidence    = []byte("MOCK_LOW_CONFIDENCE")
+	MarkerSIMDoc           = []byte("MOCK_SIM_DOC")
+	MarkerSIMLowConfidence = []byte("MOCK_SIM_LOW_CONFIDENCE")
 )
 
 // MockOCREngine provides deterministic OCR extraction for tests without external network calls.
@@ -87,17 +89,46 @@ func (m *MockOCREngine) Extract(ctx context.Context, image []byte) (*ocr.OCRResu
 		return nil, ocr.ErrUnsupportedDocument
 	}
 
-	confidence := 0.98
-	if bytes.Contains(image, MarkerLowConfidence) {
-		confidence = 0.45
+	if bytes.Contains(image, MarkerSIMDoc) || bytes.Contains(image, MarkerSIMLowConfidence) {
+		confidence := 0.98
+		var simData *ocr.SIMData
+		if bytes.Contains(image, MarkerSIMLowConfidence) {
+			confidence = 0.45
+			simData = &ocr.SIMData{
+				NomorSIM: "123456789012",
+			}
+		} else {
+			simData = &ocr.SIMData{
+				NomorSIM:      "123456789012",
+				Golongan:      "A",
+				Nama:          "BUDI SANTOSO",
+				TempatLahir:   "JAKARTA",
+				TanggalLahir:  "1990-01-01",
+				GolonganDarah: "O",
+				JenisKelamin:  "PRIA",
+				Alamat:        "JL. MERDEKA NO. 10",
+				Pekerjaan:     "KARYAWAN SWASTA",
+				Polda:         "METRO JAYA",
+				MasaBerlaku:   "2029-01-01",
+			}
+		}
+		return &ocr.OCRResult{
+			DocumentType: "sim",
+			Confidence:   confidence,
+			RawText:      "KEPOLISIAN NEGARA REPUBLIK INDONESIA SURAT IZIN MENGEMUDI DRIVING LICENSE SIM A No. SIM: 1234-5678-9012 1. NAMA: BUDI SANTOSO 2. TEMPAT/TGL LAHIR: JAKARTA, 01-01-1990 3. GOL. DARAH: O - JENIS KELAMIN: PRIA 4. ALAMAT: JL. MERDEKA NO. 10 5. PEKERJAAN: KARYAWAN SWASTA POLDA: METRO JAYA BERLAKU S/D: 01-01-2029",
+			SIMData:      simData,
+		}, nil
 	}
 
-	// Deterministic standard synthetic KTP data
-	return &ocr.OCRResult{
-		DocumentType: "ktp",
-		Confidence:   confidence,
-		RawText:      "REPUBLIK INDONESIA PROVINSI DKI JAKARTA NIK 3171010101900001 NAMA BUDI SANTOSO TEMPAT/TGL LAHIR JAKARTA 01-01-1990 JENIS KELAMIN LAKI-LAKI ALAMAT JL. MERDEKA NO. 10 RT/RW 001/002 KEL/DESA GAMBIR KECAMATAN GAMBIR AGAMA ISLAM STATUS PERKAWINAN KAWIN PEKERJAAN KARYAWAN SWASTA KEWARGANEGARAAN WNI",
-		Data: &ocr.KTPData{
+	confidence := 0.98
+	var ktpData *ocr.KTPData
+	if bytes.Contains(image, MarkerLowConfidence) {
+		confidence = 0.45
+		ktpData = &ocr.KTPData{
+			NIK: "3171010101900001",
+		}
+	} else {
+		ktpData = &ocr.KTPData{
 			NIK:              "3171010101900001",
 			Nama:             "BUDI SANTOSO",
 			TempatLahir:      "JAKARTA",
@@ -111,6 +142,14 @@ func (m *MockOCREngine) Extract(ctx context.Context, image []byte) (*ocr.OCRResu
 			StatusPerkawinan: "KAWIN",
 			Pekerjaan:        "KARYAWAN SWASTA",
 			Kewarganegaraan:  "WNI",
-		},
+		}
+	}
+
+	// Deterministic standard synthetic KTP data
+	return &ocr.OCRResult{
+		DocumentType: "ktp",
+		Confidence:   confidence,
+		RawText:      "REPUBLIK INDONESIA PROVINSI DKI JAKARTA NIK 3171010101900001 NAMA BUDI SANTOSO TEMPAT/TGL LAHIR JAKARTA 01-01-1990 JENIS KELAMIN LAKI-LAKI ALAMAT JL. MERDEKA NO. 10 RT/RW 001/002 KEL/DESA GAMBIR KECAMATAN GAMBIR AGAMA ISLAM STATUS PERKAWINAN KAWIN PEKERJAAN KARYAWAN SWASTA KEWARGANEGARAAN WNI",
+		Data:         ktpData,
 	}, nil
 }

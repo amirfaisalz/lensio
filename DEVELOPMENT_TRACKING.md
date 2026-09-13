@@ -239,7 +239,7 @@ Lensio Product Ecosystem
 │
 ├── Document OCR Expansion
 │   ├── [x] KTP OCR (Kartu Tanda Penduduk - Active Production Core)
-│   ├── [ ] SIM OCR (Surat Izin Mengemudi / Driver's License)
+│   ├── [x] SIM OCR (Surat Izin Mengemudi / Driver's License)
 │   ├── [ ] Passport OCR (Indonesian & International Passports)
 │   ├── [ ] NPWP OCR (Nomor Pokok Wajib Pajak / Tax ID)
 │   ├── [ ] KK OCR (Kartu Keluarga / Family Register)

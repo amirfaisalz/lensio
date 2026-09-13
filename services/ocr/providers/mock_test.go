@@ -109,4 +109,34 @@ func TestMockOCREngine(t *testing.T) {
 			t.Errorf("expected reset call count 0, got %d", count)
 		}
 	})
+
+	t.Run("marker SIM doc extraction", func(t *testing.T) {
+		res, err := engine.Extract(ctx, providers.MarkerSIMDoc)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if res.DocumentType != "sim" {
+			t.Errorf("expected doc_type sim, got %s", res.DocumentType)
+		}
+		if res.Confidence < 0.90 {
+			t.Errorf("expected high confidence, got %f", res.Confidence)
+		}
+		if res.SIMData == nil || res.SIMData.NomorSIM != "123456789012" {
+			t.Errorf("expected SIMData with NomorSIM 123456789012, got %v", res.SIMData)
+		}
+	})
+
+	t.Run("marker SIM low confidence", func(t *testing.T) {
+		res, err := engine.Extract(ctx, providers.MarkerSIMLowConfidence)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if res.DocumentType != "sim" {
+			t.Errorf("expected doc_type sim, got %s", res.DocumentType)
+		}
+		if res.Confidence >= 0.50 {
+			t.Errorf("expected low confidence < 0.50, got %f", res.Confidence)
+		}
+	})
 }
+

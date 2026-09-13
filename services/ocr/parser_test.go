@@ -134,3 +134,88 @@ Kewarganegaraan : WNI
 		_ = ocr.ParseKTPFromRawText(raw)
 	}
 }
+
+func TestParseSIMFromRawText(t *testing.T) {
+	sampleRawText := `
+KEPOLISIAN NEGARA REPUBLIK INDONESIA
+SURAT IZIN MENGEMUDI
+DRIVING LICENSE
+SIM A
+No. SIM: 1234-5678-9012
+1. Nama : BUDI SANTOSO
+2. Tempat/Tgl Lahir : JAKARTA, 01-01-1990
+3. Gol. Darah : O - Jenis Kelamin : PRIA
+4. Alamat : JL. MERDEKA NO. 10
+5. Pekerjaan : KARYAWAN SWASTA
+Polda : POLDA METRO JAYA
+Berlaku s/d : 01-01-2029
+`
+
+	data := ocr.ParseSIMFromRawText(sampleRawText)
+	if data.NomorSIM != "123456789012" {
+		t.Errorf("expected NomorSIM 123456789012, got %s", data.NomorSIM)
+	}
+	if data.Golongan != "A" {
+		t.Errorf("expected Golongan A, got %s", data.Golongan)
+	}
+	if data.Nama != "BUDI SANTOSO" {
+		t.Errorf("expected Nama BUDI SANTOSO, got %s", data.Nama)
+	}
+	if data.TempatLahir != "JAKARTA" {
+		t.Errorf("expected TempatLahir JAKARTA, got %s", data.TempatLahir)
+	}
+	if data.TanggalLahir != "1990-01-01" {
+		t.Errorf("expected TanggalLahir 1990-01-01, got %s", data.TanggalLahir)
+	}
+	if data.GolonganDarah != "O" {
+		t.Errorf("expected GolonganDarah O, got %s", data.GolonganDarah)
+	}
+	if data.JenisKelamin != "PRIA" {
+		t.Errorf("expected JenisKelamin PRIA, got %s", data.JenisKelamin)
+	}
+	if data.Alamat != "JL. MERDEKA NO. 10" {
+		t.Errorf("expected Alamat JL. MERDEKA NO. 10, got %s", data.Alamat)
+	}
+	if data.Pekerjaan != "KARYAWAN SWASTA" {
+		t.Errorf("expected Pekerjaan KARYAWAN SWASTA, got %s", data.Pekerjaan)
+	}
+	if data.Polda != "POLDA METRO JAYA" {
+		t.Errorf("expected Polda POLDA METRO JAYA, got %s", data.Polda)
+	}
+	if data.MasaBerlaku != "2029-01-01" {
+		t.Errorf("expected MasaBerlaku 2029-01-01, got %s", data.MasaBerlaku)
+	}
+
+	t.Run("fallback SIM number detection", func(t *testing.T) {
+		fallbackText := "SURAT IZIN MENGEMUDI 12345678901234 WANITA"
+		res := ocr.ParseSIMFromRawText(fallbackText)
+		if res.NomorSIM != "12345678901234" {
+			t.Errorf("expected fallback NomorSIM 12345678901234, got %s", res.NomorSIM)
+		}
+		if res.JenisKelamin != "WANITA" {
+			t.Errorf("expected fallback gender WANITA, got %s", res.JenisKelamin)
+		}
+	})
+}
+
+func BenchmarkParseSIMFromRawText(b *testing.B) {
+	raw := `
+KEPOLISIAN NEGARA REPUBLIK INDONESIA
+SURAT IZIN MENGEMUDI
+SIM A
+No. SIM: 1234-5678-9012
+1. Nama : BUDI SANTOSO
+2. Tempat/Tgl Lahir : JAKARTA, 01-01-1990
+3. Jenis Kelamin : PRIA
+4. Alamat : JL. MERDEKA NO. 10
+5. Pekerjaan : KARYAWAN SWASTA
+Polda : METRO JAYA
+Berlaku s/d : 01-01-2029
+`
+	b.ResetTimer()
+	b.ReportAllocs()
+
+	for i := 0; i < b.N; i++ {
+		_ = ocr.ParseSIMFromRawText(raw)
+	}
+}

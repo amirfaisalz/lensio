@@ -487,3 +487,286 @@ func BenchmarkKTPOCRHandler(b *testing.B) {
 		}
 	}
 }
+
+func TestSIMOCRHandler(t *testing.T) {
+	validImage := synthetic.GenerateValidSIMImage()
+	engine := providers.NewMockEngine()
+	ocrStore := newDummyOCRStore()
+	handler := handlers.SIMOCRHandler(engine, ocrStore, nil)
+
+	t.Run("unauthenticated request returns 401", func(t *testing.T) {
+		req := createMultipartRequest(t, "document", "sim.png", validImage)
+		rec := httptest.NewRecorder()
+
+		handler.ServeHTTP(rec, req)
+		if rec.Code != http.StatusUnauthorized {
+			t.Fatalf("expected 401, got %d", rec.Code)
+		}
+	})
+
+	t.Run("bad body returns 400 invalid_document", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/ocr/sim", bytes.NewReader([]byte("not multipart")))
+		req.Header.Set("Content-Type", "multipart/form-data; boundary=missing")
+		req = withAuth(req, "org-1", "key-1")
+		rec := httptest.NewRecorder()
+
+		handler.ServeHTTP(rec, req)
+		if rec.Code != http.StatusBadRequest {
+			t.Fatalf("expected 400, got %d", rec.Code)
+		}
+	})
+
+	t.Run("missing document form file returns 400", func(t *testing.T) {
+		req := createMultipartRequest(t, "other_file", "doc.png", validImage)
+		req = withAuth(req, "org-1", "key-1")
+		rec := httptest.NewRecorder()
+
+		handler.ServeHTTP(rec, req)
+		if rec.Code != http.StatusBadRequest {
+			t.Fatalf("expected 400, got %d", rec.Code)
+		}
+	})
+
+	t.Run("corrupt image returns 400 invalid_document", func(t *testing.T) {
+		corruptImg := synthetic.GenerateCorruptedImage()
+		req := createMultipartRequest(t, "document", "corrupt.jpg", corruptImg)
+		req = withAuth(req, "org-1", "key-1")
+		rec := httptest.NewRecorder()
+
+		handler.ServeHTTP(rec, req)
+		if rec.Code != http.StatusBadRequest {
+			t.Fatalf("expected 400, got %d", rec.Code)
+		}
+	})
+
+	t.Run("nil engine returns 502", func(t *testing.T) {
+		nilHandler := handlers.SIMOCRHandler(nil, ocrStore, nil)
+		req := createMultipartRequest(t, "document", "sim.png", validImage)
+		req = withAuth(req, "org-1", "key-1")
+		rec := httptest.NewRecorder()
+
+		nilHandler.ServeHTTP(rec, req)
+		if rec.Code != http.StatusBadGateway {
+			t.Fatalf("expected 502, got %d", rec.Code)
+		}
+	})
+
+	t.Run("unsupported document returns 422", func(t *testing.T) {
+		unsupportedImg := synthetic.GenerateUnsupportedDocImage()
+		req := createMultipartRequest(t, "document", "unsupported.png", unsupportedImg)
+		req = withAuth(req, "org-1", "key-1")
+		rec := httptest.NewRecorder()
+
+		handler.ServeHTTP(rec, req)
+		if rec.Code != http.StatusUnprocessableEntity {
+			t.Fatalf("expected 422, got %d", rec.Code)
+		}
+	})
+
+	t.Run("circuit breaker open returns 504", func(t *testing.T) {
+		engine.SetCustomError(ocr.ErrCircuitOpen)
+		defer engine.Reset()
+
+		req := createMultipartRequest(t, "document", "sim.png", validImage)
+		req = withAuth(req, "org-1", "key-1")
+		rec := httptest.NewRecorder()
+
+		handler.ServeHTTP(rec, req)
+		if rec.Code != http.StatusGatewayTimeout {
+			t.Fatalf("expected 504 Gateway Timeout, got %d", rec.Code)
+		}
+	})
+
+	t.Run("engine failure returns 502", func(t *testing.T) {
+		failImg := synthetic.GenerateOCRFailureImage()
+		req := createMultipartRequest(t, "document", "fail.png", failImg)
+		req = withAuth(req, "org-1", "key-1")
+		rec := httptest.NewRecorder()
+
+		handler.ServeHTTP(rec, req)
+		if rec.Code != http.StatusBadGateway {
+			t.Fatalf("expected 502, got %d", rec.Code)
+		}
+	})
+
+	t.Run("engine timeout returns 504", func(t *testing.T) {
+		engine.SetCustomError(context.DeadlineExceeded)
+		defer engine.Reset()
+
+		req := createMultipartRequest(t, "document", "sim.png", validImage)
+		req = withAuth(req, "org-1", "key-1")
+		rec := httptest.NewRecorder()
+
+		handler.ServeHTTP(rec, req)
+		if rec.Code != http.StatusGatewayTimeout {
+			t.Fatalf("expected 504 Gateway Timeout, got %d", rec.Code)
+		}
+	})
+
+	t.Run("arbitrary engine internal error returns 500", func(t *testing.T) {
+		engine.SetCustomError(errors.New("unexpected crash"))
+		defer engine.Reset()
+
+		req := createMultipartRequest(t, "document", "sim.png", validImage)
+		req = withAuth(req, "org-1", "key-1")
+		rec := httptest.NewRecorder()
+
+		handler.ServeHTTP(rec, req)
+		if rec.Code != http.StatusInternalServerError {
+			t.Fatalf("expected 500, got %d", rec.Code)
+		}
+	})
+
+	t.Run("engine returns non-sim document_type returns 422", func(t *testing.T) {
+		engine.SetCustomResult(&ocr.OCRResult{
+			DocumentType: "ktp",
+		})
+		defer engine.Reset()
+
+		req := createMultipartRequest(t, "document", "sim.png", validImage)
+		req = withAuth(req, "org-1", "key-1")
+		rec := httptest.NewRecorder()
+
+		handler.ServeHTTP(rec, req)
+		if rec.Code != http.StatusUnprocessableEntity {
+			t.Fatalf("expected 422, got %d", rec.Code)
+		}
+	})
+
+	t.Run("successful extraction returns 200 with SIMResponse and persists metadata", func(t *testing.T) {
+		req := createMultipartRequest(t, "document", "sim.png", validImage)
+		req = withAuth(req, "org-1", "key-1")
+		rec := httptest.NewRecorder()
+
+		handler.ServeHTTP(rec, req)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("expected 200, got %d (body: %s)", rec.Code, rec.Body.String())
+		}
+
+		var simResp handlers.SIMResponse
+		if err := json.NewDecoder(rec.Body).Decode(&simResp); err != nil {
+			t.Fatalf("failed decoding json response: %v", err)
+		}
+
+		if simResp.DocumentType != "sim" {
+			t.Errorf("expected doc_type sim, got %s", simResp.DocumentType)
+		}
+		if simResp.Data == nil || simResp.Data.NomorSIM != "123456789012" {
+			t.Errorf("expected NomorSIM 123456789012, got %v", simResp.Data)
+		}
+		if simResp.Confidence < 0.90 {
+			t.Errorf("expected high confidence >= 0.90, got %f", simResp.Confidence)
+		}
+	})
+
+	t.Run("low confidence extraction succeeds with low_confidence status", func(t *testing.T) {
+		lowConfImg := synthetic.GenerateSIMLowConfidenceImage()
+		req := createMultipartRequest(t, "document", "sim_low.png", lowConfImg)
+		req = withAuth(req, "org-1", "key-1")
+		rec := httptest.NewRecorder()
+
+		handler.ServeHTTP(rec, req)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("expected 200, got %d", rec.Code)
+		}
+
+		var simResp handlers.SIMResponse
+		if err := json.NewDecoder(rec.Body).Decode(&simResp); err != nil {
+			t.Fatalf("failed decoding json: %v", err)
+		}
+		if simResp.Confidence >= 0.70 {
+			t.Errorf("expected low confidence < 0.70, got %f", simResp.Confidence)
+		}
+	})
+
+	t.Run("store error is logged but request succeeds", func(t *testing.T) {
+		brokenStore := &dummyOCRStore{
+			records: make(map[string]*store.OCRRequest),
+			err:     errors.New("db disk failure"),
+		}
+		brokenHandler := handlers.SIMOCRHandler(engine, brokenStore, nil)
+
+		req := createMultipartRequest(t, "document", "sim.png", validImage)
+		req = withAuth(req, "org-1", "key-1")
+		rec := httptest.NewRecorder()
+
+		brokenHandler.ServeHTTP(rec, req)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("expected 200 despite store error, got %d", rec.Code)
+		}
+	})
+
+	t.Run("quota exceeded returns 429", func(t *testing.T) {
+		quotaChecker := &mockQuotaChecker{allowed: false, remaining: 0, limit: 100}
+		quotaHandler := handlers.SIMOCRHandler(engine, ocrStore, quotaChecker)
+
+		req := createMultipartRequest(t, "document", "sim.png", validImage)
+		req = withAuth(req, "org-1", "key-1")
+		rec := httptest.NewRecorder()
+
+		quotaHandler.ServeHTTP(rec, req)
+		if rec.Code != http.StatusTooManyRequests {
+			t.Fatalf("expected 429, got %d", rec.Code)
+		}
+	})
+
+	t.Run("quota checker returns error returns 500", func(t *testing.T) {
+		quotaChecker := &mockQuotaChecker{err: errors.New("redis timeout")}
+		quotaHandler := handlers.SIMOCRHandler(engine, ocrStore, quotaChecker)
+
+		req := createMultipartRequest(t, "document", "sim.png", validImage)
+		req = withAuth(req, "org-1", "key-1")
+		rec := httptest.NewRecorder()
+
+		quotaHandler.ServeHTTP(rec, req)
+		if rec.Code != http.StatusInternalServerError {
+			t.Fatalf("expected 500, got %d", rec.Code)
+		}
+	})
+}
+
+func BenchmarkSIMOCRHandler(b *testing.B) {
+	oldLogger := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(io.Discard, nil)))
+	defer slog.SetDefault(oldLogger)
+
+	validImage := synthetic.GenerateValidSIMImage()
+	engine := providers.NewMockEngine()
+	ocrStore := newDummyOCRStore()
+	quotaChecker := &mockQuotaChecker{allowed: true, remaining: 100, limit: 100}
+	handler := handlers.SIMOCRHandler(engine, ocrStore, quotaChecker)
+
+	var bodyBuf bytes.Buffer
+	writer := multipart.NewWriter(&bodyBuf)
+	part, err := writer.CreateFormFile("document", "sim.png")
+	if err != nil {
+		b.Fatalf("failed creating form file: %v", err)
+	}
+	if _, err := part.Write(validImage); err != nil {
+		b.Fatalf("failed writing image: %v", err)
+	}
+	writer.Close()
+	rawBody := bodyBuf.Bytes()
+	contentType := writer.FormDataContentType()
+
+	key := &store.APIKey{
+		ID:     "bench-key",
+		OrgID:  "bench-org",
+		Scopes: []string{"ocr:read", "ocr:write"},
+	}
+
+	b.ResetTimer()
+	b.ReportAllocs()
+
+	for i := 0; i < b.N; i++ {
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/ocr/sim", bytes.NewReader(rawBody))
+		req.Header.Set("Content-Type", contentType)
+		req = req.WithContext(middleware.WithAPIKey(req.Context(), key))
+		rec := httptest.NewRecorder()
+
+		handler.ServeHTTP(rec, req)
+		if rec.Code != http.StatusOK {
+			b.Fatalf("expected 200, got %d", rec.Code)
+		}
+	}
+}
