@@ -106,6 +106,50 @@ export interface NPWPResponse {
 	warnings?: string[];
 }
 
+export interface KKFamilyMember {
+	nama: string;
+	nik: string;
+	jenis_kelamin: string;
+	tempat_lahir: string;
+	tanggal_lahir: string;
+	agama: string;
+	pendidikan?: string;
+	jenis_pekerjaan?: string;
+	golongan_darah?: string;
+	status_perkawinan?: string;
+	status_hubungan: string;
+	kewarganegaraan?: string;
+	nama_ayah?: string;
+	nama_ibu?: string;
+}
+
+export interface KKData {
+	nomor_kk: string;
+	kepala_keluarga: string;
+	alamat: string;
+	rt_rw?: string;
+	kode_pos?: string;
+	kelurahan_desa?: string;
+	kecamatan?: string;
+	kabupaten_kota?: string;
+	provinsi?: string;
+	tanggal_dikeluarkan?: string;
+	anggota_keluarga: KKFamilyMember[];
+}
+
+export interface KKResponse {
+	id: string;
+	document_type: "kk" | string;
+	status?: "completed" | "failed" | "low_confidence" | string;
+	confidence: number;
+	processing: {
+		latency_ms: number;
+	};
+	data: KKData;
+	field_confidence?: FieldConfidence;
+	warnings?: string[];
+}
+
 export interface APIKeyListItem {
 	id: string;
 	name: string;

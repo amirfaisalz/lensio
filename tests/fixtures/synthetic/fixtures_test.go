@@ -96,6 +96,29 @@ func TestSyntheticFixtures(t *testing.T) {
 		t.Fatal("expected non-empty npwp low confidence image")
 	}
 
+	kkPng := synthetic.GenerateValidKKImage()
+	if len(kkPng) == 0 {
+		t.Fatal("expected non-empty kk png image")
+	}
+	mime, err = ocr.ValidateImage(kkPng)
+	if err != nil || mime != ocr.MIMEPNG {
+		t.Fatalf("expected valid kk png, got mime=%s err=%v", mime, err)
+	}
+
+	kkJpeg := synthetic.GenerateValidKKJPEG()
+	if len(kkJpeg) == 0 {
+		t.Fatal("expected non-empty kk jpeg image")
+	}
+	mime, err = ocr.ValidateImage(kkJpeg)
+	if err != nil || mime != ocr.MIMEJPEG {
+		t.Fatalf("expected valid kk jpeg, got mime=%s err=%v", mime, err)
+	}
+
+	kkLowConf := synthetic.GenerateKKLowConfidenceImage()
+	if len(kkLowConf) == 0 {
+		t.Fatal("expected non-empty kk low confidence image")
+	}
+
 	unsupported := synthetic.GenerateUnsupportedDocImage()
 	if len(unsupported) == 0 {
 		t.Fatal("expected non-empty unsupported doc image")

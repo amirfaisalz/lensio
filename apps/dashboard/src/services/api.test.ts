@@ -258,6 +258,56 @@ describe("ApiClient", () => {
 		expect(result.status).toBe("completed");
 	});
 
+	it("executes KK OCR multipart request", async () => {
+		const mockKK = {
+			id: "ocr_kk_123",
+			document_type: "kk" as const,
+			status: "completed",
+			confidence: 0.99,
+			processing: { latency_ms: 180 },
+			data: {
+				nomor_kk: "3171010101200001",
+				kepala_keluarga: "BUDI SANTOSO",
+				alamat: "JL. SUDIRMAN NO. 12",
+				rt_rw: "001/002",
+				kode_pos: "12190",
+				kelurahan_desa: "SENAYAN",
+				kecamatan: "KEBAYORAN BARU",
+				kabupaten_kota: "JAKARTA SELATAN",
+				provinsi: "DKI JAKARTA",
+				tanggal_dikeluarkan: "2020-01-01",
+				anggota_keluarga: [
+					{
+						nama: "BUDI SANTOSO",
+						nik: "3171010101900001",
+						jenis_kelamin: "LAKI-LAKI",
+						tempat_lahir: "JAKARTA",
+						tanggal_lahir: "1990-01-01",
+						agama: "ISLAM",
+						status_hubungan: "KEPALA KELUARGA",
+					},
+				],
+			},
+			field_confidence: {
+				nomor_kk: 0.99,
+				kepala_keluarga: 0.99,
+			},
+		};
+
+		vi.spyOn(globalThis, "fetch").mockResolvedValueOnce({
+			ok: true,
+			json: async () => mockKK,
+		} as Response);
+
+		const dummyBlob = new Blob(["fake image"], { type: "image/jpeg" });
+		const result = await api.executeKKOCR(dummyBlob);
+
+		expect(result.data.nomor_kk).toBe("3171010101200001");
+		expect(result.data.kepala_keluarga).toBe("BUDI SANTOSO");
+		expect(result.data.anggota_keluarga).toHaveLength(1);
+		expect(result.status).toBe("completed");
+	});
+
 	it("registers user successfully", async () => {
 		vi.spyOn(globalThis, "fetch").mockResolvedValueOnce({
 			ok: true,

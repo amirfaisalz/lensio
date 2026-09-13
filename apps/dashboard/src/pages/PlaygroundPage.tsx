@@ -11,11 +11,11 @@ import { useState } from "react";
 import type { NavigationPage } from "../components/layout/Sidebar";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../services/api";
-import type { KTPResponse, NPWPResponse, PassportResponse, SIMResponse } from "../types/api";
+import type { KKResponse, KTPResponse, NPWPResponse, PassportResponse, SIMResponse } from "../types/api";
 
 // 400x250 valid synthetic KTP JPEG fixture
 const SYNTHETIC_KTP_BASE64 =
-	"/9j/2wCEAAMCAgMCAgMDAwMEAwMEBQgFBQQEBQoHBwYIDAoMDAsKCwsNDhIQDQ4RDgsLEBYQERMUFRUVDA8XGBYUGBIUFRQBAwQEBQQFCQUFCRQNCw0UFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFP/AABEIAPoBkAMBIgACEQEDEQH/xAGiAAABBQEBAQEBAQAAAAAAAAAAAQIDBAUGBwgJCgsQAAIBAwMCBAMFBQQEAAABfQECAwAEEQUSITFBBhNRYQcicRQygZGhCCNCscEVUtHwJDNicoIJChYXGBkaJSYnKCkqNDU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6g4SFhoeIiYqSk5SVlpeYmZqio6Slpqeoqaqys7S1tre4ubrCw8TFxsfIycrS09TV1tfY2drh4uPk5ebn6Onq8fLz9PX29/j5+gEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoLEQACAQIEBAMEBwUEBAABAncAAQIDEQQFITEGEkFRB2FxEyIygQgUQpGhscEJIzNS8BVictEKFiQ04SXxFxgZGiYnKCkqNDU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6g4SFhoeIiYqSk5SVlpeYmZqio6Slpqeoqaqys7S1tre4ubrCw8TFxsfIycrS09TV1tfY2dri4+Tl5ufo6ery8/T19vf4+fr/2gAMAwEAAhEDEQA/AP0Fooor6M+fCiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAK//Z";
+	"/9j/2wCEAAMCAgMCAgMDAwMEAwMEBQgFBQQEBQoHBwYIDAoMDAsKCwsNDhIQDQ4RDgsLEBYQERMUFRUVDA8XGBYUGBIUFRQBAwQEBQQFCQUFCRQNCw0UFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFP/AABEIAPoBkAMBIgACEQEDEQH/xAGiAAABBQEBAQEBAQAAAAAAAAAAAQIDBAUGBwgJCgsQAAIBAwMCBAMFBQQEAAABfQECAwAEEQUSITFBBhNRYQcicRQygZGhCCNCscEVUtHwJDNicoIJChYXGBkaJSYnKCkqNDU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6g4SFhoeIiYqSk5SVlpeYmZqio6Slpqeoqaqys7S1tre4ubrCw8TFxsfIycrS09TV1tfY2drh4uPk5ebn6Onq8fLz9PX29/j5+gEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoLEQACAQIEBAMEBwUEBAABAncAAQIDEQQFITEGEkFRB2FxEyIygQgUQpGhscEJIzNS8BVictEKFiQ04SXxFxgZGiYnKCkqNDU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6g4SFhoeIiYqSk5SVlpeYmZqio6Slpqeoqaqys7S1tre4ubrCw8TFxsfIycrS09TV1tfY2dri4+Tl5ufo6ery8/T19vf4+fr/2gAMAwEAAhEDEQA/AP0Fooor6M+fCiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooA//Z";
 
 function base64ToUint8Array(base64: string): Uint8Array {
 	const binaryString = atob(base64);
@@ -35,10 +35,10 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({
 }) => {
 	const { currentOrg, apiKey } = useAuth();
 
-	const [docType, setDocType] = useState<"ktp" | "sim" | "passport" | "npwp">("ktp");
+	const [docType, setDocType] = useState<"ktp" | "sim" | "passport" | "npwp" | "kk">("ktp");
 	const [ocrLoading, setOcrLoading] = useState(false);
 	const [ocrResult, setOcrResult] = useState<
-		KTPResponse | SIMResponse | PassportResponse | NPWPResponse | null
+		KTPResponse | SIMResponse | PassportResponse | NPWPResponse | KKResponse | null
 	>(null);
 	const [ocrError, setOcrError] = useState<string | null>(null);
 	const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
@@ -54,7 +54,9 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({
 		try {
 			setSelectedFileName(
 				file.name ||
-					(docType === "npwp"
+					(docType === "kk"
+						? "kartu_keluarga_document.jpg"
+						: docType === "npwp"
 						? "npwp_document.jpg"
 						: docType === "passport"
 							? "passport_document.jpg"
@@ -64,8 +66,10 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({
 			);
 			setOcrLoading(true);
 			setOcrError(null);
-			let res: KTPResponse | SIMResponse | PassportResponse | NPWPResponse;
-			if (docType === "npwp") {
+			let res: KTPResponse | SIMResponse | PassportResponse | NPWPResponse | KKResponse;
+			if (docType === "kk") {
+				res = await api.executeKKOCR(file, apiKey);
+			} else if (docType === "npwp") {
 				res = await api.executeNPWPOCR(file, apiKey);
 			} else if (docType === "passport") {
 				res = await api.executePassportOCR(file, apiKey);
@@ -87,7 +91,9 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({
 	const handleLoadSyntheticSample = async () => {
 		try {
 			const filename =
-				docType === "npwp"
+				docType === "kk"
+					? "synthetic_kk_fixture.jpg"
+					: docType === "npwp"
 					? "synthetic_npwp_fixture.jpg"
 					: docType === "passport"
 						? "synthetic_passport_fixture.jpg"
@@ -99,7 +105,13 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({
 			setOcrError(null);
 
 			let bytes = base64ToUint8Array(SYNTHETIC_KTP_BASE64);
-			if (docType === "npwp") {
+			if (docType === "kk") {
+				const marker = new TextEncoder().encode("MOCK_KK_DOC");
+				const combined = new Uint8Array(bytes.length + marker.length);
+				combined.set(bytes);
+				combined.set(marker, bytes.length);
+				bytes = combined;
+			} else if (docType === "npwp") {
 				const marker = new TextEncoder().encode("MOCK_NPWP_DOC");
 				const combined = new Uint8Array(bytes.length + marker.length);
 				combined.set(bytes);
@@ -177,7 +189,7 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({
 						Live OCR Playground
 					</h2>
 					<p className="text-xs text-slate-500 dark:text-slate-400">
-						Interactive test harness for Indonesian identity documents (KTP, SIM, Passport & NPWP)
+						Interactive test harness for Indonesian identity documents (KTP, SIM, Passport, NPWP & KK)
 						with synthetic fixtures.
 					</p>
 				</div>
@@ -249,6 +261,22 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({
 						>
 							NPWP
 						</button>
+						<button
+							type="button"
+							onClick={() => {
+								setDocType("kk");
+								setOcrResult(null);
+								setSelectedFileName(null);
+								setOcrError(null);
+							}}
+							className={`px-3 py-1 rounded-md transition-all cursor-pointer ${
+								docType === "kk"
+									? "bg-white dark:bg-slate-700 text-[#1877F2] dark:text-white"
+									: "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:text-white dark:hover:text-white"
+							}`}
+						>
+							KK
+						</button>
 					</div>
 					<button
 						type="button"
@@ -296,7 +324,7 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({
 								Click to upload or drag & drop
 							</p>
 							<p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-								Upload Indonesian {docType === "passport" ? "Passport" : docType === "npwp" ? "NPWP" : docType === "sim" ? "SIM" : "KTP"} image
+								Upload Indonesian {docType === "passport" ? "Passport" : docType === "npwp" ? "NPWP" : docType === "kk" ? "Kartu Keluarga" : docType === "sim" ? "SIM" : "KTP"} image
 								(JPEG, PNG, max 5MB)
 							</p>
 							<input
@@ -378,11 +406,13 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({
 							Normalized Field Verification (
 							{"passport_number" in ocrResult.data
 								? "Passport"
-								: "nomor_sim" in ocrResult.data
-									? "SIM"
-									: "npwp" in ocrResult.data
-										? "NPWP"
-										: "KTP"}
+								: "nomor_kk" in ocrResult.data
+									? "Kartu Keluarga"
+									: "nomor_sim" in ocrResult.data
+										? "SIM"
+										: "npwp" in ocrResult.data
+											? "NPWP"
+											: "KTP"}
 							)
 						</h4>
 						{"passport_number" in ocrResult.data ? (
@@ -477,6 +507,128 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({
 										<span className="font-mono text-[11px] text-slate-900 dark:text-white break-all">
 											{ocrResult.data.mrz_line2}
 										</span>
+									</div>
+								)}
+							</div>
+						) : "nomor_kk" in ocrResult.data ? (
+							<div className="space-y-4">
+								<div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-3 text-xs">
+									<div className="bg-white dark:bg-slate-800 p-2.5 rounded border border-slate-200 dark:border-white/10">
+										<span className="text-slate-400 dark:text-slate-500 block text-[10px] uppercase font-semibold">
+											Nomor Kartu Keluarga
+										</span>
+										<span className="font-mono font-bold text-slate-900 dark:text-white">
+											{ocrResult.data.nomor_kk}
+										</span>
+									</div>
+									<div className="bg-white dark:bg-slate-800 p-2.5 rounded border border-slate-200 dark:border-white/10">
+										<span className="text-slate-400 dark:text-slate-500 block text-[10px] uppercase font-semibold">
+											Kepala Keluarga
+										</span>
+										<span className="font-semibold text-slate-900 dark:text-white truncate block">
+											{ocrResult.data.kepala_keluarga}
+										</span>
+									</div>
+									<div className="bg-white dark:bg-slate-800 p-2.5 rounded border border-slate-200 dark:border-white/10 sm:col-span-2">
+										<span className="text-slate-400 dark:text-slate-500 block text-[10px] uppercase font-semibold">
+											Alamat
+										</span>
+										<span className="text-slate-900 dark:text-white truncate block">
+											{ocrResult.data.alamat}
+										</span>
+									</div>
+									<div className="bg-white dark:bg-slate-800 p-2.5 rounded border border-slate-200 dark:border-white/10">
+										<span className="text-slate-400 dark:text-slate-500 block text-[10px] uppercase font-semibold">
+											RT / RW
+										</span>
+										<span className="font-mono text-slate-900 dark:text-white">
+											{ocrResult.data.rt_rw}
+										</span>
+									</div>
+									<div className="bg-white dark:bg-slate-800 p-2.5 rounded border border-slate-200 dark:border-white/10">
+										<span className="text-slate-400 dark:text-slate-500 block text-[10px] uppercase font-semibold">
+											Desa / Kelurahan
+										</span>
+										<span className="text-slate-900 dark:text-white truncate block">
+											{ocrResult.data.kelurahan_desa}
+										</span>
+									</div>
+									<div className="bg-white dark:bg-slate-800 p-2.5 rounded border border-slate-200 dark:border-white/10">
+										<span className="text-slate-400 dark:text-slate-500 block text-[10px] uppercase font-semibold">
+											Kecamatan
+										</span>
+										<span className="text-slate-900 dark:text-white truncate block">
+											{ocrResult.data.kecamatan}
+										</span>
+									</div>
+									<div className="bg-white dark:bg-slate-800 p-2.5 rounded border border-slate-200 dark:border-white/10">
+										<span className="text-slate-400 dark:text-slate-500 block text-[10px] uppercase font-semibold">
+											Kabupaten / Kota
+										</span>
+										<span className="text-slate-900 dark:text-white truncate block">
+											{ocrResult.data.kabupaten_kota}
+										</span>
+									</div>
+									<div className="bg-white dark:bg-slate-800 p-2.5 rounded border border-slate-200 dark:border-white/10">
+										<span className="text-slate-400 dark:text-slate-500 block text-[10px] uppercase font-semibold">
+											Provinsi
+										</span>
+										<span className="text-slate-900 dark:text-white truncate block">
+											{ocrResult.data.provinsi}
+										</span>
+									</div>
+									{ocrResult.data.kode_pos && (
+										<div className="bg-white dark:bg-slate-800 p-2.5 rounded border border-slate-200 dark:border-white/10">
+											<span className="text-slate-400 dark:text-slate-500 block text-[10px] uppercase font-semibold">
+												Kode Pos
+											</span>
+											<span className="font-mono text-slate-900 dark:text-white">
+												{ocrResult.data.kode_pos}
+											</span>
+										</div>
+									)}
+									{ocrResult.data.tanggal_dikeluarkan && (
+										<div className="bg-white dark:bg-slate-800 p-2.5 rounded border border-slate-200 dark:border-white/10">
+											<span className="text-slate-400 dark:text-slate-500 block text-[10px] uppercase font-semibold">
+												Tanggal Dikeluarkan
+											</span>
+											<span className="font-mono text-emerald-600 font-semibold">
+												{ocrResult.data.tanggal_dikeluarkan}
+											</span>
+										</div>
+									)}
+								</div>
+
+								{ocrResult.data.anggota_keluarga && ocrResult.data.anggota_keluarga.length > 0 && (
+									<div className="mt-4 border border-slate-200 dark:border-white/10 rounded-lg overflow-x-auto">
+										<table className="w-full text-left text-xs">
+											<thead className="bg-slate-100 dark:bg-white/5 text-[10px] uppercase font-semibold text-slate-500 dark:text-slate-400">
+												<tr>
+													<th className="p-2.5">Nama Lengkap</th>
+													<th className="p-2.5">NIK</th>
+													<th className="p-2.5">Hubungan</th>
+													<th className="p-2.5">Jenis Kelamin</th>
+													<th className="p-2.5">Tanggal Lahir</th>
+													<th className="p-2.5">Pekerjaan</th>
+												</tr>
+											</thead>
+											<tbody className="divide-y divide-slate-200 dark:divide-white/10 text-slate-800 dark:text-slate-200">
+												{ocrResult.data.anggota_keluarga.map((member, idx) => (
+													<tr key={member.nik || idx} className="hover:bg-slate-50 dark:hover:bg-white/5">
+														<td className="p-2.5 font-medium">{member.nama}</td>
+														<td className="p-2.5 font-mono">{member.nik}</td>
+														<td className="p-2.5">
+															<span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-50 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300">
+																{member.status_hubungan}
+															</span>
+														</td>
+														<td className="p-2.5">{member.jenis_kelamin}</td>
+														<td className="p-2.5 font-mono">{member.tanggal_lahir}</td>
+														<td className="p-2.5">{member.jenis_pekerjaan}</td>
+													</tr>
+												))}
+											</tbody>
+										</table>
 									</div>
 								)}
 							</div>

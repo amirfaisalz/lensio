@@ -267,6 +267,81 @@ func TestGeminiOCREngine(t *testing.T) {
 		}
 	})
 
+	t.Run("successful KK extraction", func(t *testing.T) {
+		mockGeminiResponse := map[string]any{
+			"candidates": []map[string]any{
+				{
+					"content": map[string]any{
+						"parts": []map[string]any{
+							{
+								"text": `{
+									"document_type": "kk",
+									"confidence": 0.99,
+									"raw_text": "REPUBLIK INDONESIA KARTU KELUARGA NO. KK 3171010101200001 KEPALA KELUARGA BUDI SANTOSO",
+									"nomor_kk": "3171010101200001",
+									"kepala_keluarga": "BUDI SANTOSO",
+									"alamat": "JL. SUDIRMAN NO. 12",
+									"rt_rw": "001/002",
+									"kode_pos": "12190",
+									"kelurahan_desa": "SENAYAN",
+									"kecamatan": "KEBAYORAN BARU",
+									"kabupaten_kota": "JAKARTA SELATAN",
+									"provinsi": "DKI JAKARTA",
+									"tanggal_dikeluarkan": "2020-01-01",
+									"anggota_keluarga": [
+										{
+											"nama": "BUDI SANTOSO",
+											"nik": "3171010101900001",
+											"jenis_kelamin": "LAKI-LAKI",
+											"tempat_lahir": "JAKARTA",
+											"tanggal_lahir": "1990-01-01",
+											"agama": "ISLAM",
+											"pendidikan": "STRATA I",
+											"jenis_pekerjaan": "KARYAWAN SWASTA",
+											"status_perkawinan": "KAWIN",
+											"status_hubungan": "KEPALA KELUARGA"
+										}
+									]
+								}`,
+							},
+						},
+					},
+				},
+			},
+		}
+
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(mockGeminiResponse)
+		}))
+		defer server.Close()
+
+		engine := providers.NewGeminiEngine("test-api-key", "gemini-2.0-flash",
+			providers.WithBaseURL(server.URL),
+			providers.WithHTTPClient(server.Client()),
+		)
+
+		res, err := engine.Extract(ctx, validImg)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if res.DocumentType != "kk" {
+			t.Errorf("expected doc_type kk, got %s", res.DocumentType)
+		}
+		if res.KKData == nil || res.KKData.NomorKK != "3171010101200001" {
+			t.Errorf("expected NomorKK 3171010101200001, got %v", res.KKData)
+		}
+		if res.KKData.KepalaKeluarga != "BUDI SANTOSO" {
+			t.Errorf("expected KepalaKeluarga BUDI SANTOSO, got %s", res.KKData.KepalaKeluarga)
+		}
+		if len(res.KKData.AnggotaKeluarga) != 1 {
+			t.Errorf("expected 1 family member, got %d", len(res.KKData.AnggotaKeluarga))
+		}
+		if res.Confidence < 0.90 {
+			t.Errorf("expected high confidence, got %f", res.Confidence)
+		}
+	})
+
 	t.Run("unsupported document returns ErrUnsupportedDocument", func(t *testing.T) {
 		mockGeminiResponse := map[string]any{
 			"candidates": []map[string]any{

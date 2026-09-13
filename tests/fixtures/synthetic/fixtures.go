@@ -85,6 +85,26 @@ func GenerateNPWPLowConfidenceImage() []byte {
 	return GenerateCustomImage(300, 200, color.RGBA{R: 235, G: 235, B: 210, A: 255}, providers.MarkerNPWPLowConfidence)
 }
 
+// GenerateValidKKImage returns a valid in-memory PNG image meeting dimensions and embedded with MarkerKKDoc.
+func GenerateValidKKImage() []byte {
+	return GenerateCustomImage(500, 350, color.RGBA{R: 240, G: 245, B: 250, A: 255}, providers.MarkerKKDoc)
+}
+
+// GenerateValidKKJPEG returns a valid in-memory JPEG image with KK marker.
+func GenerateValidKKJPEG() []byte {
+	img := image.NewRGBA(image.Rect(0, 0, 500, 350))
+	draw.Draw(img, img.Bounds(), &image.Uniform{C: color.RGBA{R: 245, G: 248, B: 252, A: 255}}, image.Point{}, draw.Src)
+	var buf bytes.Buffer
+	_ = jpeg.Encode(&buf, img, &jpeg.Options{Quality: 90})
+	buf.Write(providers.MarkerKKDoc)
+	return buf.Bytes()
+}
+
+// GenerateKKLowConfidenceImage returns an image containing the KK low confidence test marker.
+func GenerateKKLowConfidenceImage() []byte {
+	return GenerateCustomImage(300, 200, color.RGBA{R: 230, G: 235, B: 240, A: 255}, providers.MarkerKKLowConfidence)
+}
+
 // GenerateUnsupportedDocImage returns an image containing the unsupported doc test marker.
 func GenerateUnsupportedDocImage() []byte {
 	return GenerateCustomImage(300, 200, color.RGBA{R: 255, G: 240, B: 240, A: 255}, providers.MarkerUnsupportedDoc)

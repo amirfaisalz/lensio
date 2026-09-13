@@ -275,6 +275,76 @@ describe("PlaygroundPage", () => {
 		});
 	});
 
+	it("tests synthetic fixture KK OCR execution when switched to KK tab", async () => {
+		const mockKKResult = {
+			id: "ocr_kk_play_1",
+			document_type: "kk",
+			status: "completed",
+			confidence: 0.99,
+			processing: {
+				latency_ms: 145,
+			},
+			data: {
+				nomor_kk: "3273012301200001",
+				kepala_keluarga: "BUDI SANTOSO",
+				alamat: "JL. MERDEKA NO. 45",
+				rt_rw: "005/002",
+				kelurahan_desa: "BABAKAN",
+				kecamatan: "COBLONG",
+				kabupaten_kota: "KOTA BANDUNG",
+				provinsi: "JAWA BARAT",
+				tanggal_dikeluarkan: "2020-01-23",
+				anggota_keluarga: [
+					{
+						nama: "BUDI SANTOSO",
+						nik: "3273011508850001",
+						jenis_kelamin: "LAKI-LAKI",
+						tempat_lahir: "BANDUNG",
+						tanggal_lahir: "1985-08-15",
+						agama: "ISLAM",
+						pendidikan: "S1",
+						jenis_pekerjaan: "KARYAWAN SWASTA",
+						status_perkawinan: "KAWIN",
+						status_hubungan: "KEPALA KELUARGA",
+						kewarganegaraan: "WNI",
+					},
+				],
+			},
+			field_confidence: {
+				nomor_kk: 1.0,
+				kepala_keluarga: 0.99,
+			},
+		};
+
+		const kkSpy = vi
+			.spyOn(api, "executeKKOCR")
+			.mockResolvedValue(mockKKResult as any);
+
+		renderWithAuth(<PlaygroundPage />, {
+			initialOrg: TEST_ORG,
+			initialApiKey: "lensio_live_testkey123",
+		});
+
+		// Switch to KK tab
+		const kkTabBtn = screen.getByRole("button", { name: /^KK$/i });
+		fireEvent.click(kkTabBtn);
+
+		// Click "Load Synthetic Fixture"
+		const fixtureBtn = screen.getByRole("button", {
+			name: /Load Synthetic Fixture/i,
+		});
+		fireEvent.click(fixtureBtn);
+
+		await waitFor(() => {
+			expect(kkSpy).toHaveBeenCalledTimes(1);
+			expect(screen.getByText(/Normalized Field Verification/)).toBeDefined();
+			expect(screen.getByText("3273012301200001")).toBeDefined();
+			expect(screen.getByText("JL. MERDEKA NO. 45")).toBeDefined();
+			expect(screen.getByText("KEPALA KELUARGA")).toBeDefined();
+			expect(screen.getByText(/99% Confidence/)).toBeDefined();
+		});
+	});
+
 	it("shows warning and blocks execution when apiKey is missing", async () => {
 		const ocrSpy = vi.spyOn(api, "executeKTPOCR");
 		const onNavigate = vi.fn();

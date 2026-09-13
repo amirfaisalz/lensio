@@ -73,11 +73,33 @@ var npwpKeywords = []string{
 	"TERDAFTAR",
 }
 
-// ClassifyDocument analyzes raw text tokens to classify if the document is an Indonesian KTP, SIM, Passport, or NPWP.
-// Returns document type string ("ktp", "sim", "passport", "npwp", or "unsupported") and a boolean indicator of recognition.
+// List of distinctive textual markers present on official Indonesian Kartu Keluarga (KK).
+var kkKeywords = []string{
+	"KARTU KELUARGA",
+	"NO. KK",
+	"NOMOR KK",
+	"KEPALA KELUARGA",
+	"HUBUNGAN DALAM KELUARGA",
+	"STATUS HUBUNGAN",
+	"NAMA AYAH",
+	"NAMA IBU",
+	"DOKUMEN IMIGRASI",
+}
+
+// ClassifyDocument analyzes raw text tokens to classify if the document is an Indonesian KTP, SIM, Passport, NPWP, or KK.
+// Returns document type string ("ktp", "sim", "passport", "npwp", "kk", or "unsupported") and a boolean indicator of recognition.
 // Minimum 2 strong markers required for positive classification (or 1 explicit title marker).
 func ClassifyDocument(rawText string) (string, bool) {
 	upper := strings.ToUpper(rawText)
+
+	// Check KK first if explicit title exists
+	kkMatches := 0
+	hasExplicitKKTitle := strings.Contains(upper, "KARTU KELUARGA")
+	for _, kw := range kkKeywords {
+		if strings.Contains(upper, kw) {
+			kkMatches++
+		}
+	}
 
 	// Check Passport first if explicit title or MRZ prefix exists
 	passportMatches := 0
@@ -133,6 +155,10 @@ func ClassifyDocument(rawText string) (string, bool) {
 		}
 	}
 
+	if hasExplicitKKTitle || (kkMatches >= 2 && kkMatches > ktpMatches) {
+		return "kk", true
+	}
+
 	if hasExplicitPassportTitle || (passportMatches >= 2 && passportMatches > ktpMatches && passportMatches > simMatches && passportMatches > npwpMatches) {
 		return "passport", true
 	}
@@ -147,6 +173,10 @@ func ClassifyDocument(rawText string) (string, bool) {
 
 	if hasExplicitKTPTitle || ktpMatches >= 2 || (ktpMatches >= 1 && has16Digits) {
 		return "ktp", true
+	}
+
+	if kkMatches >= 2 {
+		return "kk", true
 	}
 
 	if npwpMatches >= 2 {

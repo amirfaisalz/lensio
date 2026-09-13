@@ -85,6 +85,18 @@ func TestClassifyDocument(t *testing.T) {
 			wantDocType: "npwp",
 			wantIsKTP:   true,
 		},
+		{
+			name:        "official KK header",
+			text:        "REPUBLIK INDONESIA KARTU KELUARGA NO. KK 3171010101200001 KEPALA KELUARGA BUDI SANTOSO",
+			wantDocType: "kk",
+			wantIsKTP:   true,
+		},
+		{
+			name:        "KK markers without title",
+			text:        "NO. KK 3171010101200001 HUBUNGAN DALAM KELUARGA STATUS HUBUNGAN NAMA AYAH NAMA IBU",
+			wantDocType: "kk",
+			wantIsKTP:   true,
+		},
 	}
 
 	for _, tc := range tests {

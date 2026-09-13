@@ -58,6 +58,19 @@ var (
 	npwpAlamatRegex     = regexp.MustCompile(`(?i)(?:Alamat)[\s:;.-]+([^\r\n]+)`)
 	npwpKPPRegex        = regexp.MustCompile(`(?i)(?:KPP|Kantor\s*Pelayanan\s*Pajak)[\s:;.-]+([^\r\n]+)`)
 	npwpDaftarRegex     = regexp.MustCompile(`(?i)(?:Terdaftar|Tgl\s*Daftar|Tanggal\s*Daftar)[\s:;.-]*(\d{1,2}[-\s/.]\d{1,2}[-\s/.]\d{4})`)
+
+	// KK specific regex patterns
+	kkNomorRegex       = regexp.MustCompile(`(?i)(?:No\.?\s*KK|Nomor\s*KK|Kartu\s*Keluarga\s*No\.?)[\s:;.-]*([0-9OlI\s.-]{16,24})`)
+	kkNomorFallback    = regexp.MustCompile(`\b([0-9]{16})\b`)
+	kkKepalaRegex      = regexp.MustCompile(`(?i)(?:Nama\s*Kepala\s*Keluarga|Kepala\s*Keluarga)[\s:;.-]+([^\r\n]+)`)
+	kkAlamatRegex      = regexp.MustCompile(`(?i)(?:Alamat)[\s:;.-]+([^\r\n]+)`)
+	kkRTRWRegex        = regexp.MustCompile(`(?i)(?:RT/RW|RT\s*/\s*RW)[\s:;.-]*(\d{1,3})\s*/\s*(\d{1,3})`)
+	kkKodePosRegex     = regexp.MustCompile(`(?i)(?:Kode\s*Pos)[\s:;.-]*(\d{5})`)
+	kkKelurahanRegex   = regexp.MustCompile(`(?i)(?:Desa/Kelurahan|Kelurahan/Desa|Kelurahan|Desa)[\s:;.-]+([^\r\n]+)`)
+	kkKecamatanRegex   = regexp.MustCompile(`(?i)(?:Kecamatan)[\s:;.-]+([^\r\n]+)`)
+	kkKabupatenRegex   = regexp.MustCompile(`(?i)(?:Kabupaten/Kota|Kabupaten|Kota)[\s:;.-]+([^\r\n]+)`)
+	kkProvinsiRegex    = regexp.MustCompile(`(?i)(?:Provinsi)[\s:;.-]+([^\r\n]+)`)
+	kkDikeluarkanRegex = regexp.MustCompile(`(?i)(?:Dikeluarkan\s*Tanggal|Tgl\s*Dikeluarkan)[\s:;.-]*(\d{1,2}[-\s/.]\d{1,2}[-\s/.]\d{4})`)
 )
 
 // cleanDigits fixes common OCR confusion in numeric fields (O->0, I/l->1).
@@ -397,6 +410,73 @@ func ParseNPWPFromRawText(rawText string) *NPWPData {
 	// 6. Tanggal Daftar
 	if m := npwpDaftarRegex.FindStringSubmatch(rawText); len(m) > 1 {
 		data.TanggalDaftar = normalizeDate(m[1])
+	}
+
+	return data
+}
+
+// ParseKKFromRawText extracts structured Kartu Keluarga fields from raw OCR text using regex and heuristics.
+func ParseKKFromRawText(rawText string) *KKData {
+	data := &KKData{
+		AnggotaKeluarga: make([]KKFamilyMember, 0),
+	}
+
+	// 1. Nomor KK
+	if m := kkNomorRegex.FindStringSubmatch(rawText); len(m) > 1 {
+		cleaned := CleanNomorKK(cleanDigits(m[1]))
+		if len(cleaned) == 16 {
+			data.NomorKK = cleaned
+		}
+	}
+	if data.NomorKK == "" {
+		if m := kkNomorFallback.FindStringSubmatch(rawText); len(m) > 1 {
+			data.NomorKK = m[1]
+		}
+	}
+
+	// 2. Kepala Keluarga
+	if m := kkKepalaRegex.FindStringSubmatch(rawText); len(m) > 1 {
+		data.KepalaKeluarga = cleanField(m[1])
+	}
+
+	// 3. Alamat
+	if m := kkAlamatRegex.FindStringSubmatch(rawText); len(m) > 1 {
+		data.Alamat = cleanField(m[1])
+	}
+
+	// 4. RT / RW
+	if m := kkRTRWRegex.FindStringSubmatch(rawText); len(m) > 2 {
+		data.RTRW = fmt.Sprintf("%03s/%03s", m[1], m[2])
+	}
+
+	// 5. Kode Pos
+	if m := kkKodePosRegex.FindStringSubmatch(rawText); len(m) > 1 {
+		data.KodePos = m[1]
+	}
+
+	// 6. Kelurahan / Desa
+	if m := kkKelurahanRegex.FindStringSubmatch(rawText); len(m) > 1 {
+		data.KelurahanDesa = cleanField(m[1])
+	}
+
+	// 7. Kecamatan
+	if m := kkKecamatanRegex.FindStringSubmatch(rawText); len(m) > 1 {
+		data.Kecamatan = cleanField(m[1])
+	}
+
+	// 8. Kabupaten / Kota
+	if m := kkKabupatenRegex.FindStringSubmatch(rawText); len(m) > 1 {
+		data.KabupatenKota = cleanField(m[1])
+	}
+
+	// 9. Provinsi
+	if m := kkProvinsiRegex.FindStringSubmatch(rawText); len(m) > 1 {
+		data.Provinsi = cleanField(m[1])
+	}
+
+	// 10. Tanggal Dikeluarkan
+	if m := kkDikeluarkanRegex.FindStringSubmatch(rawText); len(m) > 1 {
+		data.TanggalDikeluarkan = normalizeDate(m[1])
 	}
 
 	return data

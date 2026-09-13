@@ -21,6 +21,9 @@ var (
 	// ErrUnsupportedNPWPDocument indicates the image is not an Indonesian NPWP.
 	ErrUnsupportedNPWPDocument = errors.New("uploaded document was not identified as an Indonesian NPWP")
 
+	// ErrUnsupportedKKDocument indicates the image is not an Indonesian Kartu Keluarga.
+	ErrUnsupportedKKDocument = errors.New("uploaded document was not identified as an Indonesian Kartu Keluarga")
+
 	// ErrOCRFailed indicates upstream OCR engine processing error or timeout.
 	ErrOCRFailed = errors.New("upstream ocr engine failure")
 
@@ -92,6 +95,39 @@ type NPWPData struct {
 	TanggalDaftar string `json:"tanggal_daftar,omitempty"` // YYYY-MM-DD
 }
 
+// KKFamilyMember represents an individual family member row in an Indonesian Kartu Keluarga.
+type KKFamilyMember struct {
+	Nama             string `json:"nama"`
+	NIK              string `json:"nik"`
+	JenisKelamin     string `json:"jenis_kelamin"`
+	TempatLahir      string `json:"tempat_lahir"`
+	TanggalLahir     string `json:"tanggal_lahir"` // YYYY-MM-DD
+	Agama            string `json:"agama"`
+	Pendidikan       string `json:"pendidikan,omitempty"`
+	JenisPekerjaan   string `json:"jenis_pekerjaan,omitempty"`
+	GolonganDarah    string `json:"golongan_darah,omitempty"`
+	StatusPerkawinan string `json:"status_perkawinan,omitempty"`
+	StatusHubungan   string `json:"status_hubungan"` // KEPALA KELUARGA | SUAMI | ISTRI | ANAK | MENANTU | CUCU | ORANG TUA | MERTUA | FAMILI LAIN | PEMBANTU | LAINNYA
+	Kewarganegaraan  string `json:"kewarganegaraan,omitempty"`
+	NamaAyah         string `json:"nama_ayah,omitempty"`
+	NamaIbu          string `json:"nama_ibu,omitempty"`
+}
+
+// KKData represents structured fields extracted from an Indonesian Kartu Keluarga (KK).
+type KKData struct {
+	NomorKK            string           `json:"nomor_kk"`
+	KepalaKeluarga     string           `json:"kepala_keluarga"`
+	Alamat             string           `json:"alamat"`
+	RTRW               string           `json:"rt_rw,omitempty"`
+	KodePos            string           `json:"kode_pos,omitempty"`
+	KelurahanDesa      string           `json:"kelurahan_desa,omitempty"`
+	Kecamatan          string           `json:"kecamatan,omitempty"`
+	KabupatenKota      string           `json:"kabupaten_kota,omitempty"`
+	Provinsi           string           `json:"provinsi,omitempty"`
+	TanggalDikeluarkan string           `json:"tanggal_dikeluarkan,omitempty"` // YYYY-MM-DD
+	AnggotaKeluarga    []KKFamilyMember `json:"anggota_keluarga"`
+}
+
 // OCRResult represents the complete structured result of an OCR extraction.
 //nolint:revive // spec mandates ocr.OCRResult naming
 type OCRResult struct {
@@ -102,6 +138,7 @@ type OCRResult struct {
 	SIMData      *SIMData      `json:"sim_data,omitempty"`
 	PassportData *PassportData `json:"passport_data,omitempty"`
 	NPWPData     *NPWPData     `json:"npwp_data,omitempty"`
+	KKData       *KKData       `json:"kk_data,omitempty"`
 }
 
 // OCREngine defines the pluggable document extraction contract.

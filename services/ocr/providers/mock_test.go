@@ -196,5 +196,40 @@ func TestMockOCREngine(t *testing.T) {
 			t.Errorf("expected low confidence < 0.50, got %f", res.Confidence)
 		}
 	})
+
+	t.Run("marker KK doc extraction", func(t *testing.T) {
+		res, err := engine.Extract(ctx, providers.MarkerKKDoc)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if res.DocumentType != "kk" {
+			t.Errorf("expected doc_type kk, got %s", res.DocumentType)
+		}
+		if res.Confidence < 0.90 {
+			t.Errorf("expected high confidence, got %f", res.Confidence)
+		}
+		if res.KKData == nil || res.KKData.NomorKK != "3171010101200001" {
+			t.Errorf("expected KKData with NomorKK 3171010101200001, got %v", res.KKData)
+		}
+		if res.KKData.KepalaKeluarga != "BUDI SANTOSO" {
+			t.Errorf("expected KepalaKeluarga BUDI SANTOSO, got %s", res.KKData.KepalaKeluarga)
+		}
+		if len(res.KKData.AnggotaKeluarga) != 3 {
+			t.Errorf("expected 3 family members, got %d", len(res.KKData.AnggotaKeluarga))
+		}
+	})
+
+	t.Run("marker KK low confidence", func(t *testing.T) {
+		res, err := engine.Extract(ctx, providers.MarkerKKLowConfidence)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if res.DocumentType != "kk" {
+			t.Errorf("expected doc_type kk, got %s", res.DocumentType)
+		}
+		if res.Confidence >= 0.50 {
+			t.Errorf("expected low confidence < 0.50, got %f", res.Confidence)
+		}
+	})
 }
 

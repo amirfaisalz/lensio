@@ -160,11 +160,20 @@ type geminiExtractedJSON struct {
 	Provinsi      string `json:"provinsi"`
 	KPP           string `json:"kpp"`
 	TanggalDaftar string `json:"tanggal_daftar"`
+
+	// KK fields
+	NomorKK            string               `json:"nomor_kk"`
+	KepalaKeluarga     string               `json:"kepala_keluarga"`
+	KodePos            string               `json:"kode_pos"`
+	KelurahanDesa      string               `json:"kelurahan_desa"`
+	KabupatenKota      string               `json:"kabupaten_kota"`
+	TanggalDikeluarkan string               `json:"tanggal_dikeluarkan"`
+	AnggotaKeluarga    []ocr.KKFamilyMember `json:"anggota_keluarga"`
 }
 
 const geminiDocumentPrompt = `You are a strict, high-accuracy Indonesian identity document OCR extraction engine.
 Analyze the provided image.
-First determine if the image is an Indonesian Kartu Tanda Penduduk (KTP), Surat Izin Mengemudi (SIM), Paspor Republik Indonesia (Passport), or Nomor Pokok Wajib Pajak (NPWP).
+First determine if the image is an Indonesian Kartu Tanda Penduduk (KTP), Surat Izin Mengemudi (SIM), Paspor Republik Indonesia (Passport), Nomor Pokok Wajib Pajak (NPWP), or Kartu Keluarga (KK).
 If it is neither, output JSON with "document_type": "unsupported".
 
 If it IS an Indonesian KTP, extract all visible fields into this exact JSON structure:
@@ -238,6 +247,41 @@ If it IS an Indonesian NPWP (Nomor Pokok Wajib Pajak), extract all visible field
   "provinsi": "PROVINCE",
   "kpp": "KANTOR PELAYANAN PAJAK",
   "tanggal_daftar": "YYYY-MM-DD"
+}
+
+If it IS an Indonesian Kartu Keluarga (KK), extract all visible fields into this exact JSON structure:
+{
+  "document_type": "kk",
+  "confidence": 0.95,
+  "raw_text": "all raw text recognized on the document",
+  "nomor_kk": "16 digit Nomor KK",
+  "kepala_keluarga": "HEAD OF HOUSEHOLD NAME",
+  "alamat": "STREET ADDRESS",
+  "rt_rw": "000/000",
+  "kode_pos": "POSTAL CODE",
+  "kelurahan_desa": "KELURAHAN/DESA",
+  "kecamatan": "KECAMATAN",
+  "kabupaten_kota": "KABUPATEN/KOTA",
+  "provinsi": "PROVINCE",
+  "tanggal_dikeluarkan": "YYYY-MM-DD",
+  "anggota_keluarga": [
+    {
+      "nama": "FULL NAME",
+      "nik": "16 digit NIK",
+      "jenis_kelamin": "LAKI-LAKI or PEREMPUAN",
+      "tempat_lahir": "BIRTH PLACE",
+      "tanggal_lahir": "YYYY-MM-DD",
+      "agama": "RELIGION",
+      "pendidikan": "EDUCATION LEVEL",
+      "jenis_pekerjaan": "OCCUPATION",
+      "golongan_darah": "BLOOD TYPE",
+      "status_perkawinan": "MARITAL STATUS",
+      "status_hubungan": "KEPALA KELUARGA or SUAMI or ISTRI or ANAK or etc",
+      "kewarganegaraan": "WNI or WNA",
+      "nama_ayah": "FATHER NAME",
+      "nama_ibu": "MOTHER NAME"
+    }
+  ]
 }`
 
 const geminiKTPPrompt = geminiDocumentPrompt
@@ -432,6 +476,42 @@ func (g *GeminiOCREngine) Extract(ctx context.Context, imageBytes []byte) (*ocr.
 			Confidence:   confidence,
 			RawText:      extracted.RawText,
 			NPWPData:     rawNPWP,
+		}, nil
+	}
+
+	if strings.EqualFold(extracted.DocumentType, "kk") {
+		rawKK := &ocr.KKData{
+			NomorKK:            ocr.CleanNomorKK(extracted.NomorKK),
+			KepalaKeluarga:     extracted.KepalaKeluarga,
+			Alamat:             extracted.Alamat,
+			RTRW:               extracted.RTRW,
+			KodePos:            extracted.KodePos,
+			KelurahanDesa:      extracted.KelurahanDesa,
+			Kecamatan:          extracted.Kecamatan,
+			KabupatenKota:      extracted.KabupatenKota,
+			Provinsi:           extracted.Provinsi,
+			TanggalDikeluarkan: extracted.TanggalDikeluarkan,
+			AnggotaKeluarga:    extracted.AnggotaKeluarga,
+		}
+		if rawKK.KepalaKeluarga == "" {
+			rawKK.KepalaKeluarga = extracted.Nama
+		}
+		if rawKK.KelurahanDesa == "" {
+			rawKK.KelurahanDesa = extracted.Kelurahan
+		}
+		valRes := ocr.ValidateKK(rawKK)
+		confidence := extracted.Confidence
+		if confidence <= 0 {
+			confidence = 0.95
+		}
+		if !valRes.IsValid {
+			confidence = confidence * 0.7
+		}
+		return &ocr.OCRResult{
+			DocumentType: "kk",
+			Confidence:   confidence,
+			RawText:      extracted.RawText,
+			KKData:       rawKK,
 		}, nil
 	}
 

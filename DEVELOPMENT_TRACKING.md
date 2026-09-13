@@ -42,9 +42,12 @@
   - [x] OCR extraction: NPWP number, taxpayer name, NIK link, address, tax office (KPP).
   - [x] Endpoint integration, synthetic fixtures, and automated test suite.
   - [x] OpenAPI 3.0 specification update & dashboard playground integration.
-- [ ] **Phase 12.3: Indonesian KK (Kartu Keluarga) OCR (`POST /api/v1/ocr/kk`)**
-  - [ ] Domain validator: 16-digit Nomor KK and family member table extraction.
-  - [ ] Multi-record tabular parsing & relationship mapping.
+- [x] **Phase 12.3: Indonesian KK (Kartu Keluarga) OCR (`POST /api/v1/ocr/kk`)**
+  - [x] Domain validator: 16-digit Nomor KK and family member table extraction.
+  - [x] Multi-record tabular parsing & relationship mapping.
+  - [x] API endpoint & handler with idempotency, quota check, and usage metering.
+  - [x] Synthetic fixtures & unit/integration tests with 100% test coverage.
+  - [x] OpenAPI 3.0 specification update & dashboard playground integration.
 - [ ] **Phase 12.4: Indonesian Commercial Invoice / E-Faktur OCR (`POST /api/v1/ocr/invoice`)**
   - [ ] Line-item extraction, tax calculation validation, and supplier details.
 

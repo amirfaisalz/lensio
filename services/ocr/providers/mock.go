@@ -19,6 +19,8 @@ var (
 	MarkerPassportLowConfidence = []byte("MOCK_PASSPORT_LOW_CONFIDENCE")
 	MarkerNPWPDoc               = []byte("MOCK_NPWP_DOC")
 	MarkerNPWPLowConfidence     = []byte("MOCK_NPWP_LOW_CONFIDENCE")
+	MarkerKKDoc                 = []byte("MOCK_KK_DOC")
+	MarkerKKLowConfidence       = []byte("MOCK_KK_LOW_CONFIDENCE")
 )
 
 // MockOCREngine provides deterministic OCR extraction for tests without external network calls.
@@ -182,6 +184,86 @@ func (m *MockOCREngine) Extract(ctx context.Context, image []byte) (*ocr.OCRResu
 			Confidence:   confidence,
 			RawText:      "KEMENTERIAN KEUANGAN DIREKTORAT JENDERAL PAJAK NOMOR POKOK WAJIB PAJAK NPWP 09.254.294.3-407.000 NAMA BUDI SANTOSO NIK 3171010101900001 ALAMAT JL. JENDERAL SUDIRMAN KAV. 21 KPP PRATAMA JAKARTA SETIABUDI SATU TERDAFTAR 17-08-2015",
 			NPWPData:     npwpData,
+		}, nil
+	}
+
+	if bytes.Contains(image, MarkerKKDoc) || bytes.Contains(image, MarkerKKLowConfidence) {
+		confidence := 0.99
+		var kkData *ocr.KKData
+		if bytes.Contains(image, MarkerKKLowConfidence) {
+			confidence = 0.40
+			kkData = &ocr.KKData{
+				NomorKK: "3171010101200001",
+			}
+		} else {
+			kkData = &ocr.KKData{
+				NomorKK:            "3171010101200001",
+				KepalaKeluarga:     "BUDI SANTOSO",
+				Alamat:             "JL. SUDIRMAN NO. 12",
+				RTRW:               "001/002",
+				KodePos:            "12190",
+				KelurahanDesa:      "SENAYAN",
+				Kecamatan:          "KEBAYORAN BARU",
+				KabupatenKota:      "JAKARTA SELATAN",
+				Provinsi:           "DKI JAKARTA",
+				TanggalDikeluarkan: "2020-01-01",
+				AnggotaKeluarga: []ocr.KKFamilyMember{
+					{
+						Nama:             "BUDI SANTOSO",
+						NIK:              "3171010101900001",
+						JenisKelamin:     "LAKI-LAKI",
+						TempatLahir:      "JAKARTA",
+						TanggalLahir:     "1990-01-01",
+						Agama:            "ISLAM",
+						Pendidikan:       "STRATA I",
+						JenisPekerjaan:   "KARYAWAN SWASTA",
+						GolonganDarah:    "O",
+						StatusPerkawinan: "KAWIN",
+						StatusHubungan:   "KEPALA KELUARGA",
+						Kewarganegaraan:  "WNI",
+						NamaAyah:         "SANTOSO",
+						NamaIbu:          "MARYAM",
+					},
+					{
+						Nama:             "SITI AMINAH",
+						NIK:              "3171014101920002",
+						JenisKelamin:     "PEREMPUAN",
+						TempatLahir:      "BANDUNG",
+						TanggalLahir:     "1992-01-01",
+						Agama:            "ISLAM",
+						Pendidikan:       "STRATA I",
+						JenisPekerjaan:   "IBU RUMAH TANGGA",
+						GolonganDarah:    "A",
+						StatusPerkawinan: "KAWIN",
+						StatusHubungan:   "ISTRI",
+						Kewarganegaraan:  "WNI",
+						NamaAyah:         "AHMAD",
+						NamaIbu:          "FATIMAH",
+					},
+					{
+						Nama:             "RUDI SANTOSO",
+						NIK:              "3171011505150003",
+						JenisKelamin:     "LAKI-LAKI",
+						TempatLahir:      "JAKARTA",
+						TanggalLahir:     "2015-05-15",
+						Agama:            "ISLAM",
+						Pendidikan:       "BELUM/TIDAK BEKERJA",
+						JenisPekerjaan:   "PELAJAR/MAHASISWA",
+						GolonganDarah:    "O",
+						StatusPerkawinan: "BELUM KAWIN",
+						StatusHubungan:   "ANAK",
+						Kewarganegaraan:  "WNI",
+						NamaAyah:         "BUDI SANTOSO",
+						NamaIbu:          "SITI AMINAH",
+					},
+				},
+			}
+		}
+		return &ocr.OCRResult{
+			DocumentType: "kk",
+			Confidence:   confidence,
+			RawText:      "REPUBLIK INDONESIA KARTU KELUARGA NO. KK 3171010101200001 KEPALA KELUARGA BUDI SANTOSO ALAMAT JL. SUDIRMAN NO. 12 RT/RW 001/002 DESA/KELURAHAN SENAYAN KECAMATAN KEBAYORAN BARU KABUPATEN/KOTA JAKARTA SELATAN PROVINSI DKI JAKARTA TANGGAL DIKELUARKAN 01-01-2020 BUDI SANTOSO 3171010101900001 LAKI-LAKI JAKARTA 01-01-1990 ISLAM STRATA I KARYAWAN SWASTA KAWIN KEPALA KELUARGA WNI SANTOSO MARYAM SITI AMINAH 3171014101920002 PEREMPUAN BANDUNG 01-01-1992 ISLAM STRATA I IBU RUMAH TANGGA KAWIN ISTRI WNI AHMAD FATIMAH RUDI SANTOSO 3171011505150003 LAKI-LAKI JAKARTA 15-05-2015 ISLAM BELUM/TIDAK BEKERJA PELAJAR/MAHASISWA BELUM KAWIN ANAK WNI BUDI SANTOSO SITI AMINAH",
+			KKData:       kkData,
 		}, nil
 	}
 

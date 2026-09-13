@@ -372,3 +372,82 @@ TERDAFTAR : 17-08-2015
 	}
 }
 
+func TestParseKKFromRawText(t *testing.T) {
+	raw := `
+REPUBLIK INDONESIA
+KARTU KELUARGA
+No. KK : 3171010101200001
+Nama Kepala Keluarga : BUDI SANTOSO
+Alamat : JL. SUDIRMAN NO. 12
+RT/RW : 001/002
+Kode Pos : 12190
+Desa/Kelurahan : SENAYAN
+Kecamatan : KEBAYORAN BARU
+Kabupaten/Kota : JAKARTA SELATAN
+Provinsi : DKI JAKARTA
+Dikeluarkan Tanggal : 01-01-2020
+`
+	data := ocr.ParseKKFromRawText(raw)
+	if data.NomorKK != "3171010101200001" {
+		t.Errorf("expected NomorKK 3171010101200001, got %s", data.NomorKK)
+	}
+	if data.KepalaKeluarga != "BUDI SANTOSO" {
+		t.Errorf("expected KepalaKeluarga BUDI SANTOSO, got %s", data.KepalaKeluarga)
+	}
+	if data.Alamat != "JL. SUDIRMAN NO. 12" {
+		t.Errorf("expected Alamat JL. SUDIRMAN NO. 12, got %s", data.Alamat)
+	}
+	if data.RTRW != "001/002" {
+		t.Errorf("expected RTRW 001/002, got %s", data.RTRW)
+	}
+	if data.KodePos != "12190" {
+		t.Errorf("expected KodePos 12190, got %s", data.KodePos)
+	}
+	if data.KelurahanDesa != "SENAYAN" {
+		t.Errorf("expected KelurahanDesa SENAYAN, got %s", data.KelurahanDesa)
+	}
+	if data.Kecamatan != "KEBAYORAN BARU" {
+		t.Errorf("expected Kecamatan KEBAYORAN BARU, got %s", data.Kecamatan)
+	}
+	if data.KabupatenKota != "JAKARTA SELATAN" {
+		t.Errorf("expected KabupatenKota JAKARTA SELATAN, got %s", data.KabupatenKota)
+	}
+	if data.Provinsi != "DKI JAKARTA" {
+		t.Errorf("expected Provinsi DKI JAKARTA, got %s", data.Provinsi)
+	}
+	if data.TanggalDikeluarkan != "2020-01-01" {
+		t.Errorf("expected TanggalDikeluarkan 2020-01-01, got %s", data.TanggalDikeluarkan)
+	}
+
+	t.Run("fallback 16 digit KK number detection", func(t *testing.T) {
+		fallback := "KARTU KELUARGA 3171010101200001 KEPALA KELUARGA"
+		res := ocr.ParseKKFromRawText(fallback)
+		if res.NomorKK != "3171010101200001" {
+			t.Errorf("expected fallback NomorKK 3171010101200001, got %s", res.NomorKK)
+		}
+	})
+}
+
+func BenchmarkParseKKFromRawText(b *testing.B) {
+	raw := `
+REPUBLIK INDONESIA
+KARTU KELUARGA
+No. KK : 3171010101200001
+Nama Kepala Keluarga : BUDI SANTOSO
+Alamat : JL. SUDIRMAN NO. 12
+RT/RW : 001/002
+Kode Pos : 12190
+Desa/Kelurahan : SENAYAN
+Kecamatan : KEBAYORAN BARU
+Kabupaten/Kota : JAKARTA SELATAN
+Provinsi : DKI JAKARTA
+Dikeluarkan Tanggal : 01-01-2020
+`
+	b.ResetTimer()
+	b.ReportAllocs()
+
+	for i := 0; i < b.N; i++ {
+		_ = ocr.ParseKKFromRawText(raw)
+	}
+}
+
