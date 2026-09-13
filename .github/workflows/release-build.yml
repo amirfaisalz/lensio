@@ -1,9 +1,13 @@
 name: Lensio Release Build & Packaging
 
 on:
-  push:
+  workflow_run:
+    workflows: ["Lensio CI & Quality Gate"]
+    types:
+      - completed
     branches:
       - main
+  push:
     tags:
       - 'v*'
   workflow_dispatch:
@@ -20,14 +24,20 @@ permissions:
 jobs:
   build-and-push:
     name: Build & Package Container Images
+    if: |
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') ||
+      (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) ||
+      (github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
     outputs:
-      image_tag: ${{ steps.meta.outputs.version }}
-      api_image: ghcr.io/${{ github.repository }}/lensio-api:${{ steps.meta.outputs.version }}
-      dashboard_image: ghcr.io/${{ github.repository }}/lensio-dashboard:${{ steps.meta.outputs.version }}
+      image_tag: ${{ steps.meta-api.outputs.version }}
+      api_image: ghcr.io/${{ github.repository }}/lensio-api:${{ steps.meta-api.outputs.version }}
+      dashboard_image: ghcr.io/${{ github.repository }}/lensio-dashboard:${{ steps.meta-dash.outputs.version }}
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.ref }}
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -51,7 +61,7 @@ jobs:
             type=sha,prefix=sha-,format=short
             type=ref,event=branch
             type=semver,pattern={{version}}
-            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' || github.event.workflow_run.head_branch == 'main' }}
             type=raw,value=${{ inputs.version_tag }},enable=${{ inputs.version_tag != '' }}
 
       - name: Extract Docker Metadata (Dashboard)
@@ -63,7 +73,7 @@ jobs:
             type=sha,prefix=sha-,format=short
             type=ref,event=branch
             type=semver,pattern={{version}}
-            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' || github.event.workflow_run.head_branch == 'main' }}
             type=raw,value=${{ inputs.version_tag }},enable=${{ inputs.version_tag != '' }}
 
       - name: Build & Push Lensio API Image
