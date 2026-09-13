@@ -20,17 +20,7 @@
 - [x] **Phase 8: CI/CD & Delivery Gates** — Automated GitHub Actions CI: Go race detector, golangci-lint, Biome/TypeScript check, Spectral OpenAPI linter, Gitleaks, govulncheck, gosec SAST, Trivy container scan, sub-60s automated rollback scripts.
 - [x] **Phase 9: Reliability & Failure Drills** — Playwright E2E test suite, and 4 documented production failure drill post-mortems (upstream timeout, DB outage, broken smoke test gate, production regression).
 - [x] **Phase 10: Documentation & Portfolio Polish** — ADRs (001–005), production runbooks (`architecture.md`, `security.md`, `observability.md`, `rollback.md`), external client demos (`VeriForm`, `RentEase`), open-source README.
-- [x] **Phase 11: Production Platform Maturity & Enterprise Alignment**
-  - [x] 11.1 Load testing & RED metrics analysis via `k6` (1,000 rps benchmarks).
-  - [x] 11.2 API idempotency subsystem (`Idempotency-Key` header with TTL & hash verification).
-  - [x] 11.3 Verifiable deployment & rollback evidence log (`docs/deployment/evidence-log.md`).
-  - [x] 11.4 Keycloak OIDC human identity & OWASP ASVS HttpOnly cookie session security (`lensio_session`).
-  - [x] 11.5 SpiceDB Zanzibar fine-grained authorization (ReBAC) protecting API key operations.
-  - [x] 11.6 Upstream resilience: adaptive 3-state Circuit Breaker & incident post-mortem.
-  - [x] 11.7 Prometheus actionable alerting rules & 99.9% availability SLO definition.
-  - [x] 11.8 ADR-006: Distributed vs Local Rate Limiting Trade-offs.
-  - [x] 11.9 ADR-007: API Versioning Strategy & Contract Evolution.
-  - [x] 11.10 Indonesian SIM OCR endpoint (`POST /api/v1/ocr/sim`) & dashboard integration.
+- [x] **Phase 11: Production Platform Maturity & Enterprise Alignment** — k6 load testing (1,000 rps), API idempotency, Keycloak OIDC, SpiceDB ReBAC, circuit breaker resilience, Prometheus SLO alerting, ADRs (006–007), and SIM OCR (`POST /api/v1/ocr/sim`).
 
 ---
 
