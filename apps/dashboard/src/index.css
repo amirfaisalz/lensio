@@ -56,6 +56,24 @@ textarea::placeholder {
 	opacity: 1;
 }
 
+/* Autofill override: keep white background like normal state */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active,
+input:-webkit-autofill::first-line,
+textarea:-webkit-autofill,
+select:-webkit-autofill {
+	-webkit-box-shadow: 0 0 0 1000px #ffffff inset !important;
+	box-shadow: 0 0 0 1000px #ffffff inset !important;
+	-webkit-text-fill-color: #0f172a !important;
+	color: #0f172a !important;
+	caret-color: #0f172a;
+	transition:
+		background-color 5000s ease-in-out 0s,
+		color 5000s ease-in-out 0s !important;
+}
+
 /* Single authored motion: document scan beam, transform-only */
 @media (prefers-reduced-motion: no-preference) {
 	@keyframes lensio-scan {
