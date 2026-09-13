@@ -56,7 +56,10 @@ textarea::placeholder {
 	opacity: 1;
 }
 
-/* Autofill override: keep white background like normal state */
+/* Autofill override: keep white background like normal state.
+   NOTE: !important is required here — Chrome's autofill UA stylesheet can only
+   be overridden with !important. Biome rule noImportantStyles is disabled for
+   this file in biome.json overrides. */
 input:-webkit-autofill,
 input:-webkit-autofill:hover,
 input:-webkit-autofill:focus,
