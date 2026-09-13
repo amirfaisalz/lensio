@@ -229,6 +229,7 @@ export interface UsageSummary {
 	quota_limit: number;
 	quota_remaining: number;
 	p95_latency_ms: number;
+	p95_ocr_latency_ms: number;
 	rate_limit_violations: number;
 	billing_cycle_reset: string;
 }

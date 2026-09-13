@@ -89,6 +89,18 @@ func TestUsageStore_LiveDB(t *testing.T) {
 		t.Fatalf("failed creating usage record 2: %v", err)
 	}
 
+	rec3 := &store.UsageRecord{
+		OrgID:      defaultOrgID,
+		RequestID:  fmt.Sprintf("req_test_%d_3", time.Now().UnixNano()),
+		Endpoint:   "/api/v1/account",
+		StatusCode: 200,
+		LatencyMS:  40,
+		Timestamp:  time.Now(),
+	}
+	if err := db.CreateUsageRecord(ctx, rec3); err != nil {
+		t.Fatalf("failed creating usage record 3: %v", err)
+	}
+
 	// 2. Query Usage Summary
 	summary, err := db.GetUsageSummary(ctx, defaultOrgID, since, 100, cycleReset)
 	if err != nil {
@@ -108,6 +120,12 @@ func TestUsageStore_LiveDB(t *testing.T) {
 	}
 	if summary.QuotaRemaining != 99 {
 		t.Errorf("expected quota remaining 99, got %d", summary.QuotaRemaining)
+	}
+	if summary.P95LatencyMS != 40 {
+		t.Errorf("expected platform P95 40ms (non-OCR only), got %d", summary.P95LatencyMS)
+	}
+	if summary.P95OCRLatencyMS != 143 {
+		t.Errorf("expected OCR P95 143ms (percentile of {5,150}, PG ::int rounds), got %d", summary.P95OCRLatencyMS)
 	}
 
 	// 3. Query Daily Usage

@@ -256,9 +256,16 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({ onNavigate }) => {
 								: "180ms"}
 						</div>
 					)}
-					<p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1">
-						SLA Target &lt; 2000ms
-					</p>
+						<p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1">
+							SLA Target &lt; 2000ms
+						</p>
+						<p className="text-[11px] text-slate-400 dark:text-slate-500 tabular-nums">
+							P95 OCR (AI):{" "}
+							{summary?.p95_ocr_latency_ms
+								? `${summary.p95_ocr_latency_ms}ms`
+								: "—"}{" "}
+							· vendor-dependent
+						</p>
 				</div>
 			</div>
 

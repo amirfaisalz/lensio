@@ -20,6 +20,10 @@ type UsageRecord struct {
 }
 
 // UsageSummary aggregates total requests, success/error distribution, and quota consumption.
+//
+// P95LatencyMS covers platform endpoints only (auth, usage, account,
+// API keys) so the SLA tracks overhead the team controls. Upstream Vision
+// AI time is reported separately in P95OCRLatencyMS and carries no SLA.
 type UsageSummary struct {
 	TotalRequests        int       `json:"total_requests"`
 	SuccessCount         int       `json:"success_count"`
@@ -27,6 +31,7 @@ type UsageSummary struct {
 	QuotaLimit           int       `json:"quota_limit"`
 	QuotaRemaining       int       `json:"quota_remaining"`
 	P95LatencyMS         int       `json:"p95_latency_ms"`
+	P95OCRLatencyMS      int       `json:"p95_ocr_latency_ms"`
 	RateLimitViolations  int       `json:"rate_limit_violations"`
 	BillingCycleReset    time.Time `json:"billing_cycle_reset"`
 }
@@ -101,11 +106,12 @@ func (db *DB) GetUsageSummary(ctx context.Context, orgID string, since time.Time
 	}
 
 	query := `
-		SELECT 
+		SELECT
 			COUNT(*),
 			COALESCE(COUNT(*) FILTER (WHERE status_code < 400), 0),
 			COALESCE(COUNT(*) FILTER (WHERE status_code >= 400), 0),
-			COALESCE(PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY latency_ms), 0)::int,
+			COALESCE(PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY latency_ms) FILTER (WHERE endpoint NOT LIKE '/api/v1/ocr/%'), 0)::int,
+			COALESCE(PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY latency_ms) FILTER (WHERE endpoint LIKE '/api/v1/ocr/%'), 0)::int,
 			COALESCE(COUNT(*) FILTER (WHERE status_code = 429), 0),
 			COALESCE(COUNT(*) FILTER (WHERE endpoint = '/api/v1/ocr/ktp' AND status_code < 400), 0)
 		FROM usage_records
@@ -117,6 +123,7 @@ func (db *DB) GetUsageSummary(ctx context.Context, orgID string, since time.Time
 		successCount        int
 		errorCount          int
 		p95Latency          int
+		p95OCRLatency       int
 		rateLimitViolations int
 		ocrRequestsCount    int
 	)
@@ -126,6 +133,7 @@ func (db *DB) GetUsageSummary(ctx context.Context, orgID string, since time.Time
 		&successCount,
 		&errorCount,
 		&p95Latency,
+		&p95OCRLatency,
 		&rateLimitViolations,
 		&ocrRequestsCount,
 	)
@@ -145,6 +153,7 @@ func (db *DB) GetUsageSummary(ctx context.Context, orgID string, since time.Time
 		QuotaLimit:          planQuota,
 		QuotaRemaining:      quotaRemaining,
 		P95LatencyMS:        p95Latency,
+		P95OCRLatencyMS:     p95OCRLatency,
 		RateLimitViolations: rateLimitViolations,
 		BillingCycleReset:   cycleReset,
 	}, nil

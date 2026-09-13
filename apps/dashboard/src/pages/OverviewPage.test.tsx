@@ -82,6 +82,7 @@ describe("OverviewPage", () => {
 			quota_limit: 5000,
 			quota_remaining: 3750,
 			p95_latency_ms: 210,
+			p95_ocr_latency_ms: 12540,
 			rate_limit_violations: 4,
 			billing_cycle_reset: "2026-10-01T00:00:00Z",
 		};
@@ -104,6 +105,7 @@ describe("OverviewPage", () => {
 			expect(screen.getAllByText("1,250").length).toBe(2);
 			expect(screen.getByText("96.0%")).toBeDefined();
 			expect(screen.getByText("210ms")).toBeDefined();
+			expect(screen.getByText(/12540ms/)).toBeDefined();
 			expect(screen.getByText("25% Used")).toBeDefined();
 			expect(screen.getByText(/of 5,000 requests used/)).toBeDefined();
 			expect(screen.getByText("4")).toBeDefined();
