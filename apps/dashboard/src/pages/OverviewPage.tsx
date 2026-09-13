@@ -233,9 +233,13 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({ onNavigate }) => {
 								Welcome to {currentOrg.name}! Create your first API Key
 							</p>
 							<p className="text-[11px] text-slate-600">
-								Generate an API key to start submitting KTP images to{" "}
+								Generate an API key to start submitting identity documents to{" "}
 								<code className="font-mono bg-white/80 px-1 py-0.5 rounded text-[10px]">
 									POST /api/v1/ocr/ktp
+								</code>{" "}
+								or{" "}
+								<code className="font-mono bg-white/80 px-1 py-0.5 rounded text-[10px]">
+									POST /api/v1/ocr/sim
 								</code>
 								.
 							</p>
@@ -604,8 +608,8 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({ onNavigate }) => {
 									<div className="h-full flex flex-col items-center justify-center text-slate-500 py-12 text-center">
 										<p>No document submitted yet.</p>
 										<p className="text-[11px] text-slate-600 mt-1">
-											Upload a KTP image or click "Load Synthetic Fixture"
-											above.
+											Upload a {docType === "sim" ? "SIM" : "KTP"} image or
+											click "Load Synthetic Fixture" above.
 										</p>
 									</div>
 								)}

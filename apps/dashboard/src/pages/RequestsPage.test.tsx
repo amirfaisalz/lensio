@@ -91,7 +91,7 @@ describe("RequestsPage", () => {
 		});
 
 		// Search endpoint
-		const endpointInput = screen.getByPlaceholderText("e.g. /api/v1/ocr/ktp");
+		const endpointInput = screen.getByPlaceholderText(/e\.g\. \/api\/v1\/ocr/);
 		fireEvent.change(endpointInput, { target: { value: "/api/v1/ocr" } });
 
 		await waitFor(() => {

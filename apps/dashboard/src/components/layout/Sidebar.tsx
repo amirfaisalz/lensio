@@ -159,7 +159,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 								</span>
 							</div>
 							<p className="text-xs text-slate-500 font-medium">
-								KTP OCR Service
+								Identity OCR Service
 							</p>
 						</div>
 					</div>

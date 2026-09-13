@@ -526,7 +526,7 @@ export const APIKeysPage: React.FC = () => {
 								{
 									id: "ocr:write",
 									label: "ocr:write",
-									desc: "Submit KTP documents for OCR extraction",
+									desc: "Submit identity documents (KTP & SIM) for OCR extraction",
 								},
 								{
 									id: "usage:read",

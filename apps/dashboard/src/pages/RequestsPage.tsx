@@ -298,7 +298,7 @@ export const RequestsPage: React.FC = () => {
 						<span className="text-slate-500 font-medium shrink-0">Route:</span>
 						<input
 							type="text"
-							placeholder="e.g. /api/v1/ocr/ktp"
+							placeholder="e.g. /api/v1/ocr/ktp, /api/v1/ocr/sim"
 							value={endpointFilter}
 							onChange={(e) => {
 								setEndpointFilter(e.target.value.trim());

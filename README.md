@@ -12,7 +12,7 @@
   <img src="https://img.shields.io/badge/license-MIT-blue?style=flat-square" alt="License" />
 </p>
 
-> **"Lensio is a developer-first KTP OCR API that lets applications extract structured Indonesian KTP data through a secure, rate-limited, observable, and production-ready API."**
+> **"Lensio is a developer-first Indonesian Identity Document OCR API (KTP & SIM) that lets applications extract structured identity data through a secure, rate-limited, observable, and production-ready API."**
 
 Lensio is built to explore what it takes to operate a production API as a managed product: from cryptographic key management and scoped authorization to token-bucket rate limiting, non-blocking usage metering, distributed tracing, automated delivery, and sub-60-second revision rollbacks.
 
@@ -24,7 +24,7 @@ The interesting part of Lensio is not merely OCR. The true engineering challenge
 
 ```text
                 ┌────────────────────────┐
-                │   KTP OCR API Product  │
+                │  Identity OCR Product  │
                 └───────────┬────────────┘
                             │
        ┌────────────────────┼────────────────────┐
@@ -236,9 +236,9 @@ sequenceDiagram
 3. **One-Way Hashing**: The API computes the **SHA-256 hash** of the key. The hash and masked prefix (`lensio_live_1234••••••••`) are saved into **PostgreSQL**.
 4. **Single Reveal**: The plaintext key is returned to the developer **once** in the UI. Plaintext keys are never persisted anywhere in the system.
 
-#### 2. KTP OCR Request Execution Flow
+#### 2. Identity Document OCR Request Execution Flow (KTP & SIM)
 
-1. **Edge Inspection**: The API consumer (e.g., VeriForm onboarding service) sends a `POST /api/v1/ocr/ktp` request. **Cloudflare** terminates TLS 1.3, applies DDoS mitigation, and forwards the request to **Azure Container Apps**.
+1. **Edge Inspection**: The API consumer (e.g., VeriForm or RentEase service) sends a `POST /api/v1/ocr/ktp` or `POST /api/v1/ocr/sim` request. **Cloudflare** terminates TLS 1.3, applies DDoS mitigation, and forwards the request to **Azure Container Apps**.
 2. **Context & Tracing Initialization**: The Go `net/http` router attaches a unique `request_id` and starts an **OpenTelemetry** trace span.
 3. **Authentication & Rate Limiting**:
    - The token is extracted from the `Authorization: Bearer <token>` header and hashed with SHA-256.
@@ -246,16 +246,15 @@ sequenceDiagram
    - An in-memory **Token Bucket** verifies the tenant is within their request-per-second rate limit ($O(1)$ lookup).
 4. **Quota Verification**: The quota middleware queries PostgreSQL to ensure the organization has not exceeded its allocated monthly document quota.
 5. **Data Minimization & In-Memory Processing**:
-   - In accordance with Indonesia's Personal Data Protection law (**UU PDP No. 27/2022**), the uploaded KTP image is kept exclusively in **volatile RAM** (`[]byte`). It is never written to disk, local temp files, or cloud object storage.
+   - In accordance with Indonesia's Personal Data Protection law (**UU PDP No. 27/2022**), the uploaded document image is kept exclusively in **volatile RAM** (`[]byte`). It is never written to disk, local temp files, or cloud object storage.
    - Magic bytes are checked to ensure valid image formats (JPEG/PNG, max 5MB).
 6. **Vision AI Extraction**:
    - The image buffer is dispatched via `OCREngine` to **Google Gemini 2.0 Flash Vision** (or `MockOCREngine` during automated testing).
    - The model parses the visual card layout and extracts raw textual attributes.
 7. **Deterministic Validation**:
    - The output is normalized and validated against strict Indonesian administrative rules:
-     - NIK length (exactly 16 digits).
-     - Valid 2-digit province code (e.g., `31` for DKI Jakarta, `52` for NTB, `53` for NTT).
-     - Valid date of birth encoding within digits 7–12 (including the +40 offset for females).
+     - **KTP**: 16-digit NIK structure, valid 2-digit province code, and date of birth encoding with +40 female offset.
+     - **SIM**: 12-14 digit license number, valid driver classification (A, B I, B II, C, C I, C II, D, D I), and standard date parsing.
 8. **Client Response Dispatch**: The validated JSON payload is serialized and returned to the client as an HTTP `200 OK` response within the target sub-2,000ms latency SLA. The memory buffer holding the raw image is released immediately.
 9. **Non-Blocking Telemetry & Metering**:
    - To keep client response times fast, usage metering is **completely decoupled** from the HTTP lifecycle.
@@ -313,6 +312,49 @@ Content-Type: image/jpeg
   },
   "processing": {
     "latency_ms": 1420
+  }
+}
+```
+
+### Extract Indonesian SIM Document
+
+```http
+POST /api/v1/ocr/sim HTTP/1.1
+Host: api.lensio.dev
+Authorization: Bearer lensio_live_9f8a3c2e1b4d5e6f...
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary
+
+------WebKitFormBoundary
+Content-Disposition: form-data; name="document"; filename="sim.jpg"
+Content-Type: image/jpeg
+
+<binary image data>
+------WebKitFormBoundary--
+```
+
+#### Successful Response (`200 OK`)
+
+```json
+{
+  "id": "ocr_sim_01JABC1234567890",
+  "status": "completed",
+  "document_type": "sim",
+  "confidence": 0.98,
+  "data": {
+    "nomor_sim": "123456789012",
+    "nama": "BUDI SANTOSO",
+    "tempat_lahir": "JAKARTA",
+    "tanggal_lahir": "1992-08-17",
+    "golongan_darah": "O",
+    "jenis_kelamin": "PRIA",
+    "alamat": "JL. MERDEKA NO. 45 RT 005 RW 002 GAMBIR JAKARTA PUSAT",
+    "pekerjaan": "KARYAWAN SWASTA",
+    "provinsi": "DKI JAKARTA",
+    "jenis_sim": "A",
+    "masa_berlaku": "2029-08-17"
+  },
+  "processing": {
+    "latency_ms": 1380
   }
 }
 ```

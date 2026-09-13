@@ -222,16 +222,17 @@ export const LoginPage: React.FC<LoginPageProps> = ({
 								Lensio
 							</span>
 							<span className="ml-2 text-[11px] px-2 py-0.5 rounded-full bg-white/10 text-slate-300 font-medium tracking-wide uppercase">
-								KTP OCR API
+								Identity OCR API
 							</span>
 						</div>
 					</div>
 					<h1 className="text-3xl font-extrabold tracking-tight text-white leading-tight">
-						Infrastruktur OCR KTP Indonesia Berperforma Tinggi
+						Infrastruktur OCR Identitas Indonesia Berperforma Tinggi
 					</h1>
 					<p className="mt-3 text-sm text-slate-400 max-w-md leading-relaxed">
-						Layanan API ekstraksi KTP otomatis berbasis Vision AI untuk industri
-						perbankan, fintech, dan verifikasi identitas di Indonesia.
+						Layanan API ekstraksi dokumen identitas (KTP & SIM) otomatis
+						berbasis Vision AI untuk industri perbankan, fintech, dan verifikasi
+						identitas di Indonesia.
 					</p>
 				</div>
 
@@ -243,11 +244,11 @@ export const LoginPage: React.FC<LoginPageProps> = ({
 						</div>
 						<div>
 							<h3 className="text-xs font-semibold text-white">
-								Akurasi Tinggi & NIK Deterministik
+								Akurasi Tinggi & Validasi Deterministik
 							</h3>
 							<p className="text-[11px] text-slate-400 mt-0.5">
-								16-digit validasi struktur wilayah, tanggal lahir, dan urutan
-								penerbitan KTP tanpa halusinasi LLM.
+								Validasi struktur 16-digit NIK KTP & 12-digit Nomor SIM tanpa
+								halusinasi LLM.
 							</p>
 						</div>
 					</div>
@@ -261,8 +262,8 @@ export const LoginPage: React.FC<LoginPageProps> = ({
 								Zero PII Retained & Ephemeral Buffer
 							</h3>
 							<p className="text-[11px] text-slate-400 mt-0.5">
-								Citra KTP diproses secara in-memory dan langsung dihapus. Tidak
-								ada penyimpanan foto identitas warga.
+								Citra dokumen diproses secara in-memory dan langsung dihapus.
+								Tidak ada penyimpanan foto identitas warga.
 							</p>
 						</div>
 					</div>
@@ -306,7 +307,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
 						Lensio Developer Portal
 					</h1>
 					<p className="text-xs text-slate-500 mt-1">
-						High-Performance Indonesian KTP OCR API as a Service
+						High-Performance Indonesian Identity OCR API as a Service
 					</p>
 				</div>
 
@@ -748,7 +749,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
 
 				{/* Portal Footnote */}
 				<div className="mt-6 text-center text-[11px] text-slate-400">
-					Lensio Platform • Indonesian KTP Verification API
+					Lensio Platform • Indonesian Identity Document OCR API
 				</div>
 			</div>
 		</div>

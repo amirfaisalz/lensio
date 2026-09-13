@@ -7,7 +7,7 @@
 
 ## 1. Project Identity & Purpose
 
-**Lensio** is an affordable Indonesian KTP OCR API as a service. It is designed as a production-grade API product demonstrating end-to-end platform engineering:
+**Lensio** is an affordable Indonesian Identity Document OCR API (KTP & SIM) as a service. It is designed as a production-grade API product demonstrating end-to-end platform engineering:
 - **Language & Runtime**: Go (Backend API) + React & TypeScript (Developer Dashboard)
 - **Database**: PostgreSQL 16 (Relational state, migrations via `golang-migrate`)
 - **Primary OCR Engine**: Pluggable `OCREngine` interface. Default Vision AI: **Google Gemini 2.0 Flash / 1.5 Flash** (Google AI Studio Free Tier); Default Test Engine: **MockOCREngine** (deterministic fixtures).

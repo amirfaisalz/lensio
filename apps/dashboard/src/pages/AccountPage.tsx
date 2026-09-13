@@ -229,7 +229,7 @@ export const AccountPage: React.FC = () => {
 							</h4>
 							<p className="text-[11px] text-slate-500 leading-relaxed">
 								Slug dan ID unik untuk isolasi data, pelacakan API key, dan
-								audit trail pemrosesan OCR KTP.
+								audit trail pemrosesan OCR dokumen identitas.
 							</p>
 						</div>
 
