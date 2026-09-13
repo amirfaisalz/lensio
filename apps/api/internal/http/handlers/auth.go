@@ -103,10 +103,10 @@ func RegisterHandler(accountStore store.AccountStore) http.HandlerFunc {
 			"email":   createdUser.Email,
 			"message": "Registrasi berhasil. Silakan periksa email Anda dan lakukan verifikasi sebelum masuk.",
 		}
-		// Security: never leak verification_token unless explicitly in local development.
+		// Security: never leak verification_token unless explicitly in local development/test.
 		// Default deny: empty ENV must NOT expose the token (fail closed for misconfigured prod).
 		env := os.Getenv("ENV")
-		if env == "development" {
+		if env == "development" || env == "test" {
 			respData["verification_token"] = verificationToken
 		}
 

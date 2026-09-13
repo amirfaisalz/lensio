@@ -200,7 +200,7 @@ func KTPOCRHandler(engine ocr.OCREngine, ocrStore store.OCRRequestStore, quotaCh
 		engStart := time.Now()
 		engCtx, engSpan := tracer.Start(r.Context(), "ocr.engine_extract")
 		ocrResult, err := engine.Extract(engCtx, imgBytes)
-		imgBytes = nil
+		clear(imgBytes)
 		engDuration := time.Since(engStart).Seconds()
 
 		if err != nil {
@@ -495,7 +495,7 @@ func SIMOCRHandler(engine ocr.OCREngine, ocrStore store.OCRRequestStore, quotaCh
 		engStart := time.Now()
 		engCtx, engSpan := tracer.Start(r.Context(), "ocr.engine_extract")
 		ocrResult, err := engine.Extract(engCtx, imgBytes)
-		imgBytes = nil
+		clear(imgBytes)
 		engDuration := time.Since(engStart).Seconds()
 
 		if err != nil {

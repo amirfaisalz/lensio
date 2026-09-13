@@ -59,11 +59,15 @@ func (m *RateLimitMiddleware) Handler(next http.Handler) http.Handler {
 		if key := GetAPIKey(r.Context()); key != nil && key.OrgID != "" {
 			rateKey = key.OrgID
 		} else if user := GetOIDCUser(r.Context()); user != nil && (user.Subject != "" || user.Email != "") {
-			sub := user.Subject
-			if sub == "" {
-				sub = user.Email
+			if reqOrg := r.URL.Query().Get("org_id"); reqOrg != "" {
+				rateKey = reqOrg
+			} else {
+				sub := user.Subject
+				if sub == "" {
+					sub = user.Email
+				}
+				rateKey = "oidc:" + sub
 			}
-			rateKey = "oidc:" + sub
 		} else if m.defaultOrgID != "" {
 			rateKey = m.defaultOrgID
 		} else if ip := clientIPFromRequest(r); ip != "" {
@@ -102,7 +106,7 @@ func (m *RateLimitMiddleware) getOrgRateLimit(ctx context.Context, orgID string)
 	if orgID == "" || orgID == "00000000-0000-0000-0000-000000000001" {
 		return 10, "free"
 	}
-	if strings.HasPrefix(orgID, "oidc:") || strings.HasPrefix(orgID, "ip:") || orgID == "anonymous" {
+	if strings.HasPrefix(orgID, "ip:") || orgID == "anonymous" {
 		return 10, "free"
 	}
 
@@ -114,6 +118,33 @@ func (m *RateLimitMiddleware) getOrgRateLimit(ctx context.Context, orgID string)
 
 	if exists && entry.expiresAt.After(now) {
 		return entry.limit, entry.planCode
+	}
+
+	if strings.HasPrefix(orgID, "oidc:") {
+		userID := strings.TrimPrefix(orgID, "oidc:")
+		if m.accountStore != nil {
+			var org *store.Organization
+			var err error
+			if strings.Contains(userID, "@") {
+				if user, uErr := m.accountStore.GetUserByEmail(ctx, userID); uErr == nil && user != nil {
+					org, err = m.accountStore.GetUserOrganization(ctx, user.ID)
+				}
+			} else {
+				org, err = m.accountStore.GetUserOrganization(ctx, userID)
+			}
+			if err == nil && org != nil {
+				limit, planCode := m.getOrgRateLimit(ctx, org.ID)
+				m.mu.Lock()
+				m.cache[orgID] = planCacheEntry{
+					limit:     limit,
+					planCode:  planCode,
+					expiresAt: now.Add(1 * time.Minute),
+				}
+				m.mu.Unlock()
+				return limit, planCode
+			}
+		}
+		return 10, "free"
 	}
 
 	limit := 10 // default Free tier limit (10 req/min)
