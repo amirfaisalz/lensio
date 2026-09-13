@@ -26,8 +26,8 @@ import type {
 const API_BASE =
 	import.meta.env.VITE_API_URL ||
 	(typeof window !== "undefined" &&
-	window.location.hostname.includes("azurecontainerapps.io")
-		? "https://ca-api-lensio-staging.wittymoss-ad389f76.southeastasia.azurecontainerapps.io"
+	window.location.hostname.includes("ca-dash-")
+		? `${window.location.protocol}//${window.location.hostname.replace("ca-dash-", "ca-api-")}`
 		: "");
 
 export interface ApiClientError extends Error {

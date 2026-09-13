@@ -65,6 +65,7 @@ jobs:
           AZURE_CREDENTIALS: ${{ secrets.AZURE_CREDENTIALS }}
 
       - name: Deploy Staging Container Apps
+        id: deploy-ca
         run: |
           IMAGE_TAG="${{ steps.image-meta.outputs.tag }}"
           echo "Updating Azure Container Apps (Staging) with tag ${IMAGE_TAG}..."
@@ -72,11 +73,24 @@ jobs:
             az containerapp update \
               --name ca-api-lensio-staging \
               --resource-group rg-lensio-staging \
-              --image "ghcr.io/${{ github.repository }}/lensio-api:${IMAGE_TAG}"
+              --image "ghcr.io/${{ github.repository }}/lensio-api:${IMAGE_TAG}" \
+              --min-replicas 0 \
+              --max-replicas 2
             az containerapp update \
               --name ca-dash-lensio-staging \
               --resource-group rg-lensio-staging \
-              --image "ghcr.io/${{ github.repository }}/lensio-dashboard:${IMAGE_TAG}"
+              --image "ghcr.io/${{ github.repository }}/lensio-dashboard:${IMAGE_TAG}" \
+              --min-replicas 0 \
+              --max-replicas 2
+
+            API_FQDN=$(az containerapp show --name ca-api-lensio-staging --resource-group rg-lensio-staging --query properties.configuration.ingress.fqdn -o tsv || true)
+            DASH_FQDN=$(az containerapp show --name ca-dash-lensio-staging --resource-group rg-lensio-staging --query properties.configuration.ingress.fqdn -o tsv || true)
+            if [ -n "${API_FQDN}" ]; then
+              echo "api_url=https://${API_FQDN}" >> $GITHUB_OUTPUT
+            fi
+            if [ -n "${DASH_FQDN}" ]; then
+              echo "dash_url=https://${DASH_FQDN}" >> $GITHUB_OUTPUT
+            fi
           else
             echo "Simulation mode: az CLI or AZURE_CREDENTIALS not configured."
           fi
@@ -84,13 +98,13 @@ jobs:
       - name: Run Staging Automated Smoke Tests
         run: |
           chmod +x scripts/smoke-test.sh
-          # Run smoke tests against staging endpoint (or localhost fallback if in sandbox)
-          STAGING_API_URL="${{ vars.STAGING_API_URL || 'https://ca-api-lensio-staging.wittymoss-ad389f76.southeastasia.azurecontainerapps.io' }}"
-          STAGING_DASH_URL="${{ vars.STAGING_DASH_URL || 'https://ca-dash-lensio-staging.wittymoss-ad389f76.southeastasia.azurecontainerapps.io' }}"
-          if curl -s --connect-timeout 2 "${STAGING_API_URL}/health" >/dev/null 2>&1; then
+          # Run smoke tests against staging endpoint (or fallback to dynamically discovered FQDN)
+          STAGING_API_URL="${{ vars.STAGING_API_URL || steps.deploy-ca.outputs.api_url }}"
+          STAGING_DASH_URL="${{ vars.STAGING_DASH_URL || steps.deploy-ca.outputs.dash_url }}"
+          if [ -n "${STAGING_API_URL}" ] && curl -s --connect-timeout 2 "${STAGING_API_URL}/health" >/dev/null 2>&1; then
             ./scripts/smoke-test.sh "${STAGING_API_URL}" "${STAGING_DASH_URL}"
           else
-            echo "⚠️ Staging live endpoint unreachable from runner, skipping live network probe."
+            echo "⚠️ Staging live endpoint unreachable or not configured from runner, skipping live network probe."
           fi
 
   # ----------------------------------------------------------------------------
@@ -136,11 +150,15 @@ jobs:
             az containerapp update \
               --name ca-api-lensio-production \
               --resource-group rg-lensio-production \
-              --image "ghcr.io/${{ github.repository }}/lensio-api:${IMAGE_TAG}"
+              --image "ghcr.io/${{ github.repository }}/lensio-api:${IMAGE_TAG}" \
+              --min-replicas 2 \
+              --max-replicas 10
             az containerapp update \
               --name ca-dash-lensio-production \
               --resource-group rg-lensio-production \
-              --image "ghcr.io/${{ github.repository }}/lensio-dashboard:${IMAGE_TAG}"
+              --image "ghcr.io/${{ github.repository }}/lensio-dashboard:${IMAGE_TAG}" \
+              --min-replicas 2 \
+              --max-replicas 5
           else
             echo "Simulation mode: az CLI or AZURE_CREDENTIALS not configured."
           fi
