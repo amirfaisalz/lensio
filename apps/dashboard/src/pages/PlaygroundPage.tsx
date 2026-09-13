@@ -212,6 +212,34 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({
 	>(null);
 	const [ocrError, setOcrError] = useState<string | null>(null);
 	const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
+	const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+	const previewUrlRef = useRef<string | null>(null);
+
+	const clearPreviewFile = () => {
+		if (previewUrlRef.current && typeof URL.revokeObjectURL === "function") {
+			URL.revokeObjectURL(previewUrlRef.current);
+		}
+		previewUrlRef.current = null;
+		setPreviewUrl(null);
+	};
+
+	const setPreviewFile = (file: File) => {
+		clearPreviewFile();
+		if (typeof URL.createObjectURL === "function") {
+			const url = URL.createObjectURL(file);
+			previewUrlRef.current = url;
+			setPreviewUrl(url);
+		}
+	};
+
+	useEffect(() => {
+		return () => {
+			if (previewUrlRef.current && typeof URL.revokeObjectURL === "function") {
+				URL.revokeObjectURL(previewUrlRef.current);
+				previewUrlRef.current = null;
+			}
+		};
+	}, []);
 
 	const activeService =
 		OCR_SERVICES.find((s) => s.id === docType) || OCR_SERVICES[0];
@@ -243,6 +271,7 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({
 		// Cookie-first like the OpenAI playground: the session cookie
 		// authenticates, an explicit API key is only an optional override.
 		const keyOverride = apiKey ?? undefined;
+		setPreviewFile(file);
 
 		try {
 			setSelectedFileName(
@@ -505,6 +534,7 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({
 											setOcrResult(null);
 											setSelectedFileName(null);
 											setOcrError(null);
+											clearPreviewFile();
 											setIsDropdownOpen(false);
 										}}
 										className={`w-full flex items-center justify-between p-2.5 rounded-lg text-left transition-colors cursor-pointer ${
@@ -641,6 +671,19 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({
 								{ocrLoading && (
 									<RefreshCw className="w-3.5 h-3.5 animate-spin text-[#1877F2]" />
 								)}
+							</div>
+						)}
+
+						{previewUrl && (
+							<div className="mt-3 overflow-hidden rounded-lg border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5">
+								<p className="px-3 pt-2 text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+									Source image
+								</p>
+								<img
+									src={previewUrl}
+									alt={`Pratinjau ${selectedFileName ?? "dokumen"}`}
+									className="max-h-60 w-full object-contain"
+								/>
 							</div>
 						)}
 

@@ -575,6 +575,83 @@ describe("PlaygroundPage", () => {
 		expect(screen.getByText("3273012345670001")).toBeDefined();
 	});
 
+	const stubObjectURLs = () => {
+		let n = 0;
+		const createMock = vi.fn(() => {
+			n += 1;
+			return `blob:mock-${n}`;
+		});
+		const revokeMock = vi.fn((_url: string) => {});
+		window.URL.createObjectURL = createMock;
+		window.URL.revokeObjectURL = revokeMock;
+		return { createMock, revokeMock };
+	};
+
+	const minimalKtpResult = {
+		id: "ocr_preview_1",
+		status: "completed",
+		confidence: 0.9,
+		latency_ms: 10,
+		data: {},
+		field_confidence: {},
+	};
+
+	const uploadFile = (name: string, content: string) => {
+		const fileInput = document.getElementById(
+			"ktp-file-input",
+		) as HTMLInputElement;
+		fireEvent.change(fileInput, {
+			target: { files: [new File([content], name, { type: "image/jpeg" })] },
+		});
+	};
+
+	it("shows a source image preview for the uploaded document", async () => {
+		const { createMock } = stubObjectURLs();
+		vi.spyOn(api, "executeKTPOCR").mockResolvedValue(
+			minimalKtpResult as unknown as KTPResponse,
+		);
+
+		renderWithAuth(<PlaygroundPage />, {
+			initialOrg: TEST_ORG,
+			initialApiKey: "lensio_live_testkey123",
+		});
+
+		uploadFile("ktp_preview.jpg", "bytes-1");
+
+		await waitFor(() => {
+			const img = screen.getByAltText("Pratinjau ktp_preview.jpg");
+			expect(img.getAttribute("src")).toBe("blob:mock-1");
+		});
+		expect(createMock).toHaveBeenCalledTimes(1);
+	});
+
+	it("replaces the preview on the next scan and revokes the old URL", async () => {
+		const { revokeMock } = stubObjectURLs();
+		vi.spyOn(api, "executeKTPOCR").mockResolvedValue(
+			minimalKtpResult as unknown as KTPResponse,
+		);
+
+		renderWithAuth(<PlaygroundPage />, {
+			initialOrg: TEST_ORG,
+			initialApiKey: "lensio_live_testkey123",
+		});
+
+		uploadFile("ktp_satu.jpg", "bytes-1");
+		await waitFor(() => {
+			expect(
+				screen.getByAltText("Pratinjau ktp_satu.jpg").getAttribute("src"),
+			).toBe("blob:mock-1");
+		});
+
+		uploadFile("ktp_dua.jpg", "bytes-2");
+		await waitFor(() => {
+			expect(
+				screen.getByAltText("Pratinjau ktp_dua.jpg").getAttribute("src"),
+			).toBe("blob:mock-2");
+		});
+		expect(revokeMock).toHaveBeenCalledWith("blob:mock-1");
+	});
+
 	it("handles file upload error in playground", async () => {
 		vi.spyOn(api, "executeKTPOCR").mockRejectedValue(
 			new Error("Image blur score too low for OCR extraction"),
