@@ -156,14 +156,14 @@ export const AccountPage: React.FC = () => {
 	];
 
 	return (
-		<div className="space-y-8 animate-in fade-in duration-200">
+		<div className="space-y-6">
 			{/* Header */}
 			<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
 				<div>
-					<h2 className="text-xl font-bold text-slate-900 tracking-tight">
+					<h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">
 						Account & Settings
 					</h2>
-					<p className="text-xs text-slate-500">
+					<p className="text-xs text-slate-500 dark:text-slate-400">
 						Tenant organization profile, subscription tier, and registered team
 						members.
 					</p>
@@ -172,7 +172,7 @@ export const AccountPage: React.FC = () => {
 					type="button"
 					onClick={loadData}
 					disabled={isLoading}
-					className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors w-full sm:w-auto cursor-pointer"
+					className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300 bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-lg hover:bg-slate-50 dark:hover:bg-white/10 transition-colors w-full sm:w-auto cursor-pointer"
 				>
 					<RefreshCw
 						className={`w-3.5 h-3.5 ${isLoading ? "animate-spin" : ""}`}
@@ -182,7 +182,7 @@ export const AccountPage: React.FC = () => {
 			</div>
 
 			{error && (
-				<div className="p-4 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 flex items-center justify-between">
+				<div className="p-4 bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/20 rounded-xl text-xs text-rose-700 flex items-center justify-between">
 					<span>{error}</span>
 					<button
 						type="button"
@@ -197,14 +197,14 @@ export const AccountPage: React.FC = () => {
 			{/* Placeholder Empty State if No Organization */}
 			{!isLoading && !org ? (
 				<div className="space-y-6">
-					<div className="bg-white rounded-2xl border border-slate-200 p-8 sm:p-14 text-center max-w-xl mx-auto shadow-xs my-4">
-						<div className="w-16 h-16 rounded-2xl bg-[#E7F3FF] text-[#1877F2] flex items-center justify-center mx-auto mb-4 shadow-xs">
+					<div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-white/10 p-8 sm:p-14 text-center max-w-xl mx-auto my-4">
+						<div className="w-16 h-16 rounded-2xl bg-[#E7F3FF] dark:bg-[#1877F2]/20 text-[#1877F2] dark:text-[#7aa9f5] flex items-center justify-center mx-auto mb-4">
 							<Building2 className="w-8 h-8" />
 						</div>
-						<h3 className="text-lg font-bold text-slate-900 tracking-tight">
+						<h3 className="text-lg font-bold text-slate-900 dark:text-white tracking-tight">
 							Belum Ada Organisasi
 						</h3>
-						<p className="text-xs text-slate-600 mt-2 leading-relaxed max-w-md mx-auto">
+						<p className="text-xs text-slate-600 dark:text-slate-400 mt-2 leading-relaxed max-w-md mx-auto">
 							Akun Anda belum terdaftar dalam organisasi mana pun. Buat
 							organisasi baru untuk mulai mengelola profil tenant, memilih paket
 							kuota API, dan mengundang anggota tim.
@@ -212,7 +212,7 @@ export const AccountPage: React.FC = () => {
 						<button
 							type="button"
 							onClick={() => setIsOrgModalOpen(true)}
-							className="mt-6 inline-flex items-center gap-2 px-4 py-2.5 text-xs font-semibold text-white bg-[#1877F2] hover:bg-[#166FE5] rounded-xl shadow-xs transition-colors cursor-pointer"
+							className="mt-6 inline-flex items-center gap-2 px-4 py-2.5 text-xs font-semibold text-white bg-[#1877F2] hover:bg-[#166FE5] rounded-xl transition-colors cursor-pointer"
 						>
 							<Plus className="w-4 h-4" />
 							<span>Buat Organisasi Sekarang</span>
@@ -220,40 +220,40 @@ export const AccountPage: React.FC = () => {
 					</div>
 
 					<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-						<div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
+						<div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-white/10">
 							<div className="w-8 h-8 rounded-lg bg-blue-50 text-[#1877F2] flex items-center justify-center mb-3">
 								<Building2 className="w-4 h-4" />
 							</div>
-							<h4 className="text-xs font-bold text-slate-900 mb-1">
+							<h4 className="text-xs font-bold text-slate-900 dark:text-white mb-1">
 								Profil Tenant
 							</h4>
-							<p className="text-[11px] text-slate-500 leading-relaxed">
+							<p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
 								Slug dan ID unik untuk isolasi data, pelacakan API key, dan
 								audit trail pemrosesan OCR dokumen identitas.
 							</p>
 						</div>
 
-						<div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
+						<div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-white/10">
 							<div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center mb-3">
 								<CreditCard className="w-4 h-4" />
 							</div>
-							<h4 className="text-xs font-bold text-slate-900 mb-1">
+							<h4 className="text-xs font-bold text-slate-900 dark:text-white mb-1">
 								Paket & Kuota Bulanan
 							</h4>
-							<p className="text-[11px] text-slate-500 leading-relaxed">
+							<p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
 								Pilihan tier fleksibel mulai dari Free (100 req/bln), Starter
 								(1.000 req/bln), hingga Pro (10.000 req/bln).
 							</p>
 						</div>
 
-						<div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
+						<div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-white/10">
 							<div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center mb-3">
 								<Users className="w-4 h-4" />
 							</div>
-							<h4 className="text-xs font-bold text-slate-900 mb-1">
+							<h4 className="text-xs font-bold text-slate-900 dark:text-white mb-1">
 								Manajemen Anggota
 							</h4>
-							<p className="text-[11px] text-slate-500 leading-relaxed">
+							<p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
 								Kelola akses tim developer Anda dengan otorisasi berbasis
 								SpiceDB ReBAC terintegrasi.
 							</p>
@@ -267,7 +267,7 @@ export const AccountPage: React.FC = () => {
 						title="Buat Organisasi Baru"
 					>
 						<form onSubmit={handleCreateOrg} className="space-y-4">
-							<p className="text-xs text-slate-600">
+							<p className="text-xs text-slate-600 dark:text-slate-400">
 								Tentukan nama organisasi untuk mengaktifkan kuota API dan
 								mengelola akun Anda.
 							</p>
@@ -275,19 +275,19 @@ export const AccountPage: React.FC = () => {
 							<div>
 								<label
 									htmlFor="account-new-org-name"
-									className="block text-xs font-semibold text-slate-700 mb-1"
+									className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1"
 								>
 									Nama Organisasi / Perusahaan
 								</label>
 								<div className="relative">
-									<Building2 className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+									<Building2 className="w-4 h-4 text-slate-400 dark:text-slate-500 absolute left-3 top-2.5" />
 									<input
 										id="account-new-org-name"
 										type="text"
 										placeholder="misal: PT Fintech Nusantara"
 										value={newOrgName}
 										onChange={(e) => setNewOrgName(e.target.value)}
-										className="w-full pl-9 pr-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-hidden focus:border-[#1877F2] focus:ring-2 focus:ring-[#1877F2]/20"
+										className="w-full pl-9 pr-3 py-2.5 text-sm border border-slate-300 dark:border-white/15 rounded-lg focus:outline-none focus:border-[#1877F2] focus:ring-2 focus:ring-[#1877F2]/25"
 									/>
 								</div>
 							</div>
@@ -295,7 +295,7 @@ export const AccountPage: React.FC = () => {
 							<div>
 								<label
 									htmlFor="account-org-plan"
-									className="block text-xs font-semibold text-slate-700 mb-1"
+									className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1"
 								>
 									Paket Langganan Awal
 								</label>
@@ -303,7 +303,7 @@ export const AccountPage: React.FC = () => {
 									id="account-org-plan"
 									value={newOrgPlan}
 									onChange={(e) => setNewOrgPlan(e.target.value)}
-									className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg bg-white focus:outline-hidden focus:border-[#1877F2] focus:ring-2 focus:ring-[#1877F2]/20"
+									className="w-full px-3 py-2.5 text-sm border border-slate-300 dark:border-white/15 rounded-lg bg-white dark:bg-slate-800 focus:outline-none focus:border-[#1877F2] focus:ring-2 focus:ring-[#1877F2]/25"
 								>
 									<option value="free">
 										Free Tier (100 req/bulan, 10 req/min) - Gratis
@@ -321,7 +321,7 @@ export const AccountPage: React.FC = () => {
 								<button
 									type="button"
 									onClick={() => setIsOrgModalOpen(false)}
-									className="px-3 py-2 text-xs font-medium text-slate-600 hover:text-slate-800 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
+									className="px-3 py-2 text-xs font-medium text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-white bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-lg hover:bg-slate-50 dark:hover:bg-white/10 transition-colors"
 								>
 									Batal
 								</button>
@@ -339,10 +339,10 @@ export const AccountPage: React.FC = () => {
 			) : (
 				<>
 					{/* Organization Profile Card */}
-					<div className="bg-white p-4 sm:p-6 rounded-xl border border-slate-200 shadow-xs">
+					<div className="bg-white dark:bg-slate-900 p-4 sm:p-6 rounded-xl border border-slate-200 dark:border-white/10">
 						<div className="flex items-center gap-2 mb-4">
 							<Building2 className="w-4 h-4 text-[#1877F2]" />
-							<h3 className="text-sm font-semibold text-slate-900">
+							<h3 className="text-sm font-semibold text-slate-900 dark:text-white">
 								Organization Profile
 							</h3>
 						</div>
@@ -354,30 +354,32 @@ export const AccountPage: React.FC = () => {
 							</div>
 						) : org ? (
 							<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 text-xs">
-								<div className="p-3 bg-slate-50 rounded-lg border border-slate-100">
-									<span className="text-slate-400 block text-[10px] uppercase font-semibold">
+								<div className="p-3 bg-slate-50 dark:bg-white/5 rounded-lg border border-slate-100 dark:border-white/10">
+									<span className="text-slate-400 dark:text-slate-500 block text-[10px] uppercase font-semibold">
 										Organization Name
 									</span>
-									<span className="font-bold text-slate-900 text-sm">
+									<span className="font-bold text-slate-900 dark:text-white text-sm">
 										{org.organization_name}
 									</span>
 								</div>
-								<div className="p-3 bg-slate-50 rounded-lg border border-slate-100">
-									<span className="text-slate-400 block text-[10px] uppercase font-semibold">
+								<div className="p-3 bg-slate-50 dark:bg-white/5 rounded-lg border border-slate-100 dark:border-white/10">
+									<span className="text-slate-400 dark:text-slate-500 block text-[10px] uppercase font-semibold">
 										Tenant Slug
 									</span>
-									<span className="font-mono text-slate-700">{org.slug}</span>
+									<span className="font-mono text-slate-700 dark:text-slate-300">
+										{org.slug}
+									</span>
 								</div>
-								<div className="p-3 bg-slate-50 rounded-lg border border-slate-100">
-									<span className="text-slate-400 block text-[10px] uppercase font-semibold">
+								<div className="p-3 bg-slate-50 dark:bg-white/5 rounded-lg border border-slate-100 dark:border-white/10">
+									<span className="text-slate-400 dark:text-slate-500 block text-[10px] uppercase font-semibold">
 										Organization ID
 									</span>
-									<span className="font-mono text-[11px] text-slate-700 break-all">
+									<span className="font-mono text-[11px] text-slate-700 dark:text-slate-300 break-all">
 										{org.organization_id}
 									</span>
 								</div>
-								<div className="p-3 bg-slate-50 rounded-lg border border-slate-100">
-									<span className="text-slate-400 block text-[10px] uppercase font-semibold">
+								<div className="p-3 bg-slate-50 dark:bg-white/5 rounded-lg border border-slate-100 dark:border-white/10">
+									<span className="text-slate-400 dark:text-slate-500 block text-[10px] uppercase font-semibold">
 										Active API Keys
 									</span>
 									<span className="font-bold text-[#1877F2] text-sm tabular-nums">
@@ -389,23 +391,23 @@ export const AccountPage: React.FC = () => {
 					</div>
 
 					{/* Subscription Plan Switcher */}
-					<div className="bg-white p-4 sm:p-6 rounded-xl border border-slate-200 shadow-xs">
+					<div className="bg-white dark:bg-slate-900 p-4 sm:p-6 rounded-xl border border-slate-200 dark:border-white/10">
 						<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
 							<div>
 								<div className="flex items-center gap-2">
 									<CreditCard className="w-4 h-4 text-[#1877F2]" />
-									<h3 className="text-sm font-semibold text-slate-900">
+									<h3 className="text-sm font-semibold text-slate-900 dark:text-white">
 										Subscription Plan & Quotas
 									</h3>
 								</div>
-								<p className="text-xs text-slate-500">
+								<p className="text-xs text-slate-500 dark:text-slate-400">
 									Select an API tier to instantly adjust your monthly quota and
 									per-minute throughput limits.
 								</p>
 							</div>
 
 							{planUpdateSuccess && (
-								<span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200 self-start sm:self-auto">
+								<span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-600 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-500/10 px-2.5 py-1 rounded-md border border-emerald-200 dark:border-emerald-500/20 self-start sm:self-auto">
 									<Check className="w-3.5 h-3.5" /> Plan Updated Successfully
 								</span>
 							)}
@@ -423,12 +425,12 @@ export const AccountPage: React.FC = () => {
 										onClick={() => setSelectedPlan(opt.code)}
 										className={`text-left p-4 rounded-xl border cursor-pointer transition-all ${
 											isSelected
-												? "border-[#1877F2] ring-2 ring-[#1877F2]/20 bg-[#E7F3FF]/20"
-												: "border-slate-200 hover:border-slate-300 bg-white"
+												? "border-[#1877F2] ring-2 ring-[#1877F2]/20 bg-[#E7F3FF]/20 dark:bg-[#1877F2]/10"
+												: "border-slate-200 dark:border-white/10 hover:border-slate-300 dark:hover:border-white/25 bg-white dark:bg-slate-900"
 										}`}
 									>
 										<div className="flex items-center justify-between mb-2">
-											<span className="font-bold text-slate-900 text-sm">
+											<span className="font-bold text-slate-900 dark:text-white text-sm">
 												{opt.name}
 											</span>
 											{isCurrent && (
@@ -436,19 +438,27 @@ export const AccountPage: React.FC = () => {
 											)}
 										</div>
 
-										<div className="text-lg font-bold text-slate-900 mb-1">
+										<div className="text-lg font-bold text-slate-900 dark:text-white mb-1">
 											{opt.price}
 										</div>
-										<p className="text-xs text-slate-500 mb-3">{opt.desc}</p>
+										<p className="text-xs text-slate-500 dark:text-slate-400 mb-3">
+											{opt.desc}
+										</p>
 
-										<div className="space-y-1 text-xs text-slate-700 border-t border-slate-100 pt-3 tabular-nums">
+										<div className="space-y-1 text-xs text-slate-700 dark:text-slate-300 border-t border-slate-100 dark:border-white/10 pt-3 tabular-nums">
 											<div className="flex justify-between">
-												<span className="text-slate-500">Monthly Quota:</span>
-												<strong className="text-slate-900">{opt.quota}</strong>
+												<span className="text-slate-500 dark:text-slate-400">
+													Monthly Quota:
+												</span>
+												<strong className="text-slate-900 dark:text-white">
+													{opt.quota}
+												</strong>
 											</div>
 											<div className="flex justify-between">
-												<span className="text-slate-500">Rate Limit:</span>
-												<strong className="text-slate-900">
+												<span className="text-slate-500 dark:text-slate-400">
+													Rate Limit:
+												</span>
+												<strong className="text-slate-900 dark:text-white">
 													{opt.rateLimit}
 												</strong>
 											</div>
@@ -463,7 +473,7 @@ export const AccountPage: React.FC = () => {
 								<button
 									type="button"
 									onClick={() => setSelectedPlan(plan.plan_code)}
-									className="px-4 py-2 text-xs font-medium text-slate-600 hover:text-slate-900 text-center cursor-pointer"
+									className="px-4 py-2 text-xs font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:text-white text-center cursor-pointer"
 								>
 									Reset
 								</button>
@@ -471,7 +481,7 @@ export const AccountPage: React.FC = () => {
 									type="button"
 									onClick={handleUpdatePlan}
 									disabled={isUpdatingPlan}
-									className="px-4 py-2 text-xs font-semibold text-white bg-[#1877F2] hover:bg-[#166FE5] rounded-lg transition-colors shadow-xs text-center cursor-pointer"
+									className="px-4 py-2 text-xs font-semibold text-white bg-[#1877F2] hover:bg-[#166FE5] rounded-lg transition-colors text-center cursor-pointer"
 								>
 									{isUpdatingPlan
 										? "Updating Plan..."
@@ -482,22 +492,22 @@ export const AccountPage: React.FC = () => {
 					</div>
 
 					{/* Team Members List */}
-					<div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
+					<div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-white/10 overflow-hidden">
 						<div className="px-4 sm:px-6 py-4 border-b border-slate-100 flex items-center justify-between">
 							<div className="flex items-center gap-2">
 								<Users className="w-4 h-4 text-[#1877F2]" />
-								<h3 className="text-sm font-semibold text-slate-900">
+								<h3 className="text-sm font-semibold text-slate-900 dark:text-white">
 									Organization Members
 								</h3>
 							</div>
-							<span className="text-xs text-slate-500">
+							<span className="text-xs text-slate-500 dark:text-slate-400">
 								{members.length} Member(s)
 							</span>
 						</div>
 
 						<div className="overflow-x-auto">
-							<table className="w-full text-left text-xs text-slate-600 min-w-[540px]">
-								<thead className="bg-slate-50 border-b border-slate-200 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+							<table className="w-full text-left text-xs text-slate-600 dark:text-slate-400 min-w-[540px]">
+								<thead className="bg-slate-50 dark:bg-white/5 border-b border-slate-200 dark:border-white/10 text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
 									<tr>
 										<th className="px-6 py-3.5">Name</th>
 										<th className="px-6 py-3.5">Email</th>
@@ -505,7 +515,7 @@ export const AccountPage: React.FC = () => {
 										<th className="px-6 py-3.5">Joined Date</th>
 									</tr>
 								</thead>
-								<tbody className="divide-y divide-slate-100 font-medium">
+								<tbody className="divide-y divide-slate-100 dark:divide-white/10 font-medium">
 									{isLoading ? (
 										<tr>
 											<td colSpan={4} className="px-6 py-8">
@@ -516,7 +526,7 @@ export const AccountPage: React.FC = () => {
 										<tr>
 											<td
 												colSpan={4}
-												className="px-6 py-8 text-center text-slate-400"
+												className="px-6 py-8 text-center text-slate-400 dark:text-slate-500"
 											>
 												No members listed.
 											</td>
@@ -525,12 +535,12 @@ export const AccountPage: React.FC = () => {
 										members.map((m) => (
 											<tr
 												key={m.id}
-												className="hover:bg-slate-50/80 transition-colors"
+												className="hover:bg-slate-50/80 dark:hover:bg-white/5 transition-colors"
 											>
-												<td className="px-6 py-3.5 font-semibold text-slate-900">
+												<td className="px-6 py-3.5 font-semibold text-slate-900 dark:text-white">
 													{m.full_name}
 												</td>
-												<td className="px-6 py-3.5 font-mono text-slate-600">
+												<td className="px-6 py-3.5 font-mono text-slate-600 dark:text-slate-400">
 													{m.email}
 												</td>
 												<td className="px-6 py-3.5">
@@ -540,7 +550,7 @@ export const AccountPage: React.FC = () => {
 														{m.role}
 													</Badge>
 												</td>
-												<td className="px-6 py-3.5 text-slate-500 tabular-nums">
+												<td className="px-6 py-3.5 text-slate-500 dark:text-slate-400 tabular-nums">
 													{new Date(m.created_at).toLocaleDateString(
 														undefined,
 														{

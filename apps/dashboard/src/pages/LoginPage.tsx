@@ -1,15 +1,16 @@
 import {
 	AlertCircle,
 	ArrowRight,
+	BadgeCheck,
 	CheckCircle2,
 	Eye,
 	EyeOff,
+	KeyRound,
 	Loader2,
 	Lock,
 	Mail,
 	MailCheck,
 	ShieldCheck,
-	Sparkles,
 	User,
 	Zap,
 } from "lucide-react";
@@ -206,10 +207,16 @@ export const LoginPage: React.FC<LoginPageProps> = ({
 	return (
 		<div className="min-h-screen bg-[#F0F2F5] flex flex-col lg:flex-row text-slate-900 font-sans antialiased">
 			{/* Left Column: Brand Hero & Platform Highlights (Desktop) */}
-			<div className="hidden lg:flex lg:w-1/2 bg-slate-900 text-white p-12 flex-col justify-between relative overflow-hidden">
-				{/* Background Glows */}
-				<div className="absolute top-0 -left-1/4 w-96 h-96 bg-[#1877F2]/20 rounded-full blur-3xl pointer-events-none" />
-				<div className="absolute bottom-0 -right-1/4 w-96 h-96 bg-indigo-500/15 rounded-full blur-3xl pointer-events-none" />
+			<div className="hidden lg:flex lg:w-1/2 bg-slate-950 text-white px-12 py-10 flex-col justify-between relative overflow-hidden">
+				{/* Static gradient wash: one paint, zero blur filters */}
+				<div
+					aria-hidden="true"
+					className="absolute inset-0 pointer-events-none"
+					style={{
+						backgroundImage:
+							"radial-gradient(60% 45% at 18% 0%, rgba(24,119,242,0.16), transparent 70%), radial-gradient(50% 40% at 92% 100%, rgba(16,185,129,0.10), transparent 70%)",
+					}}
+				/>
 
 				{/* Top Brand */}
 				<div className="relative z-10">
@@ -226,8 +233,10 @@ export const LoginPage: React.FC<LoginPageProps> = ({
 							</span>
 						</div>
 					</div>
-					<h1 className="text-3xl font-extrabold tracking-tight text-white leading-tight">
-						Infrastruktur OCR Identitas Indonesia Berperforma Tinggi
+					<h1 className="text-4xl font-extrabold tracking-tight text-white leading-[1.1]">
+						Infrastruktur OCR{" "}
+						<span className="text-[#7aa9f5]">Identitas Indonesia</span>{" "}
+						Berperforma Tinggi
 					</h1>
 					<p className="mt-3 text-sm text-slate-400 max-w-md leading-relaxed">
 						Layanan API ekstraksi dokumen identitas (KTP & SIM) otomatis
@@ -236,56 +245,84 @@ export const LoginPage: React.FC<LoginPageProps> = ({
 					</p>
 				</div>
 
-				{/* Center Feature Highlights */}
-				<div className="relative z-10 space-y-4 my-8">
-					<div className="flex items-start gap-3.5 p-4 rounded-xl bg-white/5 border border-white/10 backdrop-blur-xs">
-						<div className="w-8 h-8 rounded-lg bg-[#1877F2]/20 text-[#1877F2] flex items-center justify-center shrink-0 mt-0.5">
-							<Sparkles className="w-4 h-4" />
+				{/* Center: live scan visual — pure CSS, one transform-only animation */}
+				<div className="relative z-10 my-10" aria-hidden="true">
+					<div className="relative overflow-hidden rounded-2xl border border-white/15 bg-white/[0.04]">
+						<span className="absolute left-3 top-3 h-5 w-5 rounded-tl-md border-t-2 border-l-2 border-[#60a5fa]" />
+						<span className="absolute right-3 top-3 h-5 w-5 rounded-tr-md border-t-2 border-r-2 border-[#60a5fa]" />
+						<span className="absolute left-3 bottom-3 h-5 w-5 rounded-bl-md border-b-2 border-l-2 border-[#60a5fa]" />
+						<span className="absolute right-3 bottom-3 h-5 w-5 rounded-br-md border-b-2 border-r-2 border-[#60a5fa]" />
+						<div className="absolute inset-x-6 top-0 bottom-0 overflow-hidden">
+							<div className="scan-beam h-1/4 w-full bg-linear-to-b from-transparent via-[#60a5fa]/35 to-transparent opacity-0" />
 						</div>
-						<div>
-							<h3 className="text-xs font-semibold text-white">
-								Akurasi Tinggi & Validasi Deterministik
-							</h3>
-							<p className="text-[11px] text-slate-400 mt-0.5">
-								Validasi struktur 16-digit NIK KTP & 12-digit Nomor SIM tanpa
-								halusinasi LLM.
+						<div className="p-7">
+							<div className="flex items-center justify-between">
+								<span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+									KTP • Ekstraksi
+								</span>
+								<span className="flex items-center gap-1.5 text-[11px] font-medium text-emerald-400">
+									<span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+									Live
+								</span>
+							</div>
+							<p className="mt-4 font-mono text-2xl font-semibold tracking-[0.08em] text-white tabular-nums">
+								3171 •••• •••• 0001
 							</p>
+							<dl className="mt-5 space-y-3">
+								<div className="flex items-center justify-between gap-4">
+									<dt className="text-[11px] uppercase tracking-[0.14em] text-slate-500">
+										Nama
+									</dt>
+									<dd className="flex items-center gap-2 text-sm text-slate-200">
+										BUDI S••••••
+										<span className="rounded-md bg-emerald-500/15 px-1.5 py-0.5 font-mono text-[11px] font-semibold text-emerald-300 tabular-nums">
+											0.98
+										</span>
+									</dd>
+								</div>
+								<div className="flex items-center justify-between gap-4">
+									<dt className="text-[11px] uppercase tracking-[0.14em] text-slate-500">
+										Lahir
+									</dt>
+									<dd className="flex items-center gap-2 text-sm text-slate-200">
+										17-08-1992
+										<span className="rounded-md bg-emerald-500/15 px-1.5 py-0.5 font-mono text-[11px] font-semibold text-emerald-300 tabular-nums">
+											0.97
+										</span>
+									</dd>
+								</div>
+								<div className="flex items-center justify-between gap-4">
+									<dt className="text-[11px] uppercase tracking-[0.14em] text-slate-500">
+										Status
+									</dt>
+									<dd className="flex items-center gap-2 text-sm text-slate-200">
+										KAWIN
+										<span className="rounded-md bg-emerald-500/15 px-1.5 py-0.5 font-mono text-[11px] font-semibold text-emerald-300 tabular-nums">
+											0.99
+										</span>
+									</dd>
+								</div>
+							</dl>
 						</div>
 					</div>
-
-					<div className="flex items-start gap-3.5 p-4 rounded-xl bg-white/5 border border-white/10 backdrop-blur-xs">
-						<div className="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 mt-0.5">
-							<ShieldCheck className="w-4 h-4" />
-						</div>
-						<div>
-							<h3 className="text-xs font-semibold text-white">
-								Zero PII Retained & Ephemeral Buffer
-							</h3>
-							<p className="text-[11px] text-slate-400 mt-0.5">
-								Citra dokumen diproses secara in-memory dan langsung dihapus.
-								Tidak ada penyimpanan foto identitas warga.
-							</p>
-						</div>
-					</div>
-
-					<div className="flex items-start gap-3.5 p-4 rounded-xl bg-white/5 border border-white/10 backdrop-blur-xs">
-						<div className="w-8 h-8 rounded-lg bg-purple-500/20 text-purple-400 flex items-center justify-center shrink-0 mt-0.5">
-							<Lock className="w-4 h-4" />
-						</div>
-						<div>
-							<h3 className="text-xs font-semibold text-white">
-								Identitas Terpusat Keycloak & ReBAC SpiceDB
-							</h3>
-							<p className="text-[11px] text-slate-400 mt-0.5">
-								Autentikasi terstandar OpenID Connect dengan otorisasi berbasis
-								hubungan (Zanzibar schema).
-							</p>
-						</div>
-					</div>
+					<ul className="mt-6 space-y-2.5">
+						<li className="flex items-center gap-2.5 text-xs text-slate-300">
+							<EyeOff className="h-4 w-4 shrink-0 text-emerald-400" />
+							Zero PII retained — citra in-memory, langsung dihapus
+						</li>
+						<li className="flex items-center gap-2.5 text-xs text-slate-300">
+							<BadgeCheck className="h-4 w-4 shrink-0 text-[#60a5fa]" />
+							Validasi deterministik 16-digit NIK, tanpa halusinasi LLM
+						</li>
+						<li className="flex items-center gap-2.5 text-xs text-slate-300">
+							<KeyRound className="h-4 w-4 shrink-0 text-purple-400" />
+							Keycloak OIDC + ReBAC SpiceDB standar enterprise
+						</li>
+					</ul>
 				</div>
 
 				{/* Bottom Trust & Status */}
-				<div className="relative z-10 pt-6 border-t border-white/10 flex items-center justify-between text-[11px] text-slate-400">
+				<div className="relative z-10 pt-6 border-t border-white/10 flex items-center justify-between text-xs text-slate-400 tabular-nums">
 					<div className="flex items-center gap-2">
 						<span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
 						<span className="text-slate-300 font-medium">
@@ -313,8 +350,8 @@ export const LoginPage: React.FC<LoginPageProps> = ({
 
 				{/* Verification Pending Screen View */}
 				{verificationPendingEmail ? (
-					<div className="w-full max-w-md bg-white border border-slate-200 rounded-2xl shadow-sm p-6 sm:p-8 text-center animate-in fade-in zoom-in-95 duration-200">
-						<div className="w-14 h-14 rounded-2xl bg-[#E7F3FF] text-[#1877F2] flex items-center justify-center mx-auto mb-5 shadow-xs">
+					<div className="w-full max-w-md bg-white rounded-2xl shadow-[0_1px_2px_rgba(15,23,42,0.06),0_16px_40px_-24px_rgba(15,23,42,0.25)] p-6 sm:p-8 text-center">
+						<div className="w-14 h-14 rounded-2xl bg-[#E7F3FF] text-[#1877F2] flex items-center justify-center mx-auto mb-5">
 							<MailCheck className="w-7 h-7" />
 						</div>
 
@@ -332,7 +369,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
 							<AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-amber-600" />
 							<div>
 								<p className="font-semibold">Verifikasi Diperlukan</p>
-								<p className="text-[11px] text-amber-700 mt-0.5">
+								<p className="text-xs text-amber-700 mt-0.5">
 									Sesuai kebijakan keamanan platform, Anda belum dapat masuk ke
 									dashboard sebelum melakukan verifikasi email.
 								</p>
@@ -346,7 +383,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
 								onClick={() =>
 									handleSimulateVerification(verificationPendingEmail)
 								}
-								className="w-full py-2.5 px-4 text-xs font-semibold text-white bg-[#1877F2] hover:bg-[#166FE5] rounded-xl shadow-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+								className="w-full py-2.5 px-4 text-xs font-semibold text-white bg-[#1877F2] hover:bg-[#166FE5] active:bg-[#0e5ec8] rounded-xl transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
 							>
 								<CheckCircle2 className="w-4 h-4" />
 								<span>Verifikasi Sekarang (Simulasi Dev)</span>
@@ -367,11 +404,17 @@ export const LoginPage: React.FC<LoginPageProps> = ({
 					</div>
 				) : (
 					/* Main Auth Container */
-					<div className="w-full max-w-md bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+					<div className="w-full max-w-md bg-white rounded-2xl shadow-[0_1px_2px_rgba(15,23,42,0.06),0_16px_40px_-24px_rgba(15,23,42,0.25)] overflow-hidden">
 						{/* Tab Switcher: Masuk vs Daftar */}
-						<div className="flex border-b border-slate-200 bg-slate-50/50">
+						<div
+							role="tablist"
+							aria-label="Pilih mode autentikasi"
+							className="flex border-b border-slate-200 bg-slate-50/50"
+						>
 							<button
 								type="button"
+								role="tab"
+								aria-selected={activeTab === "login"}
 								onClick={() => {
 									setActiveTab("login");
 									setErrorMessage(null);
@@ -388,6 +431,8 @@ export const LoginPage: React.FC<LoginPageProps> = ({
 							</button>
 							<button
 								type="button"
+								role="tab"
+								aria-selected={activeTab === "register"}
 								onClick={() => {
 									setActiveTab("register");
 									setErrorMessage(null);
@@ -409,12 +454,13 @@ export const LoginPage: React.FC<LoginPageProps> = ({
 							{errorMessage && (
 								<div
 									role="alert"
-									className="mb-5 p-3.5 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl text-xs flex items-start gap-2.5 animate-in fade-in duration-150"
+									aria-live="assertive"
+									className="mb-5 p-3.5 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl text-xs flex items-start gap-2.5"
 								>
 									<AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-rose-600" />
 									<div className="flex-1">
 										<p className="font-semibold">Autentikasi Gagal</p>
-										<p className="text-[11px] text-rose-600 mt-0.5">
+										<p className="text-xs text-rose-600 mt-0.5">
 											{errorMessage}
 										</p>
 										{unverifiedAttemptEmail && (
@@ -423,7 +469,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
 												onClick={() =>
 													handleSimulateVerification(unverifiedAttemptEmail)
 												}
-												className="mt-2 text-[11px] font-semibold text-[#1877F2] hover:underline flex items-center gap-1"
+												className="mt-2 text-xs font-semibold text-[#1877F2] hover:underline flex items-center gap-1 rounded px-0.5 py-0.5"
 											>
 												<CheckCircle2 className="w-3.5 h-3.5" />
 												<span>Lakukan verifikasi email sekarang</span>
@@ -435,7 +481,11 @@ export const LoginPage: React.FC<LoginPageProps> = ({
 
 							{/* Verification Success Toast */}
 							{verificationSuccessMsg && (
-								<div className="mb-5 p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-xs flex items-center gap-2 animate-in fade-in duration-150">
+								<div
+									role="status"
+									aria-live="polite"
+									className="mb-5 p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-xs flex items-center gap-2"
+								>
 									<CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
 									<span>{verificationSuccessMsg}</span>
 								</div>
@@ -452,18 +502,20 @@ export const LoginPage: React.FC<LoginPageProps> = ({
 											Email Kerja / Username
 										</label>
 										<div className="relative">
-											<Mail className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+											<Mail className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
 											<input
 												id="login-email"
-												type="email"
+												type="text"
+												inputMode="email"
 												autoComplete="username"
 												placeholder="nama@perusahaan.com"
 												value={loginEmail}
+												aria-invalid={Boolean(errorMessage)}
 												onChange={(e) => {
 													setLoginEmail(e.target.value);
 													if (errorMessage) setErrorMessage(null);
 												}}
-												className="w-full pl-9 pr-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-hidden focus:border-[#1877F2] focus:ring-2 focus:ring-[#1877F2]/20 transition-all"
+												className="w-full pl-9 pr-3 py-2.5 text-sm text-slate-900 border border-slate-300 rounded-lg placeholder:text-slate-400 focus:outline-none focus:border-[#1877F2] focus:ring-2 focus:ring-[#1877F2]/25 transition-all"
 											/>
 										</div>
 									</div>
@@ -476,23 +528,27 @@ export const LoginPage: React.FC<LoginPageProps> = ({
 											>
 												Kata Sandi
 											</label>
-											<span className="text-[11px] text-[#1877F2] hover:underline cursor-pointer">
+											<button
+												type="button"
+												className="text-xs font-medium text-[#1877F2] hover:underline rounded px-1 py-0.5"
+											>
 												Lupa sandi?
-											</span>
+											</button>
 										</div>
 										<div className="relative">
-											<Lock className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+											<Lock className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
 											<input
 												id="login-password"
 												type={showLoginPassword ? "text" : "password"}
 												autoComplete="current-password"
 												placeholder="••••••••"
 												value={loginPassword}
+												aria-invalid={Boolean(errorMessage)}
 												onChange={(e) => {
 													setLoginPassword(e.target.value);
 													if (errorMessage) setErrorMessage(null);
 												}}
-												className="w-full pl-9 pr-9 py-2 text-xs border border-slate-300 rounded-lg focus:outline-hidden focus:border-[#1877F2] focus:ring-2 focus:ring-[#1877F2]/20 transition-all"
+												className="w-full pl-9 pr-10 py-2.5 text-sm text-slate-900 border border-slate-300 rounded-lg placeholder:text-slate-400 focus:outline-none focus:border-[#1877F2] focus:ring-2 focus:ring-[#1877F2]/25 transition-all"
 											/>
 											<button
 												type="button"
@@ -502,7 +558,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
 														? "Sembunyikan kata sandi"
 														: "Tampilkan kata sandi"
 												}
-												className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600 cursor-pointer"
+												className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-md text-slate-400 hover:text-slate-600 cursor-pointer"
 											>
 												{showLoginPassword ? (
 													<EyeOff className="w-4 h-4" />
@@ -514,21 +570,22 @@ export const LoginPage: React.FC<LoginPageProps> = ({
 									</div>
 
 									<div className="flex items-center justify-between text-xs text-slate-600">
-										<label className="flex items-center gap-2 cursor-pointer select-none">
+										<label className="flex items-center gap-2 cursor-pointer select-none py-1">
 											<input
 												type="checkbox"
 												checked={rememberMe}
 												onChange={(e) => setRememberMe(e.target.checked)}
-												className="w-3.5 h-3.5 rounded border-slate-300 text-[#1877F2] focus:ring-[#1877F2]"
+												className="w-4 h-4 rounded border-slate-300 text-[#1877F2] focus:ring-[#1877F2]"
 											/>
-											<span className="text-[11px]">Ingat sesi saya</span>
+											<span className="text-xs">Ingat sesi saya</span>
 										</label>
 									</div>
 
 									<button
 										type="submit"
 										disabled={isLoading}
-										className="w-full py-2.5 px-4 text-xs font-semibold text-white bg-[#1877F2] hover:bg-[#166FE5] disabled:opacity-50 rounded-lg shadow-xs transition-colors flex items-center justify-center gap-2 cursor-pointer"
+										aria-busy={isLoading}
+										className="w-full py-2.5 px-4 text-sm font-semibold text-white bg-[#1877F2] hover:bg-[#166FE5] active:bg-[#0e5ec8] disabled:opacity-50 disabled:cursor-not-allowed rounded-lg shadow-[0_1px_2px_rgba(24,119,242,0.4)] transition-colors flex items-center justify-center gap-2 cursor-pointer"
 									>
 										{isLoading ? (
 											<>
@@ -554,7 +611,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
 											Nama Lengkap
 										</label>
 										<div className="relative">
-											<User className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+											<User className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
 											<input
 												id="reg-name"
 												type="text"
@@ -565,7 +622,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
 													setRegName(e.target.value);
 													if (errorMessage) setErrorMessage(null);
 												}}
-												className="w-full pl-9 pr-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-hidden focus:border-[#1877F2] focus:ring-2 focus:ring-[#1877F2]/20"
+												className="w-full pl-9 pr-3 py-2.5 text-sm text-slate-900 border border-slate-300 rounded-lg placeholder:text-slate-400 focus:outline-none focus:border-[#1877F2] focus:ring-2 focus:ring-[#1877F2]/25"
 											/>
 										</div>
 									</div>
@@ -578,7 +635,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
 											Email Kerja
 										</label>
 										<div className="relative">
-											<Mail className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+											<Mail className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
 											<input
 												id="reg-email"
 												type="email"
@@ -589,7 +646,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
 													setRegEmail(e.target.value);
 													if (errorMessage) setErrorMessage(null);
 												}}
-												className="w-full pl-9 pr-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-hidden focus:border-[#1877F2] focus:ring-2 focus:ring-[#1877F2]/20"
+												className="w-full pl-9 pr-3 py-2.5 text-sm text-slate-900 border border-slate-300 rounded-lg placeholder:text-slate-400 focus:outline-none focus:border-[#1877F2] focus:ring-2 focus:ring-[#1877F2]/25"
 											/>
 										</div>
 									</div>
@@ -602,18 +659,19 @@ export const LoginPage: React.FC<LoginPageProps> = ({
 											Kata Sandi
 										</label>
 										<div className="relative">
-											<Lock className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+											<Lock className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
 											<input
 												id="reg-password"
 												type={showRegPassword ? "text" : "password"}
 												autoComplete="new-password"
 												placeholder="Minimal 8 karakter"
 												value={regPassword}
+												aria-describedby="reg-password-strength"
 												onChange={(e) => {
 													setRegPassword(e.target.value);
 													if (errorMessage) setErrorMessage(null);
 												}}
-												className="w-full pl-9 pr-9 py-2 text-xs border border-slate-300 rounded-lg focus:outline-hidden focus:border-[#1877F2] focus:ring-2 focus:ring-[#1877F2]/20"
+												className="w-full pl-9 pr-10 py-2.5 text-sm text-slate-900 border border-slate-300 rounded-lg placeholder:text-slate-400 focus:outline-none focus:border-[#1877F2] focus:ring-2 focus:ring-[#1877F2]/25"
 											/>
 											<button
 												type="button"
@@ -623,7 +681,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
 														? "Sembunyikan kata sandi"
 														: "Tampilkan kata sandi"
 												}
-												className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600 cursor-pointer"
+												className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-md text-slate-400 hover:text-slate-600 cursor-pointer"
 											>
 												{showRegPassword ? (
 													<EyeOff className="w-4 h-4" />
@@ -635,7 +693,13 @@ export const LoginPage: React.FC<LoginPageProps> = ({
 
 										{/* Password strength bar */}
 										{regPassword && (
-											<div className="mt-1.5">
+											<div
+												className="mt-1.5"
+												id="reg-password-strength"
+												role="status"
+												aria-live="polite"
+											>
+												{" "}
 												<div className="flex items-center justify-between text-[10px] text-slate-500 mb-0.5">
 													<span>Kekuatan sandi:</span>
 													<span className="font-semibold text-slate-700">
@@ -677,7 +741,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
 											Konfirmasi Kata Sandi
 										</label>
 										<div className="relative">
-											<Lock className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+											<Lock className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
 											<input
 												id="reg-confirm"
 												type={showRegPassword ? "text" : "password"}
@@ -688,28 +752,34 @@ export const LoginPage: React.FC<LoginPageProps> = ({
 													setRegConfirmPassword(e.target.value);
 													if (errorMessage) setErrorMessage(null);
 												}}
-												className="w-full pl-9 pr-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-hidden focus:border-[#1877F2] focus:ring-2 focus:ring-[#1877F2]/20"
+												className="w-full pl-9 pr-3 py-2.5 text-sm text-slate-900 border border-slate-300 rounded-lg placeholder:text-slate-400 focus:outline-none focus:border-[#1877F2] focus:ring-2 focus:ring-[#1877F2]/25"
 											/>
 										</div>
 									</div>
 
 									<div className="pt-1">
-										<label className="flex items-start gap-2 text-[11px] text-slate-600 cursor-pointer select-none">
+										<label className="flex items-start gap-2 text-xs text-slate-600 cursor-pointer select-none">
 											<input
 												type="checkbox"
 												checked={agreeTerms}
 												onChange={(e) => setAgreeTerms(e.target.checked)}
-												className="w-3.5 h-3.5 rounded border-slate-300 text-[#1877F2] focus:ring-[#1877F2] mt-0.5"
+												className="w-4 h-4 rounded border-slate-300 text-[#1877F2] focus:ring-[#1877F2] mt-0.5"
 											/>
 											<span>
 												Saya menyetujui{" "}
-												<span className="text-[#1877F2] underline">
+												<button
+													type="button"
+													className="text-[#1877F2] underline rounded px-0.5"
+												>
 													Ketentuan Layanan
-												</span>{" "}
+												</button>{" "}
 												dan{" "}
-												<span className="text-[#1877F2] underline">
+												<button
+													type="button"
+													className="text-[#1877F2] underline rounded px-0.5"
+												>
 													Kebijakan Privasi
-												</span>{" "}
+												</button>{" "}
 												Lensio.
 											</span>
 										</label>
@@ -718,7 +788,8 @@ export const LoginPage: React.FC<LoginPageProps> = ({
 									<button
 										type="submit"
 										disabled={isLoading}
-										className="w-full py-2.5 px-4 text-xs font-semibold text-white bg-[#1877F2] hover:bg-[#166FE5] disabled:opacity-50 rounded-lg shadow-xs transition-colors flex items-center justify-center gap-2 cursor-pointer mt-2"
+										aria-busy={isLoading}
+										className="w-full py-2.5 px-4 text-sm font-semibold text-white bg-[#1877F2] hover:bg-[#166FE5] active:bg-[#0e5ec8] disabled:opacity-50 disabled:cursor-not-allowed rounded-lg shadow-[0_1px_2px_rgba(24,119,242,0.4)] transition-colors flex items-center justify-center gap-2 cursor-pointer mt-2"
 									>
 										{isLoading ? (
 											<>
@@ -737,7 +808,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
 						</div>
 
 						{/* Footer Security Badges */}
-						<div className="px-6 py-3.5 bg-slate-50 border-t border-slate-200 flex items-center justify-between text-[11px] text-slate-500">
+						<div className="px-6 py-3.5 bg-slate-50 border-t border-slate-200 flex items-center justify-between text-xs text-slate-500">
 							<span className="flex items-center gap-1">
 								<ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
 								<span>Keycloak OIDC Standar</span>
@@ -748,7 +819,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
 				)}
 
 				{/* Portal Footnote */}
-				<div className="mt-6 text-center text-[11px] text-slate-400">
+				<div className="mt-6 text-center text-xs text-slate-500">
 					Lensio Platform • Indonesian Identity Document OCR API
 				</div>
 			</div>

@@ -64,14 +64,14 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({ onNavigate }) => {
 	);
 
 	return (
-		<div className="space-y-8 animate-in fade-in duration-200">
+		<div className="space-y-6">
 			{/* Top action row */}
 			<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
 				<div>
-					<h2 className="text-xl font-bold text-slate-900 tracking-tight">
+					<h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">
 						System Overview
 					</h2>
-					<p className="text-xs text-slate-500">
+					<p className="text-xs text-slate-500 dark:text-slate-400">
 						Real-time metrics, quota monitoring, and live test harness.
 					</p>
 				</div>
@@ -79,7 +79,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({ onNavigate }) => {
 					type="button"
 					onClick={loadMetrics}
 					disabled={isLoading}
-					className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors w-full sm:w-auto cursor-pointer"
+					className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300 bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-lg hover:bg-slate-50 dark:hover:bg-white/10 transition-colors w-full sm:w-auto cursor-pointer"
 				>
 					<RefreshCw
 						className={`w-3.5 h-3.5 ${isLoading ? "animate-spin" : ""}`}
@@ -89,7 +89,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({ onNavigate }) => {
 			</div>
 
 			{error && (
-				<div className="p-4 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 flex items-center justify-between">
+				<div className="p-4 bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/20 rounded-xl text-xs text-rose-700 dark:text-rose-300 flex items-center justify-between">
 					<span>{error}</span>
 					<button
 						type="button"
@@ -103,16 +103,16 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({ onNavigate }) => {
 
 			{/* Onboarding Callout for Organization / First API Key */}
 			{!currentOrg ? (
-				<div className="p-4 bg-gradient-to-r from-[#E7F3FF] to-indigo-50 border border-[#1877F2]/30 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
+				<div className="p-4 bg-[#E7F3FF]/60 dark:bg-[#1877F2]/10 border border-[#1877F2]/25 dark:border-[#1877F2]/30 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
 					<div className="flex items-center gap-3">
-						<div className="w-9 h-9 rounded-lg bg-[#1877F2] text-white flex items-center justify-center shrink-0 shadow-xs">
+						<div className="w-9 h-9 rounded-lg bg-[#1877F2] text-white flex items-center justify-center shrink-0">
 							<Building2 className="w-5 h-5" />
 						</div>
 						<div>
-							<p className="text-xs font-bold text-slate-900">
+							<p className="text-xs font-bold text-slate-900 dark:text-white">
 								Selamat Datang di Lensio! Buat organisasi Anda terlebih dahulu
 							</p>
-							<p className="text-[11px] text-slate-600">
+							<p className="text-[11px] text-slate-600 dark:text-slate-400">
 								Buat organisasi untuk mengaktifkan kuota 100 request/bulan dan
 								mulai menghasilkan API Key.
 							</p>
@@ -130,28 +130,28 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({ onNavigate }) => {
 								if (keysTab) keysTab.click();
 							}
 						}}
-						className="w-full sm:w-auto px-3.5 py-2 sm:py-1.5 text-xs font-semibold text-white bg-[#1877F2] hover:bg-[#166FE5] rounded-lg transition-colors shrink-0 shadow-xs text-center cursor-pointer"
+						className="w-full sm:w-auto px-3.5 py-2 sm:py-1.5 text-xs font-semibold text-white bg-[#1877F2] hover:bg-[#166FE5] rounded-lg transition-colors shrink-0 text-center cursor-pointer"
 					>
 						Buat Organisasi
 					</button>
 				</div>
 			) : !apiKey ? (
-				<div className="p-4 bg-gradient-to-r from-[#E7F3FF] to-indigo-50 border border-[#1877F2]/30 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
+				<div className="p-4 bg-[#E7F3FF]/60 dark:bg-[#1877F2]/10 border border-[#1877F2]/25 dark:border-[#1877F2]/30 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
 					<div className="flex items-center gap-3">
-						<div className="w-9 h-9 rounded-lg bg-[#1877F2] text-white flex items-center justify-center shrink-0 shadow-xs">
+						<div className="w-9 h-9 rounded-lg bg-[#1877F2] text-white flex items-center justify-center shrink-0">
 							<KeyRound className="w-5 h-5" />
 						</div>
 						<div>
-							<p className="text-xs font-bold text-slate-900">
+							<p className="text-xs font-bold text-slate-900 dark:text-white">
 								Welcome to {currentOrg.name}! Create your first API Key
 							</p>
-							<p className="text-[11px] text-slate-600">
+							<p className="text-[11px] text-slate-600 dark:text-slate-400">
 								Generate an API key to start submitting identity documents to{" "}
-								<code className="font-mono bg-white/80 px-1 py-0.5 rounded text-[10px]">
+								<code className="font-mono bg-white/80 dark:bg-white/10 px-1 py-0.5 rounded text-[10px]">
 									POST /api/v1/ocr/ktp
 								</code>{" "}
 								or{" "}
-								<code className="font-mono bg-white/80 px-1 py-0.5 rounded text-[10px]">
+								<code className="font-mono bg-white/80 dark:bg-white/10 px-1 py-0.5 rounded text-[10px]">
 									POST /api/v1/ocr/sim
 								</code>
 								.
@@ -170,7 +170,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({ onNavigate }) => {
 								if (keysTab) keysTab.click();
 							}
 						}}
-						className="w-full sm:w-auto px-3.5 py-2 sm:py-1.5 text-xs font-semibold text-white bg-[#1877F2] hover:bg-[#166FE5] rounded-lg transition-colors shrink-0 shadow-xs text-center cursor-pointer"
+						className="w-full sm:w-auto px-3.5 py-2 sm:py-1.5 text-xs font-semibold text-white bg-[#1877F2] hover:bg-[#166FE5] rounded-lg transition-colors shrink-0 text-center cursor-pointer"
 					>
 						Create API Key
 					</button>
@@ -180,9 +180,9 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({ onNavigate }) => {
 			{/* 4 Primary Metric Cards */}
 			<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
 				{/* Total Requests */}
-				<div className="bg-white p-4 sm:p-5 rounded-xl border border-slate-200 shadow-xs">
-					<div className="flex items-center justify-between text-slate-500 mb-2">
-						<span className="text-xs font-medium uppercase tracking-wider text-slate-500">
+				<div className="bg-white dark:bg-slate-900 p-4 sm:p-5 rounded-xl border border-slate-200 dark:border-white/10">
+					<div className="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-2">
+						<span className="text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">
 							Total Requests
 						</span>
 						<Activity className="w-4 h-4 text-[#1877F2]" />
@@ -190,19 +190,19 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({ onNavigate }) => {
 					{isLoading ? (
 						<Skeleton className="h-8 w-24 my-1" />
 					) : (
-						<div className="text-2xl font-bold text-slate-900 tabular-nums">
+						<div className="text-2xl font-bold text-slate-900 dark:text-white tabular-nums">
 							{total.toLocaleString()}
 						</div>
 					)}
-					<p className="text-[11px] text-slate-400 mt-1">
+					<p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1">
 						Current billing period
 					</p>
 				</div>
 
 				{/* Success Rate */}
-				<div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
-					<div className="flex items-center justify-between text-slate-500 mb-2">
-						<span className="text-xs font-medium uppercase tracking-wider text-slate-500">
+				<div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-white/10">
+					<div className="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-2">
+						<span className="text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">
 							Success Rate
 						</span>
 						<CheckCircle2 className="w-4 h-4 text-emerald-600" />
@@ -210,19 +210,19 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({ onNavigate }) => {
 					{isLoading ? (
 						<Skeleton className="h-8 w-24 my-1" />
 					) : (
-						<div className="text-2xl font-bold text-slate-900 tabular-nums">
+						<div className="text-2xl font-bold text-slate-900 dark:text-white tabular-nums">
 							{successRate}%
 						</div>
 					)}
-					<p className="text-[11px] text-slate-400 mt-1">
+					<p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1">
 						{successCount.toLocaleString()} successful calls
 					</p>
 				</div>
 
 				{/* Error Rate */}
-				<div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
-					<div className="flex items-center justify-between text-slate-500 mb-2">
-						<span className="text-xs font-medium uppercase tracking-wider text-slate-500">
+				<div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-white/10">
+					<div className="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-2">
+						<span className="text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">
 							Error Rate
 						</span>
 						<AlertTriangle className="w-4 h-4 text-amber-500" />
@@ -230,19 +230,19 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({ onNavigate }) => {
 					{isLoading ? (
 						<Skeleton className="h-8 w-24 my-1" />
 					) : (
-						<div className="text-2xl font-bold text-slate-900 tabular-nums">
+						<div className="text-2xl font-bold text-slate-900 dark:text-white tabular-nums">
 							{errorRate}%
 						</div>
 					)}
-					<p className="text-[11px] text-slate-400 mt-1">
+					<p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1">
 						{errorCount.toLocaleString()} non-2xx responses
 					</p>
 				</div>
 
 				{/* P95 Latency */}
-				<div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
-					<div className="flex items-center justify-between text-slate-500 mb-2">
-						<span className="text-xs font-medium uppercase tracking-wider text-slate-500">
+				<div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-white/10">
+					<div className="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-2">
+						<span className="text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">
 							P95 Latency
 						</span>
 						<Clock className="w-4 h-4 text-[#1877F2]" />
@@ -250,13 +250,13 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({ onNavigate }) => {
 					{isLoading ? (
 						<Skeleton className="h-8 w-24 my-1" />
 					) : (
-						<div className="text-2xl font-bold text-slate-900 tabular-nums">
+						<div className="text-2xl font-bold text-slate-900 dark:text-white tabular-nums">
 							{summary?.p95_latency_ms
 								? `${summary.p95_latency_ms}ms`
 								: "180ms"}
 						</div>
 					)}
-					<p className="text-[11px] text-slate-400 mt-1">
+					<p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1">
 						SLA Target &lt; 2000ms
 					</p>
 				</div>
@@ -265,14 +265,14 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({ onNavigate }) => {
 			{/* Quota & Violations Section */}
 			<div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 				{/* Quota Progress */}
-				<div className="lg:col-span-2 bg-white p-6 rounded-xl border border-slate-200 shadow-xs flex flex-col justify-between">
+				<div className="lg:col-span-2 bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-white/10 flex flex-col justify-between">
 					<div>
 						<div className="flex items-center justify-between mb-4">
 							<div>
-								<h3 className="text-sm font-semibold text-slate-900">
+								<h3 className="text-sm font-semibold text-slate-900 dark:text-white">
 									Monthly Usage Quota
 								</h3>
-								<p className="text-xs text-slate-500">
+								<p className="text-xs text-slate-500 dark:text-slate-400">
 									Enforced according to your active subscription plan.
 								</p>
 							</div>
@@ -289,16 +289,16 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({ onNavigate }) => {
 							</Badge>
 						</div>
 
-						<div className="w-full bg-slate-100 h-3.5 rounded-full overflow-hidden mb-3">
+						<div className="w-full bg-slate-100 dark:bg-white/10 h-2.5 rounded-full overflow-hidden mb-3">
 							<div
 								className="bg-[#1877F2] h-full transition-all duration-500 rounded-full"
 								style={{ width: `${quotaPercent}%` }}
 							/>
 						</div>
 
-						<div className="flex items-center justify-between text-xs text-slate-600 tabular-nums">
+						<div className="flex items-center justify-between text-xs text-slate-600 dark:text-slate-400 tabular-nums">
 							<span>
-								<strong className="text-slate-900">
+								<strong className="text-slate-900 dark:text-white">
 									{quotaUsed.toLocaleString()}
 								</strong>{" "}
 								of {quotaLimit.toLocaleString()} requests used
@@ -312,9 +312,9 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({ onNavigate }) => {
 						</div>
 					</div>
 
-					<div className="pt-4 mt-4 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+					<div className="pt-4 mt-4 border-t border-slate-100 dark:border-white/10 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
 						<span>Billing cycle renewal:</span>
-						<span className="font-mono text-[11px] text-slate-700">
+						<span className="font-mono text-[11px] text-slate-700 dark:text-slate-300">
 							{summary?.billing_cycle_reset
 								? new Date(summary.billing_cycle_reset).toLocaleDateString(
 										undefined,
@@ -330,27 +330,27 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({ onNavigate }) => {
 				</div>
 
 				{/* Violations Counter */}
-				<div className="bg-white p-6 rounded-xl border border-slate-200 shadow-xs flex flex-col justify-between">
+				<div className="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-white/10 flex flex-col justify-between">
 					<div>
-						<div className="flex items-center gap-2 text-slate-900 mb-1">
+						<div className="flex items-center gap-2 text-slate-900 dark:text-white mb-1">
 							<Zap className="w-4 h-4 text-amber-500" />
 							<h3 className="text-sm font-semibold">Rate Limit Violations</h3>
 						</div>
-						<p className="text-xs text-slate-500">
+						<p className="text-xs text-slate-500 dark:text-slate-400">
 							Requests returning HTTP 429 Too Many Requests in this cycle.
 						</p>
 					</div>
 
 					<div className="my-4">
-						<div className="text-3xl font-bold text-slate-900 tabular-nums">
+						<div className="text-3xl font-bold text-slate-900 dark:text-white tabular-nums">
 							{summary?.rate_limit_violations ?? 0}
 						</div>
-						<p className="text-xs text-slate-500 mt-1">
+						<p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
 							Controlled backoff active
 						</p>
 					</div>
 
-					<div className="text-[11px] text-slate-400 border-t border-slate-100 pt-3">
+					<div className="text-[11px] text-slate-400 dark:text-slate-500 border-t border-slate-100 pt-3">
 						Check the{" "}
 						<code className="font-mono bg-slate-100 px-1 py-0.5 rounded">
 							Retry-After
@@ -363,15 +363,15 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({ onNavigate }) => {
 			{/* Quick Action Navigation Cards */}
 			<div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
 				{/* Card 1: OCR Playground */}
-				<div className="bg-white p-5 sm:p-6 rounded-xl border border-slate-200 shadow-xs flex flex-col justify-between hover:border-[#1877F2]/40 transition-colors group">
+				<div className="bg-white dark:bg-slate-900 p-5 sm:p-6 rounded-xl border border-slate-200 dark:border-white/10 flex flex-col justify-between hover:border-[#1877F2]/40 transition-colors group">
 					<div>
 						<div className="w-10 h-10 rounded-xl bg-[#E7F3FF] text-[#1877F2] flex items-center justify-center mb-4 group-hover:scale-105 transition-transform">
 							<Sparkles className="w-5 h-5" />
 						</div>
-						<h3 className="text-sm font-bold text-slate-900 mb-1">
+						<h3 className="text-sm font-bold text-slate-900 dark:text-white mb-1">
 							Live OCR Playground
 						</h3>
-						<p className="text-xs text-slate-500 leading-relaxed mb-4">
+						<p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed mb-4">
 							Uji ekstraksi dokumen identitas (KTP & SIM) secara langsung dengan
 							synthetic fixture atau unggahan gambar.
 						</p>
@@ -387,15 +387,15 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({ onNavigate }) => {
 				</div>
 
 				{/* Card 2: API Keys */}
-				<div className="bg-white p-5 sm:p-6 rounded-xl border border-slate-200 shadow-xs flex flex-col justify-between hover:border-[#1877F2]/40 transition-colors group">
+				<div className="bg-white dark:bg-slate-900 p-5 sm:p-6 rounded-xl border border-slate-200 dark:border-white/10 flex flex-col justify-between hover:border-[#1877F2]/40 transition-colors group">
 					<div>
 						<div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center mb-4 group-hover:scale-105 transition-transform">
 							<KeyRound className="w-5 h-5" />
 						</div>
-						<h3 className="text-sm font-bold text-slate-900 mb-1">
+						<h3 className="text-sm font-bold text-slate-900 dark:text-white mb-1">
 							Kelola API Key
 						</h3>
-						<p className="text-xs text-slate-500 leading-relaxed mb-4">
+						<p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed mb-4">
 							Buat token API dengan hash SHA-256 dan izin bertingkat (scope)
 							untuk integrasi aplikasi produksi.
 						</p>
@@ -411,15 +411,15 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({ onNavigate }) => {
 				</div>
 
 				{/* Card 3: Documentation */}
-				<div className="bg-white p-5 sm:p-6 rounded-xl border border-slate-200 shadow-xs flex flex-col justify-between hover:border-[#1877F2]/40 transition-colors group">
+				<div className="bg-white dark:bg-slate-900 p-5 sm:p-6 rounded-xl border border-slate-200 dark:border-white/10 flex flex-col justify-between hover:border-[#1877F2]/40 transition-colors group">
 					<div>
 						<div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center mb-4 group-hover:scale-105 transition-transform">
 							<BookOpen className="w-5 h-5" />
 						</div>
-						<h3 className="text-sm font-bold text-slate-900 mb-1">
+						<h3 className="text-sm font-bold text-slate-900 dark:text-white mb-1">
 							Dokumentasi API
 						</h3>
-						<p className="text-xs text-slate-500 leading-relaxed mb-4">
+						<p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed mb-4">
 							Akses panduan integrasi cepat dengan snippet cURL, Go, Python,
 							Node.js, dan spesifikasi error terstandarisasi.
 						</p>

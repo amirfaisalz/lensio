@@ -136,32 +136,32 @@ export const Sidebar: React.FC<SidebarProps> = ({
 					type="button"
 					aria-label="Tutup menu navigasi"
 					onClick={onCloseMobile}
-					className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-40 lg:hidden cursor-default transition-opacity animate-in fade-in duration-200"
+					className="fixed inset-0 bg-slate-950/60 z-40 lg:hidden cursor-default"
 				/>
 			)}
 
 			{/* Sidebar / Slide-Over Drawer Container */}
 			<aside
-				className={`fixed inset-y-0 left-0 z-50 w-72 sm:w-64 bg-white border-r border-slate-200 flex flex-col shrink-0 h-screen transition-transform duration-300 ease-in-out select-none lg:sticky lg:top-0 lg:z-30 lg:h-screen lg:translate-x-0 ${
+				className={`fixed inset-y-0 left-0 z-50 w-72 sm:w-64 bg-white dark:bg-slate-950 border-r border-slate-200 dark:border-white/10 flex flex-col shrink-0 h-screen transition-transform duration-300 ease-in-out select-none lg:sticky lg:top-0 lg:z-30 lg:h-screen lg:translate-x-0 ${
 					isOpenMobile ? "translate-x-0 shadow-2xl" : "-translate-x-full"
 				}`}
 			>
 				{/* Brand Header */}
-				<div className="h-16 flex items-center justify-between px-6 border-b border-slate-100 gap-3">
+				<div className="h-16 flex items-center justify-between px-6 border-b border-slate-100 dark:border-white/10 gap-3">
 					<div className="flex items-center gap-3">
-						<div className="w-9 h-9 rounded-lg bg-[#1877F2] flex items-center justify-center text-white shadow-xs">
+						<div className="w-9 h-9 rounded-lg bg-[#1877F2] flex items-center justify-center text-white">
 							<ShieldCheck className="w-5 h-5" />
 						</div>
 						<div>
 							<div className="flex items-center gap-1.5">
-								<span className="font-bold tracking-tight text-slate-900 text-base">
+								<span className="font-bold tracking-tight text-slate-900 dark:text-white text-base">
 									Lensio
 								</span>
-								<span className="text-[10px] font-semibold uppercase px-1.5 py-0.2 bg-[#E7F3FF] text-[#1877F2] rounded border border-[#C3DCFC]">
+								<span className="text-[10px] font-semibold uppercase px-1.5 py-0.2 bg-[#E7F3FF] dark:bg-[#1877F2]/20 text-[#1877F2] dark:text-[#7aa9f5] rounded border border-[#C3DCFC] dark:border-transparent">
 									Portal
 								</span>
 							</div>
-							<p className="text-xs text-slate-500 font-medium">
+							<p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
 								Identity OCR Service
 							</p>
 						</div>
@@ -172,7 +172,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 						type="button"
 						aria-label="Tutup navigasi"
 						onClick={onCloseMobile}
-						className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 lg:hidden cursor-pointer transition-colors"
+						className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/10 lg:hidden cursor-pointer transition-colors"
 					>
 						<X className="w-5 h-5" />
 					</button>
@@ -180,7 +180,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
 				{/* Environment & Connection status bar */}
 				<div className="px-4 pt-4 pb-2">
-					<div className="bg-slate-50 border border-slate-200 rounded-lg p-2.5 flex items-center justify-between text-xs">
+					<div className="bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl p-2.5 flex items-center justify-between text-xs">
 						<div className="flex items-center gap-2">
 							<span
 								className={`w-2 h-2 rounded-full ${
@@ -189,15 +189,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
 										: "bg-rose-500 ring-2 ring-rose-100"
 								}`}
 							/>
-							<span className="font-medium text-slate-700">
+							<span className="font-medium text-slate-700 dark:text-slate-300">
 								{isHealthy ? "API Online" : "API Connecting"}
 							</span>
 						</div>
 						<span
 							className={`font-semibold uppercase text-[10px] px-2 py-0.5 rounded ${
 								environment === "live"
-									? "bg-emerald-100 text-emerald-800"
-									: "bg-amber-100 text-amber-800"
+									? "bg-emerald-100 dark:bg-emerald-500/15 text-emerald-800 dark:text-emerald-300"
+									: "bg-amber-100 dark:bg-amber-500/15 text-amber-800 dark:text-amber-300"
 							}`}
 						>
 							{environment}
@@ -221,12 +221,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
 								}}
 								className={`w-full flex items-center gap-3 px-3 py-2.5 sm:py-2 text-sm font-medium rounded-lg transition-colors cursor-pointer ${
 									isActive
-										? "bg-[#E7F3FF] text-[#1877F2] font-semibold"
-										: "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+										? "bg-[#E7F3FF] dark:bg-white/10 text-[#1877F2] dark:text-white font-semibold"
+										: "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-white/5"
 								}`}
 							>
 								<Icon
-									className={`w-4 h-4 shrink-0 ${isActive ? "text-[#1877F2]" : "text-slate-400"}`}
+									className={`w-4 h-4 shrink-0 ${isActive ? "text-[#1877F2] dark:text-[#60a5fa]" : "text-slate-400 dark:text-slate-500"}`}
 								/>
 								<span>{item.label}</span>
 							</button>
@@ -237,16 +237,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
 				{/* Organization Switcher Dropdown at Bottom */}
 				<div
 					ref={dropdownRef}
-					className="p-3 border-t border-slate-100 bg-slate-50/70 relative"
+					className="p-3 border-t border-slate-100 dark:border-white/10 bg-slate-50/70 dark:bg-white/[0.02] relative"
 				>
 					{/* Dropdown Popover Menu */}
 					{isOrgDropdownOpen && (
-						<div className="absolute bottom-full mb-2 left-3 right-3 bg-white rounded-xl shadow-xl border border-slate-200 py-1.5 z-50 animate-in fade-in zoom-in-95 duration-150">
-							<div className="px-3 py-1.5 border-b border-slate-100 flex items-center justify-between">
-								<span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+						<div className="absolute bottom-full mb-2 left-3 right-3 bg-white dark:bg-slate-900 rounded-xl shadow-xl border border-slate-200 dark:border-white/10 py-1.5 z-50">
+							<div className="px-3 py-1.5 border-b border-slate-100 dark:border-white/10 flex items-center justify-between">
+								<span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
 									Organisasi
 								</span>
-								<span className="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.2 rounded-full font-medium">
+								<span className="text-[10px] bg-slate-100 dark:bg-white/10 text-slate-600 dark:text-slate-300 px-1.5 py-0.2 rounded-full font-medium">
 									{organizations.length}
 								</span>
 							</div>
@@ -264,26 +264,26 @@ export const Sidebar: React.FC<SidebarProps> = ({
 											}}
 											className={`w-full flex items-center justify-between px-3 py-2 text-left text-xs transition-colors cursor-pointer ${
 												isSelected
-													? "bg-[#E7F3FF] text-[#1877F2] font-semibold"
-													: "text-slate-700 hover:bg-slate-50"
+													? "bg-[#E7F3FF] dark:bg-white/10 text-[#1877F2] dark:text-white font-semibold"
+													: "text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5"
 											}`}
 										>
 											<div className="min-w-0 pr-2">
 												<p className="truncate text-xs font-semibold">
 													{org.name}
 												</p>
-												<span className="text-[10px] uppercase font-mono px-1 py-0.2 rounded bg-slate-100 text-slate-600">
+												<span className="text-[10px] uppercase font-mono px-1 py-0.2 rounded bg-slate-100 dark:bg-white/10 text-slate-600 dark:text-slate-300">
 													{org.planCode}
 												</span>
 											</div>
 											{isSelected && (
-												<Check className="w-4 h-4 text-[#1877F2] shrink-0 ml-1" />
+												<Check className="w-4 h-4 text-[#1877F2] dark:text-[#60a5fa] shrink-0 ml-1" />
 											)}
 										</button>
 									);
 								})}
 								{organizations.length === 0 && (
-									<div className="px-3 py-2 text-xs text-slate-400 italic text-center">
+									<div className="px-3 py-2 text-xs text-slate-400 dark:text-slate-500 italic text-center">
 										Belum ada organisasi
 									</div>
 								)}
@@ -311,39 +311,39 @@ export const Sidebar: React.FC<SidebarProps> = ({
 						onClick={() => setIsOrgDropdownOpen((prev) => !prev)}
 						aria-expanded={isOrgDropdownOpen}
 						aria-label="Ganti organisasi"
-						className="w-full p-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-left transition-colors cursor-pointer flex items-center justify-between gap-2 shadow-xs group"
+						className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-white/5 hover:bg-slate-50 dark:hover:bg-white/10 text-left transition-colors cursor-pointer flex items-center justify-between gap-2 group"
 					>
 						<div className="flex items-center gap-2.5 min-w-0">
-							<div className="w-8 h-8 rounded-lg bg-[#E7F3FF] text-[#1877F2] flex items-center justify-center shrink-0">
+							<div className="w-8 h-8 rounded-lg bg-[#E7F3FF] dark:bg-[#1877F2]/20 text-[#1877F2] dark:text-[#7aa9f5] flex items-center justify-center shrink-0">
 								<Building2 className="w-4 h-4" />
 							</div>
 							<div className="min-w-0 flex-1">
 								<div className="flex items-center gap-1.5">
-									<span className="truncate font-bold text-xs text-slate-900">
+									<span className="truncate font-bold text-xs text-slate-900 dark:text-white">
 										{currentOrg?.name || "Pilih Organisasi"}
 									</span>
 									{currentOrg?.planCode && (
-										<span className="text-[9px] font-bold uppercase px-1.5 py-0.2 rounded bg-slate-100 text-slate-600 shrink-0">
+										<span className="text-[9px] font-bold uppercase px-1.5 py-0.2 rounded bg-slate-100 dark:bg-white/10 text-slate-600 dark:text-slate-300 shrink-0">
 											{currentOrg.planCode}
 										</span>
 									)}
 								</div>
-								<p className="truncate text-[10px] text-slate-500 font-mono mt-0.5">
+								<p className="truncate text-[10px] text-slate-400 font-mono mt-0.5">
 									{oidcUser?.email ||
 										(apiKey ? `${apiKey.slice(0, 10)}••••` : "dev@lensio.dev")}
 								</p>
 							</div>
 						</div>
-						<ChevronsUpDown className="w-4 h-4 text-slate-400 group-hover:text-slate-600 shrink-0 ml-1" />
+						<ChevronsUpDown className="w-4 h-4 text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300 shrink-0 ml-1" />
 					</button>
 				</div>
 
 				{/* Footer Version & Info Bar */}
-				<div className="px-4 py-2.5 border-t border-slate-200/60 bg-slate-50/50 flex items-center justify-between text-[11px] text-slate-400">
+				<div className="px-4 py-2.5 border-t border-slate-200/60 dark:border-white/10 bg-slate-50/50 dark:bg-white/[0.02] flex items-center justify-between text-[11px] text-slate-500">
 					<span className="font-medium">Lensio Dashboard</span>
 					<span
 						data-testid="app-version-footer"
-						className="font-mono text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded border border-slate-200 font-semibold"
+						className="font-mono text-[10px] bg-slate-100 dark:bg-white/10 text-slate-600 dark:text-slate-300 px-1.5 py-0.5 rounded border border-slate-200 dark:border-white/10 font-semibold"
 					>
 						v{APP_VERSION}
 					</span>
@@ -357,14 +357,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
 				title="Buat Organisasi Baru"
 			>
 				<form onSubmit={handleCreateOrg} className="space-y-3">
-					<p className="text-xs text-slate-600">
+					<p className="text-xs text-slate-600 dark:text-slate-400">
 						Setiap organisasi memiliki kuota, API key, dan tim yang terisolasi.
 					</p>
 
 					<div>
 						<label
 							htmlFor="sidebar-new-org-name"
-							className="block text-xs font-semibold text-slate-700 mb-1"
+							className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1"
 						>
 							Nama Organisasi / Perusahaan
 						</label>
@@ -376,7 +376,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 								placeholder="misal: PT Fintech Nusantara"
 								value={newOrgName}
 								onChange={(e) => setNewOrgName(e.target.value)}
-								className="w-full pl-9 pr-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-hidden focus:border-[#1877F2] focus:ring-2 focus:ring-[#1877F2]/20"
+								className="w-full pl-9 pr-3 py-2.5 text-sm border border-slate-300 dark:border-white/15 rounded-lg focus:outline-none focus:border-[#1877F2] focus:ring-2 focus:ring-[#1877F2]/25"
 							/>
 						</div>
 					</div>
@@ -384,7 +384,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 					<div>
 						<label
 							htmlFor="sidebar-org-plan"
-							className="block text-xs font-semibold text-slate-700 mb-1"
+							className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1"
 						>
 							Paket Berlangganan
 						</label>
@@ -392,7 +392,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 							id="sidebar-org-plan"
 							value={newOrgPlan}
 							onChange={(e) => setNewOrgPlan(e.target.value)}
-							className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg bg-white focus:outline-hidden focus:border-[#1877F2] focus:ring-2 focus:ring-[#1877F2]/20"
+							className="w-full px-3 py-2.5 text-sm border border-slate-300 dark:border-white/15 rounded-lg bg-white dark:bg-slate-800 focus:outline-none focus:border-[#1877F2] focus:ring-2 focus:ring-[#1877F2]/25"
 						>
 							<option value="free">
 								Free Tier (100 req/bulan, 10 req/min) - Gratis
@@ -410,7 +410,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 						<button
 							type="button"
 							onClick={() => setIsCreateOrgModalOpen(false)}
-							className="px-3 py-2 text-xs font-medium text-slate-600 hover:text-slate-800 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors cursor-pointer"
+							className="px-3 py-2 text-xs font-medium text-slate-600 hover:text-slate-800 dark:text-slate-300 dark:hover:text-white bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-lg hover:bg-slate-50 dark:hover:bg-white/10 transition-colors cursor-pointer"
 						>
 							Batal
 						</button>

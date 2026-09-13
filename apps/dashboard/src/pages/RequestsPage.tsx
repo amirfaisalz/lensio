@@ -97,32 +97,32 @@ export const RequestsPage: React.FC = () => {
 
 	if (auth !== undefined && !currentOrg) {
 		return (
-			<div className="space-y-6 animate-in fade-in duration-200">
+			<div className="space-y-6">
 				<div>
-					<h2 className="text-xl font-bold text-slate-900 tracking-tight">
+					<h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">
 						Live Request Logs
 					</h2>
-					<p className="text-xs text-slate-500">
+					<p className="text-xs text-slate-500 dark:text-slate-400">
 						Audit trail and real-time inspection for every OCR processing
 						request.
 					</p>
 				</div>
 
-				<div className="bg-white rounded-2xl border border-slate-200 p-8 sm:p-14 text-center max-w-xl mx-auto shadow-xs my-8">
-					<div className="w-16 h-16 rounded-2xl bg-[#E7F3FF] text-[#1877F2] flex items-center justify-center mx-auto mb-4 shadow-xs">
+				<div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-white/10 p-8 sm:p-14 text-center max-w-xl mx-auto my-8">
+					<div className="w-16 h-16 rounded-2xl bg-[#E7F3FF] dark:bg-[#1877F2]/20 text-[#1877F2] dark:text-[#7aa9f5] flex items-center justify-center mx-auto mb-4">
 						<Building2 className="w-8 h-8" />
 					</div>
-					<h3 className="text-lg font-bold text-slate-900 tracking-tight">
+					<h3 className="text-lg font-bold text-slate-900 dark:text-white tracking-tight">
 						Organisasi Diperlukan
 					</h3>
-					<p className="text-xs text-slate-600 mt-2 leading-relaxed max-w-md mx-auto">
+					<p className="text-xs text-slate-600 dark:text-slate-400 mt-2 leading-relaxed max-w-md mx-auto">
 						Anda belum memiliki organisasi. Buat atau pilih organisasi terlebih
 						dahulu untuk melihat riwayat log permintaan OCR.
 					</p>
 					<button
 						type="button"
 						onClick={() => setIsOrgModalOpen(true)}
-						className="mt-6 inline-flex items-center gap-2 px-4 py-2.5 text-xs font-semibold text-white bg-[#1877F2] hover:bg-[#166FE5] rounded-xl shadow-xs transition-colors cursor-pointer"
+						className="mt-6 inline-flex items-center gap-2 px-4 py-2.5 text-xs font-semibold text-white bg-[#1877F2] hover:bg-[#166FE5] rounded-xl transition-colors cursor-pointer"
 					>
 						<Plus className="w-4 h-4" />
 						<span>Buat Organisasi Sekarang</span>
@@ -136,14 +136,14 @@ export const RequestsPage: React.FC = () => {
 					title="Buat Organisasi Baru"
 				>
 					<form onSubmit={handleCreateOrg} className="space-y-4">
-						<p className="text-xs text-slate-600">
+						<p className="text-xs text-slate-600 dark:text-slate-400">
 							Tentukan nama organisasi untuk mengaktifkan kuota API dan log
 							permintaan.
 						</p>
 						<div>
 							<label
 								htmlFor="new-org-name"
-								className="block text-xs font-medium text-slate-700 mb-1"
+								className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1"
 							>
 								Nama Organisasi
 							</label>
@@ -154,13 +154,13 @@ export const RequestsPage: React.FC = () => {
 								value={newOrgName}
 								onChange={(e) => setNewOrgName(e.target.value)}
 								placeholder="contoh: PT Teknologi Maju"
-								className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-[#1877F2]/20 focus:border-[#1877F2]"
+								className="w-full px-3 py-2.5 text-sm border border-slate-300 dark:border-white/15 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1877F2]/25 focus:border-[#1877F2]"
 							/>
 						</div>
 						<div>
 							<label
 								htmlFor="new-org-plan"
-								className="block text-xs font-medium text-slate-700 mb-1"
+								className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1"
 							>
 								Paket Berlangganan
 							</label>
@@ -168,7 +168,7 @@ export const RequestsPage: React.FC = () => {
 								id="new-org-plan"
 								value={newOrgPlan}
 								onChange={(e) => setNewOrgPlan(e.target.value)}
-								className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-[#1877F2]/20 focus:border-[#1877F2]"
+								className="w-full px-3 py-2.5 text-sm border border-slate-300 dark:border-white/15 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1877F2]/25 focus:border-[#1877F2]"
 							>
 								<option value="free">Free (100 req/bln)</option>
 								<option value="starter">Starter (1.000 req/bln)</option>
@@ -180,7 +180,7 @@ export const RequestsPage: React.FC = () => {
 							<button
 								type="button"
 								onClick={() => setIsOrgModalOpen(false)}
-								className="px-3 py-2 text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors cursor-pointer"
+								className="px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-300 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors cursor-pointer"
 							>
 								Batal
 							</button>
@@ -201,7 +201,7 @@ export const RequestsPage: React.FC = () => {
 	const getStatusBadge = (code: number) => {
 		if (code >= 200 && code < 300) {
 			return (
-				<span className="inline-flex items-center gap-1 text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded text-xs font-semibold tabular-nums">
+				<span className="inline-flex items-center gap-1 text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 px-2 py-0.5 rounded text-xs font-semibold tabular-nums">
 					<CheckCircle2 className="w-3 h-3 text-emerald-600" />
 					{code} OK
 				</span>
@@ -209,14 +209,14 @@ export const RequestsPage: React.FC = () => {
 		}
 		if (code >= 400 && code < 500) {
 			return (
-				<span className="inline-flex items-center gap-1 text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded text-xs font-semibold tabular-nums">
+				<span className="inline-flex items-center gap-1 text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 px-2 py-0.5 rounded text-xs font-semibold tabular-nums">
 					<AlertTriangle className="w-3 h-3 text-amber-600" />
 					{code}
 				</span>
 			);
 		}
 		return (
-			<span className="inline-flex items-center gap-1 text-rose-700 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded text-xs font-semibold tabular-nums">
+			<span className="inline-flex items-center gap-1 text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/20 px-2 py-0.5 rounded text-xs font-semibold tabular-nums">
 				<XCircle className="w-3 h-3 text-rose-600" />
 				{code}
 			</span>
@@ -227,14 +227,14 @@ export const RequestsPage: React.FC = () => {
 	const currentPage = Math.floor(offset / limit) + 1;
 
 	return (
-		<div className="space-y-6 animate-in fade-in duration-200">
+		<div className="space-y-6">
 			{/* Header */}
 			<div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
 				<div>
-					<h2 className="text-xl font-bold text-slate-900 tracking-tight">
+					<h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">
 						Requests Explorer
 					</h2>
-					<p className="text-xs text-slate-500">
+					<p className="text-xs text-slate-500 dark:text-slate-400">
 						Audit trail of API requests with status codes, latency, and non-PII
 						execution metadata.
 					</p>
@@ -244,7 +244,7 @@ export const RequestsPage: React.FC = () => {
 					type="button"
 					onClick={loadRecords}
 					disabled={isLoading}
-					className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors w-full sm:w-auto cursor-pointer"
+					className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300 bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-lg hover:bg-slate-50 dark:hover:bg-white/10 transition-colors w-full sm:w-auto cursor-pointer"
 				>
 					<RefreshCw
 						className={`w-3.5 h-3.5 ${isLoading ? "animate-spin" : ""}`}
@@ -254,7 +254,7 @@ export const RequestsPage: React.FC = () => {
 			</div>
 
 			{error && (
-				<div className="p-4 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 flex items-center justify-between">
+				<div className="p-4 bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/20 rounded-xl text-xs text-rose-700 dark:text-rose-300 flex items-center justify-between">
 					<span>{error}</span>
 					<button
 						type="button"
@@ -267,11 +267,13 @@ export const RequestsPage: React.FC = () => {
 			)}
 
 			{/* Filter Bar */}
-			<div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+			<div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
 				<div className="flex flex-col xs:flex-row items-stretch xs:items-center gap-2.5 w-full sm:w-auto">
 					{/* Status Code Filter */}
 					<div className="flex items-center gap-2">
-						<span className="text-slate-500 font-medium shrink-0">Status:</span>
+						<span className="text-slate-500 dark:text-slate-400 font-medium shrink-0">
+							Status:
+						</span>
 						<select
 							value={statusCodeFilter ?? ""}
 							onChange={(e) => {
@@ -279,7 +281,7 @@ export const RequestsPage: React.FC = () => {
 								setStatusCodeFilter(val);
 								setOffset(0);
 							}}
-							className="px-2.5 py-1.5 border border-slate-300 rounded-lg text-xs bg-white text-slate-800 focus:outline-hidden focus:border-[#1877F2] w-full xs:w-auto cursor-pointer"
+							className="px-2.5 py-1.5 border border-slate-300 dark:border-white/15 rounded-lg text-xs bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 focus:outline-none focus:border-[#1877F2] focus:ring-2 focus:ring-[#1877F2]/25 w-full xs:w-auto cursor-pointer"
 						>
 							<option value="">All Statuses</option>
 							<option value="200">200 OK</option>
@@ -295,7 +297,9 @@ export const RequestsPage: React.FC = () => {
 
 					{/* Endpoint text filter */}
 					<div className="flex items-center gap-2">
-						<span className="text-slate-500 font-medium shrink-0">Route:</span>
+						<span className="text-slate-500 dark:text-slate-400 font-medium shrink-0">
+							Route:
+						</span>
 						<input
 							type="text"
 							placeholder="e.g. /api/v1/ocr/ktp, /api/v1/ocr/sim"
@@ -304,22 +308,22 @@ export const RequestsPage: React.FC = () => {
 								setEndpointFilter(e.target.value.trim());
 								setOffset(0);
 							}}
-							className="px-2.5 py-1.5 border border-slate-300 rounded-lg text-xs font-mono bg-white text-slate-800 focus:outline-hidden focus:border-[#1877F2] w-full xs:w-auto"
+							className="px-2.5 py-1.5 border border-slate-300 dark:border-white/15 rounded-lg text-xs font-mono bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 focus:outline-none focus:border-[#1877F2] focus:ring-2 focus:ring-[#1877F2]/25 w-full xs:w-auto"
 						/>
 					</div>
 				</div>
 
-				<div className="text-xs text-slate-500 tabular-nums">
+				<div className="text-xs text-slate-500 dark:text-slate-400 tabular-nums">
 					Showing <strong className="text-slate-800">{records.length}</strong>{" "}
 					of {total.toLocaleString()} records
 				</div>
 			</div>
 
 			{/* Requests Table */}
-			<div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
+			<div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-white/10 overflow-hidden">
 				<div className="overflow-x-auto">
-					<table className="w-full text-left text-xs text-slate-600 min-w-[660px]">
-						<thead className="bg-slate-50 border-b border-slate-200 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+					<table className="w-full text-left text-xs text-slate-600 dark:text-slate-400 min-w-[660px]">
+						<thead className="bg-slate-50 dark:bg-white/5 border-b border-slate-200 dark:border-white/10 text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
 							<tr>
 								<th className="px-6 py-3.5">Status</th>
 								<th className="px-6 py-3.5">Endpoint</th>
@@ -329,7 +333,7 @@ export const RequestsPage: React.FC = () => {
 								<th className="px-6 py-3.5 text-right">Details</th>
 							</tr>
 						</thead>
-						<tbody className="divide-y divide-slate-100 font-medium">
+						<tbody className="divide-y divide-slate-100 dark:divide-white/10 font-medium">
 							{isLoading ? (
 								<tr>
 									<td colSpan={6} className="px-6 py-8">
@@ -340,7 +344,7 @@ export const RequestsPage: React.FC = () => {
 								<tr>
 									<td
 										colSpan={6}
-										className="px-6 py-12 text-center text-slate-400"
+										className="px-6 py-12 text-center text-slate-400 dark:text-slate-500"
 									>
 										No matching requests found.
 									</td>
@@ -350,21 +354,21 @@ export const RequestsPage: React.FC = () => {
 									<tr
 										key={r.id}
 										onClick={() => setSelectedRecord(r)}
-										className="hover:bg-slate-50/80 cursor-pointer transition-colors"
+										className="hover:bg-slate-50/80 dark:hover:bg-white/5 cursor-pointer transition-colors"
 									>
 										<td className="px-6 py-3.5">
 											{getStatusBadge(r.status_code)}
 										</td>
-										<td className="px-6 py-3.5 font-mono font-semibold text-slate-900">
+										<td className="px-6 py-3.5 font-mono font-semibold text-slate-900 dark:text-white">
 											{r.endpoint}
 										</td>
-										<td className="px-6 py-3.5 font-mono text-[11px] text-slate-500">
+										<td className="px-6 py-3.5 font-mono text-[11px] text-slate-500 dark:text-slate-400">
 											{r.request_id || "n/a"}
 										</td>
-										<td className="px-6 py-3.5 font-mono text-slate-700 tabular-nums">
+										<td className="px-6 py-3.5 font-mono text-slate-700 dark:text-slate-300 tabular-nums">
 											{r.latency_ms} ms
 										</td>
-										<td className="px-6 py-3.5 text-slate-500 tabular-nums">
+										<td className="px-6 py-3.5 text-slate-500 dark:text-slate-400 tabular-nums">
 											{new Date(r.timestamp).toLocaleDateString(undefined, {
 												month: "short",
 												day: "numeric",
@@ -380,7 +384,7 @@ export const RequestsPage: React.FC = () => {
 													e.stopPropagation();
 													setSelectedRecord(r);
 												}}
-												className="text-slate-400 hover:text-[#1877F2] p-1 rounded hover:bg-slate-100 transition-colors"
+												className="text-slate-400 dark:text-slate-500 hover:text-[#1877F2] p-1 rounded hover:bg-slate-100 dark:hover:bg-white/10 transition-colors"
 												title="View request details"
 											>
 												<Eye className="w-4 h-4" />
@@ -394,7 +398,7 @@ export const RequestsPage: React.FC = () => {
 				</div>
 
 				{/* Pagination Footer */}
-				<div className="px-4 sm:px-6 py-3.5 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between text-xs text-slate-500">
+				<div className="px-4 sm:px-6 py-3.5 border-t border-slate-100 dark:border-white/10 bg-slate-50/50 dark:bg-white/[0.02] flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
 					<div>
 						Page <strong className="text-slate-800">{currentPage}</strong> of{" "}
 						{totalPages}
@@ -405,7 +409,7 @@ export const RequestsPage: React.FC = () => {
 							type="button"
 							disabled={offset === 0 || isLoading}
 							onClick={() => setOffset(Math.max(0, offset - limit))}
-							className="p-2 sm:p-1.5 border border-slate-200 bg-white rounded-md disabled:opacity-40 hover:bg-slate-50 transition-colors cursor-pointer"
+							className="p-2 sm:p-1.5 border border-slate-200 dark:border-white/10 bg-white dark:bg-white/5 rounded-md disabled:opacity-40 hover:bg-slate-50 dark:hover:bg-white/10 transition-colors cursor-pointer"
 						>
 							<ChevronLeft className="w-4 h-4" />
 						</button>
@@ -413,7 +417,7 @@ export const RequestsPage: React.FC = () => {
 							type="button"
 							disabled={offset + limit >= total || isLoading}
 							onClick={() => setOffset(offset + limit)}
-							className="p-2 sm:p-1.5 border border-slate-200 bg-white rounded-md disabled:opacity-40 hover:bg-slate-50 transition-colors cursor-pointer"
+							className="p-2 sm:p-1.5 border border-slate-200 dark:border-white/10 bg-white dark:bg-white/5 rounded-md disabled:opacity-40 hover:bg-slate-50 dark:hover:bg-white/10 transition-colors cursor-pointer"
 						>
 							<ChevronRight className="w-4 h-4" />
 						</button>
@@ -431,55 +435,65 @@ export const RequestsPage: React.FC = () => {
 						<button
 							type="button"
 							onClick={() => setSelectedRecord(null)}
-							className="w-full sm:w-auto px-4 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 cursor-pointer text-center"
+							className="w-full sm:w-auto px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 cursor-pointer text-center"
 						>
 							Close
 						</button>
 					}
 				>
 					<div className="space-y-4">
-						<div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-200">
-							<span className="text-xs text-slate-500">HTTP Status</span>
+						<div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-white/5 rounded-lg border border-slate-200 dark:border-white/10">
+							<span className="text-xs text-slate-500 dark:text-slate-400">
+								HTTP Status
+							</span>
 							{getStatusBadge(selectedRecord.status_code)}
 						</div>
 
 						<div className="space-y-2 text-xs">
-							<div className="flex items-center justify-between py-1 border-b border-slate-100 gap-2">
-								<span className="text-slate-500 shrink-0">Request ID</span>
-								<span className="font-mono text-slate-900 font-semibold break-all text-right">
+							<div className="flex items-center justify-between py-1 border-b border-slate-100 dark:border-white/10 gap-2">
+								<span className="text-slate-500 dark:text-slate-400 shrink-0">
+									Request ID
+								</span>
+								<span className="font-mono text-slate-900 dark:text-white font-semibold break-all text-right">
 									{selectedRecord.request_id}
 								</span>
 							</div>
-							<div className="flex items-center justify-between py-1 border-b border-slate-100 gap-2">
-								<span className="text-slate-500 shrink-0">Target Endpoint</span>
-								<span className="font-mono text-slate-900 break-all text-right">
+							<div className="flex items-center justify-between py-1 border-b border-slate-100 dark:border-white/10 gap-2">
+								<span className="text-slate-500 dark:text-slate-400 shrink-0">
+									Target Endpoint
+								</span>
+								<span className="font-mono text-slate-900 dark:text-white break-all text-right">
 									{selectedRecord.endpoint}
 								</span>
 							</div>
-							<div className="flex items-center justify-between py-1 border-b border-slate-100 gap-2">
-								<span className="text-slate-500 shrink-0">
+							<div className="flex items-center justify-between py-1 border-b border-slate-100 dark:border-white/10 gap-2">
+								<span className="text-slate-500 dark:text-slate-400 shrink-0">
 									Execution Latency
 								</span>
-								<span className="font-mono text-slate-900">
+								<span className="font-mono text-slate-900 dark:text-white">
 									{selectedRecord.latency_ms} ms
 								</span>
 							</div>
-							<div className="flex items-center justify-between py-1 border-b border-slate-100 gap-2">
-								<span className="text-slate-500 shrink-0">Timestamp</span>
-								<span className="font-mono text-slate-900 text-right">
+							<div className="flex items-center justify-between py-1 border-b border-slate-100 dark:border-white/10 gap-2">
+								<span className="text-slate-500 dark:text-slate-400 shrink-0">
+									Timestamp
+								</span>
+								<span className="font-mono text-slate-900 dark:text-white text-right">
 									{new Date(selectedRecord.timestamp).toISOString()}
 								</span>
 							</div>
-							<div className="flex items-center justify-between py-1 border-b border-slate-100 gap-2">
-								<span className="text-slate-500 shrink-0">API Key UUID</span>
-								<span className="font-mono text-slate-700 break-all text-right">
+							<div className="flex items-center justify-between py-1 border-b border-slate-100 dark:border-white/10 gap-2">
+								<span className="text-slate-500 dark:text-slate-400 shrink-0">
+									API Key UUID
+								</span>
+								<span className="font-mono text-slate-700 dark:text-slate-300 break-all text-right">
 									{selectedRecord.api_key_id || "System / Direct"}
 								</span>
 							</div>
 						</div>
 
 						{/* Privacy note */}
-						<div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg flex items-start gap-2 text-xs text-emerald-800">
+						<div className="p-3 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 rounded-lg flex items-start gap-2 text-xs text-emerald-800 dark:text-emerald-300">
 							<ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
 							<div>
 								<strong>Strict Privacy & Data Minimization:</strong> Raw images

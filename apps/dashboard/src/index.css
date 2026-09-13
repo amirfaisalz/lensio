@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
 	--color-fb-blue: #1877f2;
 	--color-fb-hover: #166fe5;
@@ -18,9 +20,14 @@
 	font-weight: 400;
 	color: #050505;
 	background-color: #f0f2f5;
+	color-scheme: light;
 	text-rendering: optimizeLegibility;
 	-webkit-font-smoothing: antialiased;
 	-moz-osx-font-smoothing: grayscale;
+}
+
+.dark {
+	color-scheme: dark;
 }
 
 body {
@@ -29,6 +36,47 @@ body {
 	min-height: 100vh;
 	background-color: #f0f2f5;
 	color: #050505;
+}
+
+/* Browser surfaces carry the design: themed selection, caret, placeholder */
+::selection {
+	background: #1877f2;
+	color: #ffffff;
+}
+
+input,
+textarea,
+select {
+	caret-color: #1877f2;
+}
+
+input::placeholder,
+textarea::placeholder {
+	color: #94a3b8;
+	opacity: 1;
+}
+
+/* Single authored motion: document scan beam, transform-only */
+@media (prefers-reduced-motion: no-preference) {
+	@keyframes lensio-scan {
+		0% {
+			transform: translateY(-120%);
+			opacity: 0;
+		}
+		12% {
+			opacity: 1;
+		}
+		88% {
+			opacity: 1;
+		}
+		100% {
+			transform: translateY(420%);
+			opacity: 0;
+		}
+	}
+	.scan-beam {
+		animation: lensio-scan 4.5s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+	}
 }
 
 /* Tabular figures for data tables, metrics, and timestamps */
@@ -67,4 +115,11 @@ pre,
 }
 ::-webkit-scrollbar-thumb:hover {
 	background: #94a3b8;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+	background: #334155;
+}
+.dark ::-webkit-scrollbar-thumb:hover {
+	background: #475569;
 }

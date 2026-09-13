@@ -12,6 +12,7 @@ import {
 import { Header } from "./components/layout/Header";
 import { type NavigationPage, Sidebar } from "./components/layout/Sidebar";
 import { AuthProvider, useAuth } from "./context/AuthContext";
+import { ThemeProvider } from "./context/ThemeContext";
 import { AccountPage } from "./pages/AccountPage";
 import { APIKeysPage } from "./pages/APIKeysPage";
 import { DocsPage } from "./pages/DocsPage";
@@ -120,7 +121,7 @@ export const DashboardLayout: React.FC = () => {
 	const meta = pageMeta[currentPage];
 
 	return (
-		<div className="flex min-h-screen bg-[#F0F2F5] text-slate-900 font-sans antialiased">
+		<div className="flex min-h-screen bg-[#F0F2F5] dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans antialiased">
 			{/* Sidebar navigation (responsive drawer on mobile, sticky on desktop) */}
 			<Sidebar
 				currentPage={currentPage}
@@ -157,7 +158,7 @@ export const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({
 		return (
 			<div
 				data-testid="auth-loading"
-				className="flex min-h-screen items-center justify-center bg-[#F0F2F5]"
+				className="flex min-h-screen items-center justify-center bg-[#F0F2F5] dark:bg-slate-950"
 			>
 				<div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#1877F2]" />
 			</div>
@@ -181,7 +182,7 @@ export const PublicOnlyRoute: React.FC<{
 		return (
 			<div
 				data-testid="auth-loading"
-				className="flex min-h-screen items-center justify-center bg-[#F0F2F5]"
+				className="flex min-h-screen items-center justify-center bg-[#F0F2F5] dark:bg-slate-950"
 			>
 				<div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#1877F2]" />
 			</div>
@@ -202,7 +203,7 @@ export const RootRedirect: React.FC = () => {
 		return (
 			<div
 				data-testid="auth-loading"
-				className="flex min-h-screen items-center justify-center bg-[#F0F2F5]"
+				className="flex min-h-screen items-center justify-center bg-[#F0F2F5] dark:bg-slate-950"
 			>
 				<div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#1877F2]" />
 			</div>
@@ -262,11 +263,13 @@ export const AppRoutes: React.FC = () => {
 
 export const App: React.FC = () => {
 	return (
-		<AuthProvider>
-			<BrowserRouter>
-				<AppRoutes />
-			</BrowserRouter>
-		</AuthProvider>
+		<ThemeProvider>
+			<AuthProvider>
+				<BrowserRouter>
+					<AppRoutes />
+				</BrowserRouter>
+			</AuthProvider>
+		</ThemeProvider>
 	);
 };
 

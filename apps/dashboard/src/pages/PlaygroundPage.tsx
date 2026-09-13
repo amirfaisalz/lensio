@@ -107,24 +107,24 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({
 
 	if (!currentOrg) {
 		return (
-			<div className="space-y-6 animate-in fade-in duration-200">
+			<div className="space-y-6">
 				<div>
-					<h2 className="text-xl font-bold text-slate-900 tracking-tight">
+					<h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">
 						Live OCR Playground
 					</h2>
-					<p className="text-xs text-slate-500">
+					<p className="text-xs text-slate-500 dark:text-slate-400">
 						Interactive test harness for Indonesian identity documents.
 					</p>
 				</div>
 
-				<div className="bg-white rounded-xl border border-slate-200 p-8 text-center max-w-lg mx-auto shadow-xs">
-					<div className="w-12 h-12 rounded-xl bg-[#E7F3FF] text-[#1877F2] flex items-center justify-center mx-auto mb-4">
+				<div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-white/10 p-8 text-center max-w-lg mx-auto">
+					<div className="w-12 h-12 rounded-xl bg-[#E7F3FF] dark:bg-[#1877F2]/20 text-[#1877F2] dark:text-[#7aa9f5] flex items-center justify-center mx-auto mb-4">
 						<Building2 className="w-6 h-6" />
 					</div>
-					<h3 className="text-base font-bold text-slate-900 mb-1">
+					<h3 className="text-base font-bold text-slate-900 dark:text-white mb-1">
 						Pilih atau Buat Organisasi
 					</h3>
-					<p className="text-xs text-slate-500 mb-6 leading-relaxed">
+					<p className="text-xs text-slate-500 dark:text-slate-400 mb-6 leading-relaxed">
 						Playground memerlukan organisasi aktif untuk pengujian OCR dan
 						pelacakan kuota bulanan.
 					</p>
@@ -141,14 +141,14 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({
 	}
 
 	return (
-		<div className="space-y-6 animate-in fade-in duration-200">
+		<div className="space-y-6">
 			{/* Page Header */}
 			<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
 				<div>
-					<h2 className="text-xl font-bold text-slate-900 tracking-tight">
+					<h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">
 						Live OCR Playground
 					</h2>
-					<p className="text-xs text-slate-500">
+					<p className="text-xs text-slate-500 dark:text-slate-400">
 						Interactive test harness for Indonesian KTP & SIM document
 						extraction with synthetic fixtures.
 					</p>
@@ -156,7 +156,7 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({
 
 				{/* Document Switcher & Fixture Button */}
 				<div className="flex items-center gap-2.5">
-					<div className="flex items-center bg-slate-200/70 p-0.5 rounded-lg text-xs font-semibold">
+					<div className="flex items-center bg-slate-200/70 dark:bg-white/10 p-0.5 rounded-lg text-xs font-semibold">
 						<button
 							type="button"
 							onClick={() => {
@@ -167,8 +167,8 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({
 							}}
 							className={`px-3 py-1 rounded-md transition-all cursor-pointer ${
 								docType === "ktp"
-									? "bg-white text-[#1877F2] shadow-xs"
-									: "text-slate-600 hover:text-slate-900"
+									? "bg-white dark:bg-slate-700 text-[#1877F2] dark:text-white"
+									: "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:text-white dark:hover:text-white"
 							}`}
 						>
 							KTP
@@ -183,8 +183,8 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({
 							}}
 							className={`px-3 py-1 rounded-md transition-all cursor-pointer ${
 								docType === "sim"
-									? "bg-white text-[#1877F2] shadow-xs"
-									: "text-slate-600 hover:text-slate-900"
+									? "bg-white dark:bg-slate-700 text-[#1877F2] dark:text-white"
+									: "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:text-white dark:hover:text-white"
 							}`}
 						>
 							SIM
@@ -194,7 +194,7 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({
 						type="button"
 						onClick={handleLoadSyntheticSample}
 						disabled={ocrLoading}
-						className="inline-flex items-center justify-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-[#1877F2] bg-[#E7F3FF] hover:bg-[#d5eaff] rounded-lg transition-colors cursor-pointer"
+						className="inline-flex items-center justify-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-[#1877F2] dark:text-[#7aa9f5] bg-[#E7F3FF] dark:bg-[#1877F2]/20 hover:bg-[#d5eaff] dark:hover:bg-[#1877F2]/30 rounded-lg transition-colors cursor-pointer"
 					>
 						<FileCheck className="w-3.5 h-3.5" />
 						<span>Load Synthetic Fixture</span>
@@ -204,7 +204,7 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({
 
 			{/* Missing API Key Warning */}
 			{!apiKey && (
-				<div className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
+				<div className="p-4 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 rounded-xl text-xs text-amber-800 dark:text-amber-300 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
 					<div className="flex items-center gap-2.5">
 						<KeyRound className="w-4 h-4 text-amber-600 shrink-0" />
 						<span>
@@ -223,19 +223,19 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({
 			)}
 
 			{/* Main Playground Workspace Card */}
-			<div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
+			<div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-white/10 overflow-hidden">
 				<div className="p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
 					{/* Left: File Drop Zone */}
 					<div>
 						<label
 							htmlFor="ktp-file-input"
-							className="border-2 border-dashed border-slate-300 hover:border-[#1877F2] rounded-xl p-8 flex flex-col items-center justify-center text-center cursor-pointer transition-colors bg-slate-50/50 hover:bg-[#F0F2F5]/50 min-h-[220px]"
+							className="border-2 border-dashed border-slate-300 dark:border-white/20 hover:border-[#1877F2] rounded-xl p-8 flex flex-col items-center justify-center text-center cursor-pointer transition-colors bg-slate-50/50 dark:bg-white/5 hover:bg-[#F0F2F5]/50 dark:hover:bg-white/10 min-h-[220px]"
 						>
-							<Upload className="w-8 h-8 text-slate-400 mb-3" />
-							<p className="text-sm font-semibold text-slate-700">
+							<Upload className="w-8 h-8 text-slate-400 dark:text-slate-500 mb-3" />
+							<p className="text-sm font-semibold text-slate-700 dark:text-slate-300">
 								Click to upload or drag & drop
 							</p>
-							<p className="text-xs text-slate-500 mt-1">
+							<p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
 								Upload Indonesian {docType === "sim" ? "SIM" : "KTP"} image
 								(JPEG, PNG, max 5MB)
 							</p>
@@ -253,7 +253,7 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({
 						</label>
 
 						{selectedFileName && (
-							<div className="mt-3 flex items-center justify-between px-3 py-2 bg-slate-50 rounded-lg border border-slate-200 text-xs text-slate-600">
+							<div className="mt-3 flex items-center justify-between px-3 py-2 bg-slate-50 dark:bg-white/5 rounded-lg border border-slate-200 dark:border-white/10 text-xs text-slate-600 dark:text-slate-400">
 								<span className="truncate font-mono">{selectedFileName}</span>
 								{ocrLoading && (
 									<RefreshCw className="w-3.5 h-3.5 animate-spin text-[#1877F2]" />
@@ -262,7 +262,7 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({
 						)}
 
 						{ocrError && (
-							<div className="mt-3 p-3 bg-rose-50 border border-rose-200 rounded-lg text-xs text-rose-700 flex items-start gap-2">
+							<div className="mt-3 p-3 bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/20 rounded-lg text-xs text-rose-700 dark:text-rose-300 flex items-start gap-2">
 								<AlertTriangle className="w-4 h-4 text-rose-500 shrink-0 mt-0.5" />
 								<span>
 									<strong>Error:</strong> {ocrError}
@@ -273,7 +273,7 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({
 
 					{/* Right: Results JSON Viewer */}
 					<div className="bg-slate-900 text-slate-100 rounded-xl p-4 flex flex-col font-mono text-[11px] sm:text-xs overflow-hidden min-h-[260px] max-h-[420px]">
-						<div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-800 text-slate-400 text-[11px]">
+						<div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-800 text-slate-400 dark:text-slate-500 text-[11px]">
 							<span>RESPONSE PAYLOAD</span>
 							{ocrResult && (
 								<span className="text-emerald-400">
@@ -287,7 +287,7 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({
 
 						<div className="flex-1 overflow-y-auto">
 							{ocrLoading ? (
-								<div className="h-full flex items-center justify-center text-slate-500 py-16">
+								<div className="h-full flex items-center justify-center text-slate-500 dark:text-slate-400 py-16">
 									<RefreshCw className="w-5 h-5 animate-spin mr-2 text-[#1877F2]" />
 									<span>
 										Processing {docType === "sim" ? "SIM" : "KTP"} OCR
@@ -299,9 +299,9 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({
 									{JSON.stringify(ocrResult, null, 2)}
 								</pre>
 							) : (
-								<div className="h-full flex flex-col items-center justify-center text-slate-500 py-16 text-center">
+								<div className="h-full flex flex-col items-center justify-center text-slate-500 dark:text-slate-400 py-16 text-center">
 									<p>No document submitted yet.</p>
-									<p className="text-[11px] text-slate-600 mt-1">
+									<p className="text-[11px] text-slate-600 dark:text-slate-400 mt-1">
 										Upload a {docType === "sim" ? "SIM" : "KTP"} image or click
 										"Load Synthetic Fixture" above.
 									</p>
@@ -313,85 +313,87 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({
 
 				{/* Extracted Structured Field Inspector */}
 				{ocrResult?.data && (
-					<div className="px-4 sm:px-6 py-4 bg-slate-50/80 border-t border-slate-100">
-						<h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-3">
+					<div className="px-4 sm:px-6 py-4 bg-slate-50/80 dark:bg-white/[0.02] border-t border-slate-100 dark:border-white/10">
+						<h4 className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-3">
 							Normalized Field Verification (
 							{"nomor_sim" in ocrResult.data ? "SIM" : "KTP"})
 						</h4>
 						{"nomor_sim" in ocrResult.data ? (
 							<div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-3 text-xs">
-								<div className="bg-white p-2.5 rounded border border-slate-200">
-									<span className="text-slate-400 block text-[10px] uppercase font-semibold">
+								<div className="bg-white dark:bg-slate-800 p-2.5 rounded border border-slate-200 dark:border-white/10">
+									<span className="text-slate-400 dark:text-slate-500 block text-[10px] uppercase font-semibold">
 										Nomor SIM
 									</span>
-									<span className="font-mono font-bold text-slate-900">
+									<span className="font-mono font-bold text-slate-900 dark:text-white">
 										{ocrResult.data.nomor_sim}
 									</span>
 								</div>
-								<div className="bg-white p-2.5 rounded border border-slate-200">
-									<span className="text-slate-400 block text-[10px] uppercase font-semibold">
+								<div className="bg-white dark:bg-slate-800 p-2.5 rounded border border-slate-200 dark:border-white/10">
+									<span className="text-slate-400 dark:text-slate-500 block text-[10px] uppercase font-semibold">
 										Golongan
 									</span>
-									<span className="font-semibold text-slate-900">
+									<span className="font-semibold text-slate-900 dark:text-white">
 										{ocrResult.data.golongan}
 									</span>
 								</div>
-								<div className="bg-white p-2.5 rounded border border-slate-200">
-									<span className="text-slate-400 block text-[10px] uppercase font-semibold">
+								<div className="bg-white dark:bg-slate-800 p-2.5 rounded border border-slate-200 dark:border-white/10">
+									<span className="text-slate-400 dark:text-slate-500 block text-[10px] uppercase font-semibold">
 										Nama
 									</span>
-									<span className="font-semibold text-slate-900 truncate block">
+									<span className="font-semibold text-slate-900 dark:text-white truncate block">
 										{ocrResult.data.nama}
 									</span>
 								</div>
-								<div className="bg-white p-2.5 rounded border border-slate-200">
-									<span className="text-slate-400 block text-[10px] uppercase font-semibold">
+								<div className="bg-white dark:bg-slate-800 p-2.5 rounded border border-slate-200 dark:border-white/10">
+									<span className="text-slate-400 dark:text-slate-500 block text-[10px] uppercase font-semibold">
 										Tanggal Lahir
 									</span>
-									<span className="font-mono text-slate-900">
+									<span className="font-mono text-slate-900 dark:text-white">
 										{ocrResult.data.tanggal_lahir}
 									</span>
 								</div>
-								<div className="bg-white p-2.5 rounded border border-slate-200">
-									<span className="text-slate-400 block text-[10px] uppercase font-semibold">
+								<div className="bg-white dark:bg-slate-800 p-2.5 rounded border border-slate-200 dark:border-white/10">
+									<span className="text-slate-400 dark:text-slate-500 block text-[10px] uppercase font-semibold">
 										Jenis Kelamin
 									</span>
-									<span className="text-slate-900">
+									<span className="text-slate-900 dark:text-white">
 										{ocrResult.data.jenis_kelamin}
 									</span>
 								</div>
-								<div className="bg-white p-2.5 rounded border border-slate-200">
-									<span className="text-slate-400 block text-[10px] uppercase font-semibold">
+								<div className="bg-white dark:bg-slate-800 p-2.5 rounded border border-slate-200 dark:border-white/10">
+									<span className="text-slate-400 dark:text-slate-500 block text-[10px] uppercase font-semibold">
 										Golongan Darah
 									</span>
-									<span className="text-slate-900">
+									<span className="text-slate-900 dark:text-white">
 										{ocrResult.data.golongan_darah}
 									</span>
 								</div>
 								<div className="bg-white p-2.5 rounded border border-slate-200 sm:col-span-2">
-									<span className="text-slate-400 block text-[10px] uppercase font-semibold">
+									<span className="text-slate-400 dark:text-slate-500 block text-[10px] uppercase font-semibold">
 										Alamat
 									</span>
-									<span className="text-slate-900 truncate block">
+									<span className="text-slate-900 dark:text-white truncate block">
 										{ocrResult.data.alamat}
 									</span>
 								</div>
-								<div className="bg-white p-2.5 rounded border border-slate-200">
-									<span className="text-slate-400 block text-[10px] uppercase font-semibold">
+								<div className="bg-white dark:bg-slate-800 p-2.5 rounded border border-slate-200 dark:border-white/10">
+									<span className="text-slate-400 dark:text-slate-500 block text-[10px] uppercase font-semibold">
 										Pekerjaan
 									</span>
-									<span className="text-slate-900">
+									<span className="text-slate-900 dark:text-white">
 										{ocrResult.data.pekerjaan}
 									</span>
 								</div>
-								<div className="bg-white p-2.5 rounded border border-slate-200">
-									<span className="text-slate-400 block text-[10px] uppercase font-semibold">
+								<div className="bg-white dark:bg-slate-800 p-2.5 rounded border border-slate-200 dark:border-white/10">
+									<span className="text-slate-400 dark:text-slate-500 block text-[10px] uppercase font-semibold">
 										Polda
 									</span>
-									<span className="text-slate-900">{ocrResult.data.polda}</span>
+									<span className="text-slate-900 dark:text-white">
+										{ocrResult.data.polda}
+									</span>
 								</div>
-								<div className="bg-white p-2.5 rounded border border-slate-200">
-									<span className="text-slate-400 block text-[10px] uppercase font-semibold">
+								<div className="bg-white dark:bg-slate-800 p-2.5 rounded border border-slate-200 dark:border-white/10">
+									<span className="text-slate-400 dark:text-slate-500 block text-[10px] uppercase font-semibold">
 										Masa Berlaku
 									</span>
 									<span className="font-mono text-emerald-600 font-semibold">
@@ -401,57 +403,59 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({
 							</div>
 						) : (
 							<div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-3 text-xs">
-								<div className="bg-white p-2.5 rounded border border-slate-200">
-									<span className="text-slate-400 block text-[10px] uppercase font-semibold">
+								<div className="bg-white dark:bg-slate-800 p-2.5 rounded border border-slate-200 dark:border-white/10">
+									<span className="text-slate-400 dark:text-slate-500 block text-[10px] uppercase font-semibold">
 										NIK
 									</span>
-									<span className="font-mono font-bold text-slate-900">
+									<span className="font-mono font-bold text-slate-900 dark:text-white">
 										{ocrResult.data.nik}
 									</span>
 								</div>
-								<div className="bg-white p-2.5 rounded border border-slate-200">
-									<span className="text-slate-400 block text-[10px] uppercase font-semibold">
+								<div className="bg-white dark:bg-slate-800 p-2.5 rounded border border-slate-200 dark:border-white/10">
+									<span className="text-slate-400 dark:text-slate-500 block text-[10px] uppercase font-semibold">
 										Nama
 									</span>
-									<span className="font-semibold text-slate-900 truncate block">
+									<span className="font-semibold text-slate-900 dark:text-white truncate block">
 										{ocrResult.data.nama}
 									</span>
 								</div>
-								<div className="bg-white p-2.5 rounded border border-slate-200">
-									<span className="text-slate-400 block text-[10px] uppercase font-semibold">
+								<div className="bg-white dark:bg-slate-800 p-2.5 rounded border border-slate-200 dark:border-white/10">
+									<span className="text-slate-400 dark:text-slate-500 block text-[10px] uppercase font-semibold">
 										Tanggal Lahir
 									</span>
-									<span className="font-mono text-slate-900">
+									<span className="font-mono text-slate-900 dark:text-white">
 										{ocrResult.data.tanggal_lahir}
 									</span>
 								</div>
-								<div className="bg-white p-2.5 rounded border border-slate-200">
-									<span className="text-slate-400 block text-[10px] uppercase font-semibold">
+								<div className="bg-white dark:bg-slate-800 p-2.5 rounded border border-slate-200 dark:border-white/10">
+									<span className="text-slate-400 dark:text-slate-500 block text-[10px] uppercase font-semibold">
 										Jenis Kelamin
 									</span>
-									<span className="text-slate-900">
+									<span className="text-slate-900 dark:text-white">
 										{ocrResult.data.jenis_kelamin}
 									</span>
 								</div>
 								<div className="bg-white p-2.5 rounded border border-slate-200 sm:col-span-2">
-									<span className="text-slate-400 block text-[10px] uppercase font-semibold">
+									<span className="text-slate-400 dark:text-slate-500 block text-[10px] uppercase font-semibold">
 										Alamat
 									</span>
-									<span className="text-slate-900 truncate block">
+									<span className="text-slate-900 dark:text-white truncate block">
 										{ocrResult.data.alamat}
 									</span>
 								</div>
-								<div className="bg-white p-2.5 rounded border border-slate-200">
-									<span className="text-slate-400 block text-[10px] uppercase font-semibold">
+								<div className="bg-white dark:bg-slate-800 p-2.5 rounded border border-slate-200 dark:border-white/10">
+									<span className="text-slate-400 dark:text-slate-500 block text-[10px] uppercase font-semibold">
 										Agama
 									</span>
-									<span className="text-slate-900">{ocrResult.data.agama}</span>
+									<span className="text-slate-900 dark:text-white">
+										{ocrResult.data.agama}
+									</span>
 								</div>
-								<div className="bg-white p-2.5 rounded border border-slate-200">
-									<span className="text-slate-400 block text-[10px] uppercase font-semibold">
+								<div className="bg-white dark:bg-slate-800 p-2.5 rounded border border-slate-200 dark:border-white/10">
+									<span className="text-slate-400 dark:text-slate-500 block text-[10px] uppercase font-semibold">
 										Status Perkawinan
 									</span>
-									<span className="text-slate-900">
+									<span className="text-slate-900 dark:text-white">
 										{ocrResult.data.status_perkawinan}
 									</span>
 								</div>

@@ -150,14 +150,14 @@ console.log(data);`,
 	];
 
 	return (
-		<div className="space-y-8 animate-in fade-in duration-200">
+		<div className="space-y-6">
 			{/* Top Banner */}
 			<div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
 				<div>
-					<h2 className="text-xl font-bold text-slate-900 tracking-tight">
+					<h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">
 						API Documentation & Quickstart
 					</h2>
-					<p className="text-xs text-slate-500">
+					<p className="text-xs text-slate-500 dark:text-slate-400">
 						Developer integration guide, code samples in multiple languages, and
 						standardized error schemas.
 					</p>
@@ -167,7 +167,7 @@ console.log(data);`,
 					href="/docs"
 					target="_blank"
 					rel="noopener noreferrer"
-					className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-[#1877F2] bg-[#E7F3FF] hover:bg-[#d5eaff] rounded-lg transition-colors w-full sm:w-auto"
+					className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-[#1877F2] dark:text-[#7aa9f5] bg-[#E7F3FF] dark:bg-[#1877F2]/20 hover:bg-[#d5eaff] dark:hover:bg-[#1877F2]/30 rounded-lg transition-colors w-full sm:w-auto"
 				>
 					<BookOpen className="w-4 h-4" />
 					<span>Interactive OpenAPI Docs (/docs)</span>
@@ -196,7 +196,7 @@ console.log(data);`,
 									className={`px-2.5 py-1 rounded transition-colors cursor-pointer uppercase font-semibold ${
 										docType === type
 											? "bg-[#1877F2] text-white"
-											: "text-slate-400 hover:text-slate-200"
+											: "text-slate-400 dark:text-slate-500 hover:text-slate-200"
 									}`}
 								>
 									{type}
@@ -215,7 +215,7 @@ console.log(data);`,
 									className={`px-3 py-1 rounded transition-colors cursor-pointer ${
 										activeTab === lang
 											? "bg-slate-700 text-white font-semibold"
-											: "text-slate-400 hover:text-slate-200"
+											: "text-slate-400 dark:text-slate-500 hover:text-slate-200"
 									}`}
 								>
 									{lang}
@@ -226,7 +226,7 @@ console.log(data);`,
 						<button
 							type="button"
 							onClick={handleCopySnippet}
-							className="p-1.5 text-slate-400 hover:text-white rounded hover:bg-slate-800 transition-colors flex items-center gap-1 text-xs cursor-pointer shrink-0"
+							className="p-1.5 text-slate-400 dark:text-slate-500 hover:text-white rounded hover:bg-slate-800 transition-colors flex items-center gap-1 text-xs cursor-pointer shrink-0"
 							title="Copy snippet"
 						>
 							{copied ? (
@@ -247,13 +247,13 @@ console.log(data);`,
 			</div>
 
 			{/* Standardized Error Codes Reference */}
-			<div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
+			<div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-white/10 overflow-hidden">
 				<div className="px-4 sm:px-6 py-4 border-b border-slate-100 flex items-center justify-between">
 					<div>
-						<h3 className="text-sm font-semibold text-slate-900">
+						<h3 className="text-sm font-semibold text-slate-900 dark:text-white">
 							Standardized API Error Codes
 						</h3>
-						<p className="text-xs text-slate-500">
+						<p className="text-xs text-slate-500 dark:text-slate-400">
 							Every error response conforms to the standard PRD Section 20 error
 							envelope.
 						</p>
@@ -261,29 +261,29 @@ console.log(data);`,
 				</div>
 
 				<div className="overflow-x-auto">
-					<table className="w-full text-left text-xs text-slate-600 min-w-[500px]">
-						<thead className="bg-slate-50 border-b border-slate-200 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+					<table className="w-full text-left text-xs text-slate-600 dark:text-slate-400 min-w-[500px]">
+						<thead className="bg-slate-50 dark:bg-white/5 border-b border-slate-200 dark:border-white/10 text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
 							<tr>
 								<th className="px-6 py-3.5">Error Code</th>
 								<th className="px-6 py-3.5">HTTP Status</th>
 								<th className="px-6 py-3.5">Description & Recovery</th>
 							</tr>
 						</thead>
-						<tbody className="divide-y divide-slate-100 font-medium">
+						<tbody className="divide-y divide-slate-100 dark:divide-white/10 font-medium">
 							{errorCodes.map((err) => (
 								<tr
 									key={err.code}
-									className="hover:bg-slate-50/80 transition-colors"
+									className="hover:bg-slate-50/80 dark:hover:bg-white/5 transition-colors"
 								>
-									<td className="px-6 py-3.5 font-mono font-bold text-slate-900">
-										<span className="bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+									<td className="px-6 py-3.5 font-mono font-bold text-slate-900 dark:text-white">
+										<span className="bg-slate-100 dark:bg-white/10 px-2 py-0.5 rounded border border-slate-200 dark:border-white/10">
 											{err.code}
 										</span>
 									</td>
-									<td className="px-6 py-3.5 font-mono text-slate-700">
+									<td className="px-6 py-3.5 font-mono text-slate-700 dark:text-slate-300">
 										{err.status}
 									</td>
-									<td className="px-6 py-3.5 text-slate-600">
+									<td className="px-6 py-3.5 text-slate-600 dark:text-slate-400">
 										{err.description}
 									</td>
 								</tr>
@@ -294,36 +294,36 @@ console.log(data);`,
 			</div>
 
 			{/* Standard Response Headers */}
-			<div className="bg-white p-6 rounded-xl border border-slate-200 shadow-xs">
-				<h3 className="text-sm font-semibold text-slate-900 mb-2">
+			<div className="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-white/10">
+				<h3 className="text-sm font-semibold text-slate-900 dark:text-white mb-2">
 					Platform Headers
 				</h3>
-				<p className="text-xs text-slate-500 mb-4">
+				<p className="text-xs text-slate-500 dark:text-slate-400 mb-4">
 					Every API response returns standard metadata and rate limit tracking
 					headers:
 				</p>
 				<div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-mono">
-					<div className="p-3 bg-slate-50 rounded-lg border border-slate-200">
+					<div className="p-3 bg-slate-50 dark:bg-white/5 rounded-lg border border-slate-200 dark:border-white/10">
 						<strong className="text-[#1877F2]">X-Request-ID</strong>
-						<p className="font-sans text-[11px] text-slate-600 mt-1">
+						<p className="font-sans text-[11px] text-slate-600 dark:text-slate-400 mt-1">
 							Unique request correlation identifier (e.g. req_01JABC...).
 						</p>
 					</div>
-					<div className="p-3 bg-slate-50 rounded-lg border border-slate-200">
+					<div className="p-3 bg-slate-50 dark:bg-white/5 rounded-lg border border-slate-200 dark:border-white/10">
 						<strong className="text-[#1877F2]">X-RateLimit-Limit</strong>
-						<p className="font-sans text-[11px] text-slate-600 mt-1">
+						<p className="font-sans text-[11px] text-slate-600 dark:text-slate-400 mt-1">
 							Maximum allowed requests per minute on your current plan.
 						</p>
 					</div>
-					<div className="p-3 bg-slate-50 rounded-lg border border-slate-200">
+					<div className="p-3 bg-slate-50 dark:bg-white/5 rounded-lg border border-slate-200 dark:border-white/10">
 						<strong className="text-[#1877F2]">X-RateLimit-Remaining</strong>
-						<p className="font-sans text-[11px] text-slate-600 mt-1">
+						<p className="font-sans text-[11px] text-slate-600 dark:text-slate-400 mt-1">
 							Remaining quota units in current 60-second window.
 						</p>
 					</div>
-					<div className="p-3 bg-slate-50 rounded-lg border border-slate-200">
+					<div className="p-3 bg-slate-50 dark:bg-white/5 rounded-lg border border-slate-200 dark:border-white/10">
 						<strong className="text-[#1877F2]">Retry-After</strong>
-						<p className="font-sans text-[11px] text-slate-600 mt-1">
+						<p className="font-sans text-[11px] text-slate-600 dark:text-slate-400 mt-1">
 							Seconds to wait before resending after a 429 response.
 						</p>
 					</div>

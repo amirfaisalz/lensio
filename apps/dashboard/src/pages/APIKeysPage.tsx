@@ -137,24 +137,24 @@ export const APIKeysPage: React.FC = () => {
 	// REQUIREMENT 4: EMPTY STATE WHEN NO ORGANIZATION EXISTS
 	if (!currentOrg) {
 		return (
-			<div className="space-y-6 animate-in fade-in duration-200">
+			<div className="space-y-6">
 				<div>
-					<h2 className="text-xl font-bold text-slate-900 tracking-tight">
+					<h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">
 						API Key Management
 					</h2>
-					<p className="text-xs text-slate-500">
+					<p className="text-xs text-slate-500 dark:text-slate-400">
 						Securely generate, scope, and manage authentication credentials.
 					</p>
 				</div>
 
-				<div className="bg-white rounded-2xl border border-slate-200 p-8 sm:p-14 text-center max-w-xl mx-auto shadow-xs my-8">
-					<div className="w-16 h-16 rounded-2xl bg-[#E7F3FF] text-[#1877F2] flex items-center justify-center mx-auto mb-4 shadow-xs">
+				<div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-white/10 p-8 sm:p-14 text-center max-w-xl mx-auto my-8">
+					<div className="w-16 h-16 rounded-2xl bg-[#E7F3FF] dark:bg-[#1877F2]/20 text-[#1877F2] dark:text-[#7aa9f5] flex items-center justify-center mx-auto mb-4">
 						<Building2 className="w-8 h-8" />
 					</div>
-					<h3 className="text-lg font-bold text-slate-900 tracking-tight">
+					<h3 className="text-lg font-bold text-slate-900 dark:text-white tracking-tight">
 						Organisasi Diperlukan
 					</h3>
-					<p className="text-xs text-slate-600 mt-2 leading-relaxed max-w-md mx-auto">
+					<p className="text-xs text-slate-600 dark:text-slate-400 mt-2 leading-relaxed max-w-md mx-auto">
 						Anda harus membuat atau memilih organisasi terlebih dahulu sebelum
 						dapat membuat API Key. Setiap API Key terikat pada kuota bulanan dan
 						kebijakan keamanan organisasi Anda.
@@ -162,7 +162,7 @@ export const APIKeysPage: React.FC = () => {
 					<button
 						type="button"
 						onClick={() => setIsOrgModalOpen(true)}
-						className="mt-6 inline-flex items-center gap-2 px-4 py-2.5 text-xs font-semibold text-white bg-[#1877F2] hover:bg-[#166FE5] rounded-xl shadow-xs transition-colors cursor-pointer"
+						className="mt-6 inline-flex items-center gap-2 px-4 py-2.5 text-xs font-semibold text-white bg-[#1877F2] hover:bg-[#166FE5] rounded-xl transition-colors cursor-pointer"
 					>
 						<Plus className="w-4 h-4" />
 						<span>Buat Organisasi Sekarang</span>
@@ -176,7 +176,7 @@ export const APIKeysPage: React.FC = () => {
 					title="Buat Organisasi Baru"
 				>
 					<form onSubmit={handleCreateOrg} className="space-y-4">
-						<p className="text-xs text-slate-600">
+						<p className="text-xs text-slate-600 dark:text-slate-400">
 							Tentukan nama organisasi untuk mengaktifkan kuota API dan
 							pembuatan API Key.
 						</p>
@@ -184,19 +184,19 @@ export const APIKeysPage: React.FC = () => {
 						<div>
 							<label
 								htmlFor="apikey-new-org-name"
-								className="block text-xs font-semibold text-slate-700 mb-1"
+								className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1"
 							>
 								Nama Organisasi / Perusahaan
 							</label>
 							<div className="relative">
-								<Building2 className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+								<Building2 className="w-4 h-4 text-slate-400 dark:text-slate-500 absolute left-3 top-2.5" />
 								<input
 									id="apikey-new-org-name"
 									type="text"
 									placeholder="misal: PT Fintech Nusantara"
 									value={newOrgName}
 									onChange={(e) => setNewOrgName(e.target.value)}
-									className="w-full pl-9 pr-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-hidden focus:border-[#1877F2] focus:ring-2 focus:ring-[#1877F2]/20"
+									className="w-full pl-9 pr-3 py-2.5 text-sm border border-slate-300 dark:border-white/15 rounded-lg focus:outline-none focus:border-[#1877F2] focus:ring-2 focus:ring-[#1877F2]/25"
 								/>
 							</div>
 						</div>
@@ -204,7 +204,7 @@ export const APIKeysPage: React.FC = () => {
 						<div>
 							<label
 								htmlFor="apikey-org-plan"
-								className="block text-xs font-semibold text-slate-700 mb-1"
+								className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1"
 							>
 								Paket Langganan
 							</label>
@@ -212,7 +212,7 @@ export const APIKeysPage: React.FC = () => {
 								id="apikey-org-plan"
 								value={newOrgPlan}
 								onChange={(e) => setNewOrgPlan(e.target.value)}
-								className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg bg-white focus:outline-hidden focus:border-[#1877F2] focus:ring-2 focus:ring-[#1877F2]/20"
+								className="w-full px-3 py-2.5 text-sm border border-slate-300 dark:border-white/15 rounded-lg bg-white dark:bg-slate-800 focus:outline-none focus:border-[#1877F2] focus:ring-2 focus:ring-[#1877F2]/25"
 							>
 								<option value="free">
 									Free Tier (100 req/bulan, 10 req/min) - Gratis
@@ -230,7 +230,7 @@ export const APIKeysPage: React.FC = () => {
 							<button
 								type="button"
 								onClick={() => setIsOrgModalOpen(false)}
-								className="px-3 py-2 text-xs font-medium text-slate-600 hover:text-slate-800 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
+								className="px-3 py-2 text-xs font-medium text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-white bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-lg hover:bg-slate-50 dark:hover:bg-white/10 transition-colors"
 							>
 								Batal
 							</button>
@@ -249,14 +249,14 @@ export const APIKeysPage: React.FC = () => {
 	}
 
 	return (
-		<div className="space-y-6 animate-in fade-in duration-200">
+		<div className="space-y-6">
 			{/* Top Banner */}
 			<div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
 				<div>
-					<h2 className="text-xl font-bold text-slate-900 tracking-tight">
+					<h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">
 						API Key Management
 					</h2>
-					<p className="text-xs text-slate-500">
+					<p className="text-xs text-slate-500 dark:text-slate-400">
 						Organisasi aktif:{" "}
 						<strong className="text-slate-800">{currentOrg.name}</strong> •
 						Kelola token otentikasi aplikasi Anda.
@@ -268,7 +268,7 @@ export const APIKeysPage: React.FC = () => {
 						type="button"
 						onClick={loadKeys}
 						disabled={isLoading}
-						className="p-2 text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors cursor-pointer"
+						className="p-2 text-slate-600 dark:text-slate-400 bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-lg hover:bg-slate-50 dark:hover:bg-white/10 transition-colors cursor-pointer"
 						title="Refresh keys list"
 					>
 						<RefreshCw
@@ -279,7 +279,7 @@ export const APIKeysPage: React.FC = () => {
 					<button
 						type="button"
 						onClick={() => setIsCreateModalOpen(true)}
-						className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-[#1877F2] hover:bg-[#166FE5] rounded-lg shadow-xs transition-colors cursor-pointer flex-1 sm:flex-initial"
+						className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-[#1877F2] hover:bg-[#166FE5] rounded-lg transition-colors cursor-pointer flex-1 sm:flex-initial"
 					>
 						<Plus className="w-4 h-4" />
 						<span>Create New Key</span>
@@ -288,7 +288,7 @@ export const APIKeysPage: React.FC = () => {
 			</div>
 
 			{error && (
-				<div className="p-4 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 flex items-center justify-between">
+				<div className="p-4 bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/20 rounded-xl text-xs text-rose-700 flex items-center justify-between">
 					<span>{error}</span>
 					<button
 						type="button"
@@ -301,10 +301,10 @@ export const APIKeysPage: React.FC = () => {
 			)}
 
 			{/* Keys Table Container */}
-			<div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
+			<div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-white/10 overflow-hidden">
 				<div className="overflow-x-auto">
-					<table className="w-full text-left text-xs text-slate-600 min-w-[680px]">
-						<thead className="bg-slate-50 border-b border-slate-200 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+					<table className="w-full text-left text-xs text-slate-600 dark:text-slate-400 min-w-[680px]">
+						<thead className="bg-slate-50 dark:bg-white/5 border-b border-slate-200 dark:border-white/10 text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
 							<tr>
 								<th className="px-6 py-3.5">Name</th>
 								<th className="px-6 py-3.5">Key Prefix</th>
@@ -315,7 +315,7 @@ export const APIKeysPage: React.FC = () => {
 								<th className="px-6 py-3.5 text-right">Actions</th>
 							</tr>
 						</thead>
-						<tbody className="divide-y divide-slate-100 font-medium">
+						<tbody className="divide-y divide-slate-100 dark:divide-white/10 font-medium">
 							{isLoading ? (
 								<tr>
 									<td colSpan={7} className="px-6 py-8">
@@ -326,20 +326,20 @@ export const APIKeysPage: React.FC = () => {
 								<tr>
 									<td
 										colSpan={7}
-										className="px-6 py-12 text-center text-slate-500"
+										className="px-6 py-12 text-center text-slate-500 dark:text-slate-400"
 									>
 										<KeyRound className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-										<p className="font-semibold text-slate-700">
+										<p className="font-semibold text-slate-700 dark:text-slate-300">
 											Belum Ada API Key
 										</p>
-										<p className="text-xs text-slate-400 mt-1">
+										<p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
 											Organisasi &apos;{currentOrg.name}&apos; belum memiliki
 											API Key aktif.
 										</p>
 										<button
 											type="button"
 											onClick={() => setIsCreateModalOpen(true)}
-											className="mt-4 inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-white bg-[#1877F2] hover:bg-[#166FE5] rounded-lg shadow-xs transition-colors cursor-pointer"
+											className="mt-4 inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-white bg-[#1877F2] hover:bg-[#166FE5] rounded-lg transition-colors cursor-pointer"
 										>
 											<Plus className="w-3.5 h-3.5" />
 											<span>Buat API Key Pertama</span>
@@ -356,17 +356,17 @@ export const APIKeysPage: React.FC = () => {
 									return (
 										<tr
 											key={k.id}
-											className="hover:bg-slate-50/80 transition-colors"
+											className="hover:bg-slate-50/80 dark:hover:bg-white/5 transition-colors"
 										>
 											<td className="px-6 py-4">
-												<span className="font-semibold text-slate-900 block">
+												<span className="font-semibold text-slate-900 dark:text-white block">
 													{k.name}
 												</span>
-												<span className="text-[10px] text-slate-400 font-mono">
+												<span className="text-[10px] text-slate-400 dark:text-slate-500 font-mono">
 													ID: {k.id.slice(0, 8)}...
 												</span>
 											</td>
-											<td className="px-6 py-4 font-mono font-medium text-slate-700">
+											<td className="px-6 py-4 font-mono font-medium text-slate-700 dark:text-slate-300">
 												{k.masked_key || `${k.prefix}••••••••`}
 											</td>
 											<td className="px-6 py-4">
@@ -383,7 +383,7 @@ export const APIKeysPage: React.FC = () => {
 													{k.scopes.map((s) => (
 														<span
 															key={s}
-															className="px-1.5 py-0.5 rounded text-[10px] bg-slate-100 text-slate-600 font-mono"
+															className="px-1.5 py-0.5 rounded text-[10px] bg-slate-100 dark:bg-white/10 text-slate-600 dark:text-slate-300 font-mono"
 														>
 															{s}
 														</span>
@@ -399,7 +399,7 @@ export const APIKeysPage: React.FC = () => {
 													<Badge variant="success">Active</Badge>
 												)}
 											</td>
-											<td className="px-6 py-4 text-slate-500 tabular-nums">
+											<td className="px-6 py-4 text-slate-500 dark:text-slate-400 tabular-nums">
 												{k.last_used_at
 													? new Date(k.last_used_at).toLocaleDateString(
 															undefined,
@@ -443,7 +443,7 @@ export const APIKeysPage: React.FC = () => {
 						<button
 							type="button"
 							onClick={() => setIsCreateModalOpen(false)}
-							className="px-4 py-2 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 cursor-pointer"
+							className="px-4 py-2 text-xs font-medium text-slate-700 dark:text-slate-300 bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-lg hover:bg-slate-50 dark:hover:bg-white/10 cursor-pointer"
 						>
 							Cancel
 						</button>
@@ -462,7 +462,7 @@ export const APIKeysPage: React.FC = () => {
 					<div>
 						<label
 							htmlFor="key-name"
-							className="block text-xs font-medium text-slate-700 mb-1"
+							className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1"
 						>
 							Key Description / Label
 						</label>
@@ -473,17 +473,17 @@ export const APIKeysPage: React.FC = () => {
 							placeholder="e.g. Production Backend Service"
 							value={newKeyName}
 							onChange={(e) => setNewKeyName(e.target.value)}
-							className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-hidden focus:border-[#1877F2] focus:ring-2 focus:ring-[#1877F2]/20"
+							className="w-full px-3 py-2.5 text-sm border border-slate-300 dark:border-white/15 rounded-lg focus:outline-none focus:border-[#1877F2] focus:ring-2 focus:ring-[#1877F2]/25"
 						/>
 					</div>
 
 					<div>
-						<span className="block text-xs font-medium text-slate-700 mb-1">
+						<span className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
 							Environment
 						</span>
 						<div className="grid grid-cols-2 gap-3">
 							<label
-								className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer text-xs ${newKeyEnv === "live" ? "border-[#1877F2] bg-[#E7F3FF]/40 text-[#1877F2] font-semibold" : "border-slate-200 text-slate-700"}`}
+								className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer text-xs ${newKeyEnv === "live" ? "border-[#1877F2] bg-[#E7F3FF]/40 dark:bg-[#1877F2]/15 text-[#1877F2] dark:text-[#7aa9f5] font-semibold" : "border-slate-200 dark:border-white/15 text-slate-700 dark:text-slate-300"}`}
 							>
 								<span>Live (Production)</span>
 								<input
@@ -497,7 +497,7 @@ export const APIKeysPage: React.FC = () => {
 							</label>
 
 							<label
-								className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer text-xs ${newKeyEnv === "test" ? "border-[#1877F2] bg-[#E7F3FF]/40 text-[#1877F2] font-semibold" : "border-slate-200 text-slate-700"}`}
+								className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer text-xs ${newKeyEnv === "test" ? "border-[#1877F2] bg-[#E7F3FF]/40 dark:bg-[#1877F2]/15 text-[#1877F2] dark:text-[#7aa9f5] font-semibold" : "border-slate-200 dark:border-white/15 text-slate-700 dark:text-slate-300"}`}
 							>
 								<span>Test (Sandbox)</span>
 								<input
@@ -513,7 +513,7 @@ export const APIKeysPage: React.FC = () => {
 					</div>
 
 					<div>
-						<span className="block text-xs font-medium text-slate-700 mb-2">
+						<span className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-2">
 							Assigned Scopes
 						</span>
 						<div className="space-y-2">
@@ -536,7 +536,7 @@ export const APIKeysPage: React.FC = () => {
 							].map((scope) => (
 								<label
 									key={scope.id}
-									className="flex items-start gap-2.5 p-2 rounded-md hover:bg-slate-50 cursor-pointer text-xs"
+									className="flex items-start gap-2.5 p-2 rounded-md hover:bg-slate-50 dark:hover:bg-white/5 cursor-pointer text-xs"
 								>
 									<input
 										type="checkbox"
@@ -553,10 +553,12 @@ export const APIKeysPage: React.FC = () => {
 										className="mt-0.5 accent-[#1877F2] rounded"
 									/>
 									<div>
-										<span className="font-mono font-semibold text-slate-900">
+										<span className="font-mono font-semibold text-slate-900 dark:text-white">
 											{scope.label}
 										</span>
-										<p className="text-[11px] text-slate-500">{scope.desc}</p>
+										<p className="text-[11px] text-slate-500 dark:text-slate-400">
+											{scope.desc}
+										</p>
 									</div>
 								</label>
 							))}
@@ -576,7 +578,7 @@ export const APIKeysPage: React.FC = () => {
 							<button
 								type="button"
 								onClick={handleUseCreatedKey}
-								className="px-3.5 py-2 text-xs font-semibold text-[#1877F2] bg-[#E7F3FF] hover:bg-[#d5eaff] rounded-lg transition-colors cursor-pointer text-center"
+								className="px-3.5 py-2 text-xs font-semibold text-[#1877F2] dark:text-[#7aa9f5] bg-[#E7F3FF] dark:bg-[#1877F2]/20 hover:bg-[#d5eaff] dark:hover:bg-[#1877F2]/30 rounded-lg transition-colors cursor-pointer text-center"
 							>
 								Connect in Dashboard
 							</button>
@@ -591,7 +593,7 @@ export const APIKeysPage: React.FC = () => {
 					}
 				>
 					<div className="space-y-4">
-						<div className="p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-2 text-xs text-amber-800">
+						<div className="p-3 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 rounded-lg flex items-start gap-2 text-xs text-amber-800 dark:text-amber-300">
 							<ShieldAlert className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
 							<div>
 								<strong>Important:</strong> Please copy this API key now. For
@@ -603,7 +605,7 @@ export const APIKeysPage: React.FC = () => {
 						<div>
 							<label
 								htmlFor="created-key-token"
-								className="block text-xs font-medium text-slate-700 mb-1"
+								className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1"
 							>
 								API Key Secret Token
 							</label>
@@ -613,7 +615,7 @@ export const APIKeysPage: React.FC = () => {
 									type="text"
 									readOnly
 									value={createdKeyData.key}
-									className="w-full px-3 py-2 text-xs font-mono bg-slate-50 border border-slate-300 rounded-lg select-all"
+									className="w-full px-3 py-2.5 text-sm font-mono bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-white/15 rounded-lg select-all"
 								/>
 								<button
 									type="button"
@@ -630,7 +632,7 @@ export const APIKeysPage: React.FC = () => {
 							</div>
 						</div>
 
-						<div className="text-xs text-slate-500 space-y-1 bg-slate-50 p-3 rounded-lg border border-slate-100 font-mono text-[11px]">
+						<div className="text-xs text-slate-500 dark:text-slate-400 space-y-1 bg-slate-50 dark:bg-white/5 p-3 rounded-lg border border-slate-100 dark:border-white/10 font-mono text-[11px]">
 							<div>Name: {createdKeyData.name}</div>
 							<div>Environment: {createdKeyData.environment}</div>
 							<div>Scopes: {createdKeyData.scopes.join(", ")}</div>
@@ -650,7 +652,7 @@ export const APIKeysPage: React.FC = () => {
 							<button
 								type="button"
 								onClick={() => setKeyToRevoke(null)}
-								className="px-4 py-2 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 cursor-pointer"
+								className="px-4 py-2 text-xs font-medium text-slate-700 dark:text-slate-300 bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-lg hover:bg-slate-50 dark:hover:bg-white/10 cursor-pointer"
 							>
 								Cancel
 							</button>
@@ -672,9 +674,12 @@ export const APIKeysPage: React.FC = () => {
 								Are you sure you want to revoke this key?
 							</h4>
 						</div>
-						<p className="text-xs text-slate-600 leading-relaxed">
+						<p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
 							Revoking key{" "}
-							<strong className="text-slate-900">{keyToRevoke.name}</strong> (
+							<strong className="text-slate-900 dark:text-white">
+								{keyToRevoke.name}
+							</strong>{" "}
+							(
 							<code className="font-mono text-[11px]">
 								{keyToRevoke.prefix}••••
 							</code>
