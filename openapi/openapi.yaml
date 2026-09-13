@@ -3,7 +3,7 @@ info:
   title: Lensio API
   version: 1.0.0
   description: |
-    Indonesian Identity Document OCR API as a Service (KTP & SIM).
+    Indonesian Identity Document OCR API as a Service (KTP, SIM, Passport, NPWP, KK & Invoice).
     Affordable, privacy-conscious, and production-grade identity data extraction.
 
     ### API Versioning & Contract Evolution (ADR-007)

@@ -31,7 +31,7 @@ const pageMeta: Record<NavigationPage, { title: string; subtitle: string }> = {
 	playground: {
 		title: "OCR Playground",
 		subtitle:
-			"Interactive test harness for Indonesian KTP & SIM OCR extraction",
+			"Interactive test harness for Indonesian document OCR extraction (KTP, SIM, Passport, NPWP, KK & Invoice)",
 	},
 	keys: {
 		title: "API Keys",

@@ -240,9 +240,9 @@ export const LoginPage: React.FC<LoginPageProps> = ({
 						Berperforma Tinggi
 					</h1>
 					<p className="mt-3 text-sm text-slate-400 max-w-md leading-relaxed">
-						Layanan API ekstraksi dokumen identitas (KTP & SIM) otomatis
-						berbasis Vision AI untuk industri perbankan, fintech, dan verifikasi
-						identitas di Indonesia.
+						Layanan API ekstraksi dokumen identitas (KTP, SIM, Passport, NPWP,
+						KK & Invoice) otomatis berbasis Vision AI untuk industri perbankan,
+						fintech, dan verifikasi identitas di Indonesia.
 					</p>
 				</div>
 

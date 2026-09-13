@@ -412,8 +412,8 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({ onNavigate }) => {
 							Live OCR Playground
 						</h3>
 						<p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed mb-4">
-							Uji ekstraksi dokumen identitas (KTP & SIM) secara langsung dengan
-							synthetic fixture atau unggahan gambar.
+							Uji ekstraksi dokumen (KTP, SIM, Passport, NPWP, KK & Invoice)
+							secara langsung dengan synthetic fixture atau unggahan gambar.
 						</p>
 					</div>
 					<button

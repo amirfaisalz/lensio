@@ -4,7 +4,7 @@ Lensio berlisensi MIT, tetapi penggunaan untuk pemrosesan identitas membawa tang
 
 ## Dilarang
 - Pengawasan massal, pelacakan tanpa persetujuan, atau pembangunan database identitas tanpa dasar hukum.
-- Menyimpan gambar KTP/SIM subjek di luar yang diizinkan subjek dan retensi yang dinyatakan.
+- Menyimpan gambar dokumen identitas subjek di luar yang diizinkan subjek dan retensi yang dinyatakan.
 - Mengklaim hasil OCR sebagai verifikasi Dukcapil / keputusan tunggal penolakan layanan.
 - Mengunggah KTP asli ke issue, PR, diskusi publik, atau fixture repo ini.
 

@@ -7,7 +7,7 @@
 
 ## 1. Project Identity & Purpose
 
-**Lensio** is an affordable Indonesian Identity Document OCR API (KTP & SIM) as a service. It is designed as a production-grade API product demonstrating end-to-end platform engineering:
+**Lensio** is an affordable Indonesian Identity Document OCR API (KTP, SIM, Passport, NPWP, KK & Invoice) as a service. It is designed as a production-grade API product demonstrating end-to-end platform engineering:
 - **Language & Runtime**: Go (Backend API) + React & TypeScript (Developer Dashboard)
 - **Database**: PostgreSQL 16 (Relational state, migrations via `golang-migrate`)
 - **Primary OCR Engine**: Pluggable `OCREngine` interface. Default Vision AI: **Google Gemini 2.0 Flash / 1.5 Flash** (Google AI Studio Free Tier); Default Test Engine: **MockOCREngine** (deterministic fixtures).
@@ -21,9 +21,9 @@
 
 ## 2. Current Strategic Focus (Strict MVP Scope)
 
-- **Target Documents**: **Indonesian KTP** (`POST /api/v1/ocr/ktp`) and **Indonesian SIM** (`POST /api/v1/ocr/sim`).
+- **Target Documents**: **Indonesian KTP** (`POST /api/v1/ocr/ktp`), **SIM** (`POST /api/v1/ocr/sim`), **Passport** (`POST /api/v1/ocr/passport`), **NPWP** (`POST /api/v1/ocr/npwp`), **KK** (`POST /api/v1/ocr/kk`), and **Invoice** (`POST /api/v1/ocr/invoice`).
 - **Target Platform**: API authentication, scoped API keys, rate limiting, quota enforcement, non-blocking usage metering, `/health` and `/ready` probes, OpenTelemetry instrumentation.
-- **Future Product Lines**: Passport, NPWP, KK, Invoices, and Identity Verification are explicitly deferred to post-MVP iterations. **Do not implement them now.**
+- **Future Product Lines**: Document verification, identity verification, and custom/unstructured extraction are explicitly deferred to post-MVP iterations. **Do not implement them now.**
 
 ---
 

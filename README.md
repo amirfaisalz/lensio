@@ -16,7 +16,7 @@
   <img src="https://img.shields.io/badge/license-MIT-blue?style=flat-square" alt="License" />
 </p>
 
-> **Lensio is a developer-first Indonesian Identity Document OCR API (KTP & SIM) — secure, rate-limited, observable, and production-ready.**
+> **Lensio is a developer-first Indonesian Identity Document OCR API (KTP, SIM, Passport, NPWP, KK & Invoice) — secure, rate-limited, observable, and production-ready.**
 
 The interesting part is not OCR, but **everything around the API**: cryptographic key management, token-bucket rate limiting, non-blocking metering, distributed tracing, automated delivery, and sub-60-second rollbacks.
 
@@ -39,7 +39,7 @@ The interesting part is not OCR, but **everything around the API**: cryptographi
 
 ## Features
 
-- **KTP & SIM OCR** (`POST /api/v1/ocr/ktp`, `POST /api/v1/ocr/sim`) behind a pluggable `OCREngine` — Google Gemini Flash in production, deterministic `MockOCREngine` for offline/CI.
+- **Document OCR (6 types)** (`POST /api/v1/ocr/{ktp,sim,passport,npwp,kk,invoice}`) behind a pluggable `OCREngine` — Google Gemini Flash in production, deterministic `MockOCREngine` for offline/CI.
 - **Secure API keys** — SHA-256 hashed at rest, scoped (`ocr:read`, `ocr:write`, `usage:read`), instant revocation, plaintext shown once.
 - **Dual identity** — Keycloak OIDC for humans (HttpOnly `Secure` `SameSite=Lax` cookies, zero tokens in browser storage) + API keys for machines; SpiceDB ReBAC for tenant/project authorization.
 - **Traffic guardrails** — $O(1)$ in-memory token bucket + monthly quota, standard `X-RateLimit-*` / `Retry-After` headers, `Idempotency-Key` replay protection on OCR writes.
@@ -119,6 +119,10 @@ Full contract: [`openapi/openapi.yaml`](openapi/openapi.yaml).
 | `GET /ready` | none | Readiness probe (PG pool; `503` stops routing without crash-loop) |
 | `POST /api/v1/ocr/ktp` | Bearer `lensio_live_xxx` (`ocr:write`) | KTP OCR, multipart `document`, max 5MB |
 | `POST /api/v1/ocr/sim` | Bearer `lensio_live_xxx` (`ocr:write`) | SIM OCR, multipart `document`, max 5MB |
+| `POST /api/v1/ocr/passport` | Bearer `lensio_live_xxx` (`ocr:write`) | Passport OCR, multipart `document`, max 5MB |
+| `POST /api/v1/ocr/npwp` | Bearer `lensio_live_xxx` (`ocr:write`) | NPWP OCR, multipart `document`, max 5MB |
+| `POST /api/v1/ocr/kk` | Bearer `lensio_live_xxx` (`ocr:write`) | KK OCR, multipart `document`, max 5MB |
+| `POST /api/v1/ocr/invoice` | Bearer `lensio_live_xxx` (`ocr:write`) | Invoice OCR, multipart `document`, max 5MB |
 | `GET /metrics` | — | Prometheus RED metrics |
 
 ```http
@@ -358,7 +362,7 @@ Contributions are welcome! Please read [`CONTRIBUTING.md`](CONTRIBUTING.md) and 
 3. One PR = one logical change, with verification evidence (build/lint/test output).
 4. Update affected docs and `CHANGELOG.md` (`Unreleased`).
 
-Roadmap (post-MVP, deferred): Passport, NPWP, KK, Invoice OCR, document/identity verification. KTP + SIM are the current scope — please don't PR new document types without discussing first. Progress: [`DEVELOPMENT_TRACKING.md`](DEVELOPMENT_TRACKING.md).
+Roadmap (post-MVP, deferred): document verification, identity verification. All six OCR document types (KTP, SIM, Passport, NPWP, KK, Invoice) are live — please don't PR new document types without discussing first. Progress: [`DEVELOPMENT_TRACKING.md`](DEVELOPMENT_TRACKING.md).
 
 ## Security & Privacy
 

@@ -1,10 +1,10 @@
 # Lensio Identity Document OCR API
 
-> Affordable Indonesian identity document OCR API (KTP & SIM) for developers and businesses.
+> Affordable Indonesian identity document OCR API (KTP, SIM, Passport, NPWP, KK & Invoice) for developers and businesses.
 
-Lensio is a production-oriented API platform that provides Indonesian identity document OCR (KTP & SIM) as a service.
+Lensio is a production-oriented API platform that provides Indonesian identity document OCR (KTP, SIM, Passport, NPWP, KK & Invoice) as a service.
 
-Developers can integrate KTP/SIM document extraction into their applications through a simple REST API without having to build, operate, secure, monitor, and scale their own OCR infrastructure.
+Developers can integrate document extraction into their applications through a simple REST API without having to build, operate, secure, monitor, and scale their own OCR infrastructure.
 
 The project is intentionally designed as both:
 
@@ -1834,7 +1834,7 @@ That is what turns Lensio from a portfolio CRUD project into a credible producti
 
 # 42. Future Product Expansion Roadmap
 
-While the MVP strictly focuses on **Indonesian identity document OCR (KTP & SIM)** and establishing the core API product infrastructure, the platform is architected to expand into a comprehensive identity and document processing suite:
+While the MVP established the core API product infrastructure starting from **Indonesian identity document OCR (KTP & SIM)**, the document suite has since expanded to six live types. The platform remains architected to grow into a comprehensive identity and document processing suite:
 
 ```text
 Lensio Product Ecosystem
@@ -1842,10 +1842,10 @@ Lensio Product Ecosystem
 ├── Document OCR Expansion
 │   ├── KTP OCR (Done)
 │   ├── SIM OCR (Surat Izin Mengemudi — Done)
-│   ├── Passport OCR (Indonesian & International Passports)
-│   ├── NPWP OCR (Nomor Pokok Wajib Pajak)
-│   ├── KK OCR (Kartu Keluarga)
-│   └── Invoice OCR (Commercial Invoices & E-Faktur)
+│   ├── Passport OCR (Indonesian & International Passports — Done)
+│   ├── NPWP OCR (Nomor Pokok Wajib Pajak — Done)
+│   ├── KK OCR (Kartu Keluarga — Done)
+│   └── Invoice OCR (Commercial Invoices & E-Faktur — Done)
 │
 ├── Verification & Trust Services
 │   ├── Document Verification (Forgery & tampering detection)

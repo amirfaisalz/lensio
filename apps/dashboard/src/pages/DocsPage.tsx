@@ -3,18 +3,55 @@ import type React from "react";
 import { useState } from "react";
 import { useAuth } from "../context/AuthContext";
 
+const DOC_TYPES = [
+	{
+		id: "ktp",
+		label: "KTP",
+		endpoint: "/api/v1/ocr/ktp",
+		sampleFile: "ktp.jpg",
+	},
+	{
+		id: "sim",
+		label: "SIM",
+		endpoint: "/api/v1/ocr/sim",
+		sampleFile: "sim.jpg",
+	},
+	{
+		id: "passport",
+		label: "Passport",
+		endpoint: "/api/v1/ocr/passport",
+		sampleFile: "passport.jpg",
+	},
+	{
+		id: "npwp",
+		label: "NPWP",
+		endpoint: "/api/v1/ocr/npwp",
+		sampleFile: "npwp.jpg",
+	},
+	{ id: "kk", label: "KK", endpoint: "/api/v1/ocr/kk", sampleFile: "kk.jpg" },
+	{
+		id: "invoice",
+		label: "Invoice",
+		endpoint: "/api/v1/ocr/invoice",
+		sampleFile: "invoice.jpg",
+	},
+] as const;
+
+type DocTypeId = (typeof DOC_TYPES)[number]["id"];
+
 export const DocsPage: React.FC = () => {
 	const { apiKey } = useAuth();
-	const [docType, setDocType] = useState<"ktp" | "sim">("ktp");
+	const [docType, setDocType] = useState<DocTypeId>("ktp");
 	const [activeTab, setActiveTab] = useState<
 		"curl" | "go" | "python" | "nodejs"
 	>("curl");
 	const [copied, setCopied] = useState(false);
 
 	const displayKey = apiKey || "lensio_live_sample_key_12345678";
-	const endpoint = docType === "sim" ? "/api/v1/ocr/sim" : "/api/v1/ocr/ktp";
-	const sampleFile = docType === "sim" ? "sim.jpg" : "ktp.jpg";
-	const docLabel = docType === "sim" ? "SIM" : "KTP";
+	const activeDoc = DOC_TYPES.find((d) => d.id === docType) ?? DOC_TYPES[0];
+	const endpoint = activeDoc.endpoint;
+	const sampleFile = activeDoc.sampleFile;
+	const docLabel = activeDoc.label;
 
 	const snippets = {
 		curl: `# Extract ${docLabel} data via cURL
@@ -133,7 +170,7 @@ console.log(data);`,
 			code: "unsupported_document",
 			status: "422 Unprocessable",
 			description:
-				"Uploaded image is not a recognized Indonesian KTP or SIM document.",
+				"Uploaded image is not a recognized Indonesian identity document.",
 		},
 		{
 			code: "ocr_failed",
@@ -187,19 +224,19 @@ console.log(data);`,
 						</div>
 
 						{/* Document Selector */}
-						<div className="flex bg-slate-900 p-0.5 rounded-lg border border-slate-800 text-[11px] font-mono">
-							{(["ktp", "sim"] as const).map((type) => (
+						<div className="flex flex-wrap bg-slate-900 p-0.5 rounded-lg border border-slate-800 text-[11px] font-mono">
+							{DOC_TYPES.map((doc) => (
 								<button
-									key={type}
+									key={doc.id}
 									type="button"
-									onClick={() => setDocType(type)}
+									onClick={() => setDocType(doc.id)}
 									className={`px-2.5 py-1 rounded transition-colors cursor-pointer uppercase font-semibold ${
-										docType === type
+										docType === doc.id
 											? "bg-[#1877F2] text-white"
 											: "text-slate-400 dark:text-slate-500 hover:text-slate-200"
 									}`}
 								>
-									{type}
+									{doc.label}
 								</button>
 							))}
 						</div>

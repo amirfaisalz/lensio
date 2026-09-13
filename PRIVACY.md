@@ -3,7 +3,7 @@
 > Ringkas, jujur, dan operasional. Bukan nasihat hukum.
 
 ## Data yang diproses
-- **Gambar dokumen** (KTP/SIM) via `multipart/form-data`, max 5MB, JPEG/PNG/WebP. Diproses **di RAM saja**, tidak ditulis ke disk/blob. Buffer dilepas setelah respons.
+- **Gambar dokumen** (KTP, SIM, Passport, NPWP, KK, Invoice) via `multipart/form-data`, max 5MB, JPEG/PNG/WebP. Diproses **di RAM saja**, tidak ditulis ke disk/blob. Buffer dilepas setelah respons.
 - **Hasil ekstraksi** dikembalikan ke pemanggil dan **tidak disimpan** (yang disimpan hanya metadata non-PII: `record_id, org_id, confidence, latency_ms, doc_type, status`).
 - **Log** hanya berisi `request_id, trace_id, org_id, api_key_id, latency, status`. NIK 16-digit selalu menjadi `[REDACTED]`.
 
