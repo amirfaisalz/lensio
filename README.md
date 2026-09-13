@@ -41,7 +41,7 @@ The interesting part is not OCR, but **everything around the API**: cryptographi
 - **Traffic guardrails** — $O(1)$ in-memory token bucket + monthly quota, standard `X-RateLimit-*` / `Retry-After` headers, `Idempotency-Key` replay protection on OCR writes.
 - **Privacy by design** — images stay in ephemeral RAM buffers, never touch disk; zero PII in logs (UU PDP No. 27/2022).
 - **Observable** — OpenTelemetry traces, Prometheus RED metrics, Grafana dashboards, SLOs + alert rules.
-- **Shippable** — distroless images, GitHub Actions with 5 security gates, OpenTofu/Terragrunt IaC, sub-60-second rollback drill, 5 incident post-mortems.
+- **Shippable** — distroless images, GitHub Actions with 5 security gates, Playwright E2E (`tests/e2e`), OpenTofu/Terragrunt IaC, sub-60-second rollback drill, 5 incident post-mortems.
 
 ## Quickstart
 
@@ -96,6 +96,12 @@ docker compose up -d
 | `OCR_PROVIDER` | `mock` | `mock` (offline/CI fixtures) or `gemini_flash` / `gemini` (live Vision AI) |
 | `GEMINI_API_KEY` | — | Required only when `OCR_PROVIDER=gemini_flash` |
 | `GEMINI_MODEL` | `gemini-3.6-flash` | e.g. `gemini-3.6-flash`, `gemini-2.5-flash`, `gemini-1.5-flash` |
+| `KEYCLOAK_JWKS_URL` | — | Keycloak OIDC certs, e.g. `http://localhost:8082/realms/lensio/protocol/openid-connect/certs` |
+| `KEYCLOAK_ISSUER` | derived from JWKS URL | OIDC issuer; auto-derived when empty |
+| `KEYCLOAK_AUDIENCE` | — | Expected `aud` claim for human JWTs |
+| `SPICEDB_ENDPOINT` | — | SpiceDB v1 REST, e.g. `http://localhost:50051`; empty = `MockAuthorizer` |
+| `SPICEDB_PRESHARED_KEY` | — | Bearer key for SpiceDB check/write/schema |
+| `SESSION_SECRET` | dev fallback | HS256 secret for HttpOnly `lensio_session` cookies |
 
 Provisioning secrets for staging/production goes through Azure Key Vault (see [`docs/security.md`](docs/security.md)). Dev-only credentials in `docker-compose.yml` must never leave your laptop.
 
@@ -292,7 +298,7 @@ lensio/
 ├── services/ocr/        # Pluggable OCREngine (Gemini adapter, mock, circuit breaker)
 ├── infra/               # OpenTofu modules, Terragrunt envs, Keycloak realm, SpiceDB schema, observability
 ├── openapi/             # OpenAPI 3.0.3 contract (openapi.yaml) + viewers
-├── tests/               # Unit, integration, load (k6), synthetic fixtures only
+├── tests/               # Unit, integration, E2E (Playwright), load (k6), synthetic fixtures only
 ├── examples/            # VeriForm + RentEase demo consumers
 ├── docs/                # Architecture, security, deployment, ADRs, incidents, benchmarks
 └── scripts/             # dev.sh, load tests, demo runners, rollback/smoke drills
