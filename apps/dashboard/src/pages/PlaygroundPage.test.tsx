@@ -652,6 +652,70 @@ describe("PlaygroundPage", () => {
 		expect(revokeMock).toHaveBeenCalledWith("blob:mock-1");
 	});
 
+	it("opens a zoomable lightbox from the source preview", async () => {
+		stubObjectURLs();
+		vi.spyOn(api, "executeKTPOCR").mockResolvedValue(
+			minimalKtpResult as unknown as KTPResponse,
+		);
+
+		renderWithAuth(<PlaygroundPage />, {
+			initialOrg: TEST_ORG,
+			initialApiKey: "lensio_live_testkey123",
+		});
+
+		uploadFile("ktp_zoom.jpg", "bytes-zoom");
+		await waitFor(() => {
+			expect(screen.getByAltText("Pratinjau ktp_zoom.jpg")).toBeDefined();
+		});
+
+		fireEvent.click(screen.getByRole("button", { name: "Perbesar" }));
+
+		await waitFor(() => {
+			expect(screen.getByRole("dialog")).toBeDefined();
+			expect(
+				screen.getByAltText("Pratinjau diperbesar ktp_zoom.jpg"),
+			).toBeDefined();
+		});
+	});
+
+	it("zooms in, resets, and closes the lightbox", async () => {
+		stubObjectURLs();
+		vi.spyOn(api, "executeKTPOCR").mockResolvedValue(
+			minimalKtpResult as unknown as KTPResponse,
+		);
+
+		renderWithAuth(<PlaygroundPage />, {
+			initialOrg: TEST_ORG,
+			initialApiKey: "lensio_live_testkey123",
+		});
+
+		uploadFile("ktp_zoom2.jpg", "bytes-zoom2");
+		await waitFor(() => {
+			expect(screen.getByAltText("Pratinjau ktp_zoom2.jpg")).toBeDefined();
+		});
+		fireEvent.click(screen.getByRole("button", { name: "Perbesar" }));
+		const zoomed = await screen.findByAltText(
+			"Pratinjau diperbesar ktp_zoom2.jpg",
+		);
+		expect(zoomed.getAttribute("style")).toContain("scale(1)");
+
+		fireEvent.click(screen.getByRole("button", { name: "Perbesar gambar" }));
+		await waitFor(() => {
+			expect(zoomed.getAttribute("style")).toContain("scale(1.5)");
+		});
+		expect(screen.getByText("150%")).toBeDefined();
+
+		fireEvent.click(screen.getByRole("button", { name: "Atur ulang zoom" }));
+		await waitFor(() => {
+			expect(zoomed.getAttribute("style")).toContain("scale(1)");
+		});
+
+		fireEvent.click(screen.getByLabelText("Close dialog"));
+		await waitFor(() => {
+			expect(screen.queryByRole("dialog")).toBeNull();
+		});
+	});
+
 	it("handles file upload error in playground", async () => {
 		vi.spyOn(api, "executeKTPOCR").mockRejectedValue(
 			new Error("Image blur score too low for OCR extraction"),

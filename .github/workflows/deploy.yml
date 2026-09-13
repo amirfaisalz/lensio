@@ -67,45 +67,49 @@ jobs:
       - name: Deploy Staging Container Apps
         id: deploy-ca
         run: |
+          set -euo pipefail
           IMAGE_TAG="${{ steps.image-meta.outputs.tag }}"
           echo "Updating Azure Container Apps (Staging) with tag ${IMAGE_TAG}..."
-          if command -v az >/dev/null 2>&1 && [ -n "${{ secrets.AZURE_CREDENTIALS }}" ]; then
-            az containerapp update \
-              --name ca-api-lensio-staging \
-              --resource-group rg-lensio-staging \
-              --image "ghcr.io/${{ github.repository }}/lensio-api:${IMAGE_TAG}" \
-              --min-replicas 0 \
-              --max-replicas 2
-            az containerapp update \
-              --name ca-dash-lensio-staging \
-              --resource-group rg-lensio-staging \
-              --image "ghcr.io/${{ github.repository }}/lensio-dashboard:${IMAGE_TAG}" \
-              --min-replicas 0 \
-              --max-replicas 2
+          if ! command -v az >/dev/null 2>&1 || [ -z "${{ secrets.AZURE_CREDENTIALS }}" ]; then
+            echo "❌ Deploy failed: az CLI or AZURE_CREDENTIALS not configured. Refusing silent no-op." >&2
+            exit 1
+          fi
+          az containerapp update \
+            --name ca-api-lensio-staging \
+            --resource-group rg-lensio-staging \
+            --image "ghcr.io/${{ github.repository }}/lensio-api:${IMAGE_TAG}" \
+            --min-replicas 0 \
+            --max-replicas 2
+          az containerapp update \
+            --name ca-dash-lensio-staging \
+            --resource-group rg-lensio-staging \
+            --image "ghcr.io/${{ github.repository }}/lensio-dashboard:${IMAGE_TAG}" \
+            --min-replicas 0 \
+            --max-replicas 2
 
-            API_FQDN=$(az containerapp show --name ca-api-lensio-staging --resource-group rg-lensio-staging --query properties.configuration.ingress.fqdn -o tsv || true)
-            DASH_FQDN=$(az containerapp show --name ca-dash-lensio-staging --resource-group rg-lensio-staging --query properties.configuration.ingress.fqdn -o tsv || true)
-            if [ -n "${API_FQDN}" ]; then
-              echo "api_url=https://${API_FQDN}" >> $GITHUB_OUTPUT
-            fi
-            if [ -n "${DASH_FQDN}" ]; then
-              echo "dash_url=https://${DASH_FQDN}" >> $GITHUB_OUTPUT
-            fi
-          else
-            echo "Simulation mode: az CLI or AZURE_CREDENTIALS not configured."
+          API_FQDN=$(az containerapp show --name ca-api-lensio-staging --resource-group rg-lensio-staging --query properties.configuration.ingress.fqdn -o tsv)
+          DASH_FQDN=$(az containerapp show --name ca-dash-lensio-staging --resource-group rg-lensio-staging --query properties.configuration.ingress.fqdn -o tsv)
+          if [ -z "${API_FQDN}" ]; then
+            echo "❌ Deploy failed: could not discover staging API FQDN." >&2
+            exit 1
+          fi
+          echo "api_url=https://${API_FQDN}" >> $GITHUB_OUTPUT
+          if [ -n "${DASH_FQDN}" ]; then
+            echo "dash_url=https://${DASH_FQDN}" >> $GITHUB_OUTPUT
           fi
 
       - name: Run Staging Automated Smoke Tests
         run: |
+          set -euo pipefail
           chmod +x scripts/smoke-test.sh
           # Run smoke tests against staging endpoint (or fallback to dynamically discovered FQDN)
           STAGING_API_URL="${{ vars.STAGING_API_URL || steps.deploy-ca.outputs.api_url }}"
           STAGING_DASH_URL="${{ vars.STAGING_DASH_URL || steps.deploy-ca.outputs.dash_url }}"
-          if [ -n "${STAGING_API_URL}" ] && curl -s --connect-timeout 2 "${STAGING_API_URL}/health" >/dev/null 2>&1; then
-            ./scripts/smoke-test.sh "${STAGING_API_URL}" "${STAGING_DASH_URL}"
-          else
-            echo "⚠️ Staging live endpoint unreachable or not configured from runner, skipping live network probe."
+          if [ -z "${STAGING_API_URL}" ]; then
+            echo "❌ Smoke tests failed: no staging API URL (vars.STAGING_API_URL nor deploy FQDN). Refusing to skip." >&2
+            exit 1
           fi
+          ./scripts/smoke-test.sh "${STAGING_API_URL}" "${STAGING_DASH_URL}"
 
   # ----------------------------------------------------------------------------
   # 2. Production Promotion (Gated with Manual Approval & Rollback Safety)
@@ -144,40 +148,43 @@ jobs:
 
       - name: Deploy Production Container Apps
         run: |
+          set -euo pipefail
           IMAGE_TAG="${{ steps.image-meta.outputs.tag }}"
           echo "Updating Azure Container Apps (Production) with tag ${IMAGE_TAG}..."
-          if command -v az >/dev/null 2>&1 && [ -n "${{ secrets.AZURE_CREDENTIALS }}" ]; then
-            az containerapp update \
-              --name ca-api-lensio-production \
-              --resource-group rg-lensio-production \
-              --image "ghcr.io/${{ github.repository }}/lensio-api:${IMAGE_TAG}" \
-              --min-replicas 2 \
-              --max-replicas 10
-            az containerapp update \
-              --name ca-dash-lensio-production \
-              --resource-group rg-lensio-production \
-              --image "ghcr.io/${{ github.repository }}/lensio-dashboard:${IMAGE_TAG}" \
-              --min-replicas 2 \
-              --max-replicas 5
-          else
-            echo "Simulation mode: az CLI or AZURE_CREDENTIALS not configured."
+          if ! command -v az >/dev/null 2>&1 || [ -z "${{ secrets.AZURE_CREDENTIALS }}" ]; then
+            echo "❌ Deploy failed: az CLI or AZURE_CREDENTIALS not configured. Refusing silent no-op." >&2
+            exit 1
           fi
+          az containerapp update \
+            --name ca-api-lensio-production \
+            --resource-group rg-lensio-production \
+            --image "ghcr.io/${{ github.repository }}/lensio-api:${IMAGE_TAG}" \
+            --min-replicas 2 \
+            --max-replicas 10
+          az containerapp update \
+            --name ca-dash-lensio-production \
+            --resource-group rg-lensio-production \
+            --image "ghcr.io/${{ github.repository }}/lensio-dashboard:${IMAGE_TAG}" \
+            --min-replicas 2 \
+            --max-replicas 5
 
       - name: Run Production Automated Smoke Tests
         id: smoke-test
         run: |
+          set -euo pipefail
           chmod +x scripts/smoke-test.sh
           PROD_API_URL="${{ vars.PROD_API_URL || 'https://api.lensio.dev' }}"
           PROD_DASH_URL="${{ vars.PROD_DASH_URL || 'https://lensio.dev' }}"
-          if curl -s --connect-timeout 2 "${PROD_API_URL}/health" >/dev/null 2>&1; then
-            ./scripts/smoke-test.sh "${PROD_API_URL}" "${PROD_DASH_URL}"
-          else
-            echo "⚠️ Production live endpoint unreachable from runner, skipping live network probe."
+          if [ -z "${PROD_API_URL}" ]; then
+            echo "❌ Smoke tests failed: no production API URL. Refusing to skip." >&2
+            exit 1
           fi
+          ./scripts/smoke-test.sh "${PROD_API_URL}" "${PROD_DASH_URL}"
 
       - name: Automated Rollback on Smoke Test Failure
         if: failure() && steps.smoke-test.outcome == 'failure'
         run: |
+          set -euo pipefail
           echo "🚨 Production Smoke Tests failed! Initiating emergency rollback..."
           chmod +x scripts/rollback.sh
           ./scripts/rollback.sh \
