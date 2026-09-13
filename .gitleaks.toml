@@ -11,9 +11,11 @@ description = "Path-scoped allowlist for synthetic fixtures, tests, and examples
 paths = [
   '''tests/fixtures/synthetic/.*''',
   '''tests/fixtures/.*''',
-  '''tests/.*_test\.go''',
+  '''tests/.*''',
+  '''.*_test\.go''',
   '''apps/dashboard/src/.*\.test\.(ts|tsx)''',
   '''openapi/openapi\.yaml''',
+  '''infra/.*\.tftest\.hcl''',
   '''\.env\.example''',
   '''docker-compose\.yml''',
   '''DEVELOPMENT_TRACKING\.md''',
