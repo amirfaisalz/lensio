@@ -86,8 +86,24 @@ var kkKeywords = []string{
 	"DOKUMEN IMIGRASI",
 }
 
-// ClassifyDocument analyzes raw text tokens to classify if the document is an Indonesian KTP, SIM, Passport, NPWP, or KK.
-// Returns document type string ("ktp", "sim", "passport", "npwp", "kk", or "unsupported") and a boolean indicator of recognition.
+// List of distinctive textual markers present on Indonesian Commercial Invoices and E-Faktur.
+var invoiceKeywords = []string{
+	"FAKTUR PAJAK",
+	"INVOICE",
+	"TAGIHAN",
+	"FAKTUR PENJUALAN",
+	"PENGUSAHA KENA PAJAK",
+	"DASAR PENGENAAN PAJAK",
+	"JUMLAH HARGA JUAL",
+	"PPN",
+	"TOTAL HARGA",
+	"GRAND TOTAL",
+	"JATUH TEMPO",
+	"DUE DATE",
+}
+
+// ClassifyDocument analyzes raw text tokens to classify if the document is an Indonesian KTP, SIM, Passport, NPWP, KK, or Invoice.
+// Returns document type string ("ktp", "sim", "passport", "npwp", "kk", "invoice", or "unsupported") and a boolean indicator of recognition.
 // Minimum 2 strong markers required for positive classification (or 1 explicit title marker).
 func ClassifyDocument(rawText string) (string, bool) {
 	upper := strings.ToUpper(rawText)
@@ -98,6 +114,15 @@ func ClassifyDocument(rawText string) (string, bool) {
 	for _, kw := range kkKeywords {
 		if strings.Contains(upper, kw) {
 			kkMatches++
+		}
+	}
+
+	// Check Invoice if explicit title exists
+	invoiceMatches := 0
+	hasExplicitInvoiceTitle := strings.Contains(upper, "FAKTUR PAJAK") || strings.Contains(upper, "INVOICE") || strings.Contains(upper, "FAKTUR PENJUALAN") || (strings.Contains(upper, "TAGIHAN") && (strings.Contains(upper, "TOTAL") || strings.Contains(upper, "PPN") || strings.Contains(upper, "SUBTOTAL")))
+	for _, kw := range invoiceKeywords {
+		if strings.Contains(upper, kw) {
+			invoiceMatches++
 		}
 	}
 
@@ -163,6 +188,10 @@ func ClassifyDocument(rawText string) (string, bool) {
 		return "passport", true
 	}
 
+	if hasExplicitInvoiceTitle || (invoiceMatches >= 2 && invoiceMatches > ktpMatches && invoiceMatches > simMatches && invoiceMatches > npwpMatches) {
+		return "invoice", true
+	}
+
 	if hasExplicitNPWPTitle || (npwpMatches >= 2 && npwpMatches > ktpMatches && npwpMatches > simMatches && npwpMatches > passportMatches) {
 		return "npwp", true
 	}
@@ -173,6 +202,10 @@ func ClassifyDocument(rawText string) (string, bool) {
 
 	if hasExplicitKTPTitle || ktpMatches >= 2 || (ktpMatches >= 1 && has16Digits) {
 		return "ktp", true
+	}
+
+	if invoiceMatches >= 2 {
+		return "invoice", true
 	}
 
 	if kkMatches >= 2 {

@@ -451,3 +451,68 @@ Dikeluarkan Tanggal : 01-01-2020
 	}
 }
 
+func TestParseInvoiceFromRawText(t *testing.T) {
+	raw := `
+FAKTUR PAJAK
+No. Faktur : 010.000-26.12345678
+Tanggal Faktur : 15-03-2026
+Jatuh Tempo : 15-04-2026
+Pengusaha Kena Pajak : PT TEKNOLOGI KARYA BANGSA
+Pembeli BKP / Penerima JKP : PT SUKSES MAKMUR ABADI
+Jumlah Harga Jual : Rp 10.000.000,00
+Dasar Pengenaan Pajak : Rp 10.000.000,00
+PPN : Rp 1.100.000,00
+Grand Total : Rp 11.100.000,00
+`
+	data := ocr.ParseInvoiceFromRawText(raw)
+	if data.InvoiceNumber != "010.000-26.12345678" {
+		t.Errorf("expected InvoiceNumber 010.000-26.12345678, got %s", data.InvoiceNumber)
+	}
+	if data.InvoiceDate != "2026-03-15" {
+		t.Errorf("expected InvoiceDate 2026-03-15, got %s", data.InvoiceDate)
+	}
+	if data.DueDate != "2026-04-15" {
+		t.Errorf("expected DueDate 2026-04-15, got %s", data.DueDate)
+	}
+	if data.SellerName != "PT TEKNOLOGI KARYA BANGSA" {
+		t.Errorf("expected SellerName PT TEKNOLOGI KARYA BANGSA, got %s", data.SellerName)
+	}
+	if data.BuyerName != "PT SUKSES MAKMUR ABADI" {
+		t.Errorf("expected BuyerName PT SUKSES MAKMUR ABADI, got %s", data.BuyerName)
+	}
+	if data.Subtotal != 10000000 {
+		t.Errorf("expected Subtotal 10000000, got %.2f", data.Subtotal)
+	}
+	if data.DPP != 10000000 {
+		t.Errorf("expected DPP 10000000, got %.2f", data.DPP)
+	}
+	if data.PPN != 1100000 {
+		t.Errorf("expected PPN 1100000, got %.2f", data.PPN)
+	}
+	if data.GrandTotal != 11100000 {
+		t.Errorf("expected GrandTotal 11100000, got %.2f", data.GrandTotal)
+	}
+}
+
+func BenchmarkParseInvoiceFromRawText(b *testing.B) {
+	raw := `
+FAKTUR PAJAK
+No. Faktur : 010.000-26.12345678
+Tanggal Faktur : 15-03-2026
+Jatuh Tempo : 15-04-2026
+Pengusaha Kena Pajak : PT TEKNOLOGI KARYA BANGSA
+Pembeli BKP / Penerima JKP : PT SUKSES MAKMUR ABADI
+Jumlah Harga Jual : Rp 10.000.000,00
+Dasar Pengenaan Pajak : Rp 10.000.000,00
+PPN : Rp 1.100.000,00
+Grand Total : Rp 11.100.000,00
+`
+	b.ResetTimer()
+	b.ReportAllocs()
+
+	for i := 0; i < b.N; i++ {
+		_ = ocr.ParseInvoiceFromRawText(raw)
+	}
+}
+
+

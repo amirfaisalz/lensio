@@ -169,11 +169,29 @@ type geminiExtractedJSON struct {
 	KabupatenKota      string               `json:"kabupaten_kota"`
 	TanggalDikeluarkan string               `json:"tanggal_dikeluarkan"`
 	AnggotaKeluarga    []ocr.KKFamilyMember `json:"anggota_keluarga"`
+
+	// Invoice fields
+	InvoiceNumber string                `json:"invoice_number"`
+	InvoiceDate   string                `json:"invoice_date"`
+	DueDate       string                `json:"due_date"`
+	SellerName    string                `json:"seller_name"`
+	SellerNPWP    string                `json:"seller_npwp"`
+	SellerAddress string                `json:"seller_address"`
+	BuyerName     string                `json:"buyer_name"`
+	BuyerNPWP     string                `json:"buyer_npwp"`
+	BuyerAddress  string                `json:"buyer_address"`
+	Currency      string                `json:"currency"`
+	Subtotal      float64               `json:"subtotal"`
+	Discount      float64               `json:"discount"`
+	DPP           float64               `json:"dpp"`
+	PPN           float64               `json:"ppn"`
+	GrandTotal    float64               `json:"grand_total"`
+	LineItems     []ocr.InvoiceLineItem `json:"line_items"`
 }
 
 const geminiDocumentPrompt = `You are a strict, high-accuracy Indonesian identity document OCR extraction engine.
 Analyze the provided image.
-First determine if the image is an Indonesian Kartu Tanda Penduduk (KTP), Surat Izin Mengemudi (SIM), Paspor Republik Indonesia (Passport), Nomor Pokok Wajib Pajak (NPWP), or Kartu Keluarga (KK).
+First determine if the image is an Indonesian Kartu Tanda Penduduk (KTP), Surat Izin Mengemudi (SIM), Paspor Republik Indonesia (Passport), Nomor Pokok Wajib Pajak (NPWP), Kartu Keluarga (KK), or Commercial Invoice / Faktur Pajak (invoice).
 If it is neither, output JSON with "document_type": "unsupported".
 
 If it IS an Indonesian KTP, extract all visible fields into this exact JSON structure:
@@ -280,6 +298,36 @@ If it IS an Indonesian Kartu Keluarga (KK), extract all visible fields into this
       "kewarganegaraan": "WNI or WNA",
       "nama_ayah": "FATHER NAME",
       "nama_ibu": "MOTHER NAME"
+    }
+  ]
+}
+
+If it IS an Indonesian Commercial Invoice or Faktur Pajak, extract all visible fields into this exact JSON structure:
+{
+  "document_type": "invoice",
+  "confidence": 0.95,
+  "raw_text": "all raw text recognized on the invoice",
+  "invoice_number": "INVOICE NUMBER OR FAKTUR NUMBER",
+  "invoice_date": "YYYY-MM-DD",
+  "due_date": "YYYY-MM-DD",
+  "seller_name": "SELLER/PKP NAME",
+  "seller_npwp": "SELLER NPWP",
+  "seller_address": "SELLER ADDRESS",
+  "buyer_name": "BUYER NAME",
+  "buyer_npwp": "BUYER NPWP",
+  "buyer_address": "BUYER ADDRESS",
+  "currency": "IDR",
+  "subtotal": 10000000,
+  "discount": 0,
+  "dpp": 10000000,
+  "ppn": 1100000,
+  "grand_total": 11100000,
+  "line_items": [
+    {
+      "description": "ITEM DESCRIPTION",
+      "quantity": 1,
+      "unit_price": 10000000,
+      "total_price": 10000000
     }
   ]
 }`
@@ -512,6 +560,43 @@ func (g *GeminiOCREngine) Extract(ctx context.Context, imageBytes []byte) (*ocr.
 			Confidence:   confidence,
 			RawText:      extracted.RawText,
 			KKData:       rawKK,
+		}, nil
+	}
+
+	if strings.EqualFold(extracted.DocumentType, "invoice") {
+		rawInvoice := &ocr.InvoiceData{
+			InvoiceNumber: extracted.InvoiceNumber,
+			InvoiceDate:   extracted.InvoiceDate,
+			DueDate:       extracted.DueDate,
+			SellerName:    extracted.SellerName,
+			SellerNPWP:    extracted.SellerNPWP,
+			SellerAddress: extracted.SellerAddress,
+			BuyerName:     extracted.BuyerName,
+			BuyerNPWP:     extracted.BuyerNPWP,
+			BuyerAddress:  extracted.BuyerAddress,
+			Currency:      extracted.Currency,
+			Subtotal:      extracted.Subtotal,
+			Discount:      extracted.Discount,
+			DPP:           extracted.DPP,
+			PPN:           extracted.PPN,
+			GrandTotal:    extracted.GrandTotal,
+			LineItems:     extracted.LineItems,
+		}
+		if rawInvoice.Currency == "" {
+			rawInvoice.Currency = "IDR"
+		}
+		confidence := extracted.Confidence
+		if confidence <= 0 {
+			confidence = 0.95
+		}
+		if err := ocr.ValidateInvoice(rawInvoice); err != nil {
+			confidence = confidence * 0.7
+		}
+		return &ocr.OCRResult{
+			DocumentType: "invoice",
+			Confidence:   confidence,
+			RawText:      extracted.RawText,
+			InvoiceData:  rawInvoice,
 		}, nil
 	}
 

@@ -10,6 +10,7 @@ import type {
 	EndpointUsage,
 	KTPResponse,
 	KKResponse,
+	InvoiceResponse,
 	LoginRequest,
 	LoginResponse,
 	NPWPResponse,
@@ -359,6 +360,27 @@ class ApiClient {
 			headers,
 		});
 		return this.handleResponse<KKResponse>(res);
+	}
+
+	public async executeInvoiceOCR(
+		file: File | Blob,
+		apiKeyOverride?: string,
+	): Promise<InvoiceResponse> {
+		const formData = new FormData();
+		formData.append("document", file);
+
+		const headers: Record<string, string> = {};
+		const keyToUse = apiKeyOverride || this.activeApiKey;
+		if (keyToUse) {
+			headers.Authorization = `Bearer ${keyToUse}`;
+		}
+
+		const res = await this.fetchWithAuth(`${API_BASE}/api/v1/ocr/invoice`, {
+			method: "POST",
+			body: formData,
+			headers,
+		});
+		return this.handleResponse<InvoiceResponse>(res);
 	}
 
 	public async register(req: RegisterRequest): Promise<RegisterResponse> {

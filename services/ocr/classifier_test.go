@@ -97,6 +97,18 @@ func TestClassifyDocument(t *testing.T) {
 			wantDocType: "kk",
 			wantIsKTP:   true,
 		},
+		{
+			name:        "official E-Faktur Pajak header",
+			text:        "FAKTUR PAJAK PENGUSAHA KENA PAJAK DASAR PENGENAAN PAJAK PPN JUMLAH HARGA JUAL",
+			wantDocType: "invoice",
+			wantIsKTP:   true,
+		},
+		{
+			name:        "Commercial invoice with line items and grand total",
+			text:        "INVOICE TAGIHAN TOTAL HARGA GRAND TOTAL PPN JATUH TEMPO",
+			wantDocType: "invoice",
+			wantIsKTP:   true,
+		},
 	}
 
 	for _, tc := range tests {

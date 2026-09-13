@@ -342,6 +342,77 @@ func TestGeminiOCREngine(t *testing.T) {
 		}
 	})
 
+	t.Run("successful invoice extraction", func(t *testing.T) {
+		mockGeminiResponse := map[string]any{
+			"candidates": []map[string]any{
+				{
+					"content": map[string]any{
+						"parts": []map[string]any{
+							{
+								"text": `{
+									"document_type": "invoice",
+									"confidence": 0.98,
+									"raw_text": "FAKTUR PAJAK INV-2026-0001",
+									"invoice_number": "INV-2026-0001",
+									"invoice_date": "2026-03-15",
+									"due_date": "2026-04-15",
+									"seller_name": "PT TECH UTAMA SYNTHETIC",
+									"seller_npwp": "092542943407000",
+									"buyer_name": "PT MAJU MUNDUR SYNTHETIC",
+									"buyer_npwp": "092542943407000",
+									"currency": "IDR",
+									"subtotal": 10000000,
+									"dpp": 10000000,
+									"ppn": 1100000,
+									"grand_total": 11100000,
+									"line_items": [
+										{
+											"description": "Cloud Hosting",
+											"quantity": 1,
+											"unit_price": 10000000,
+											"total_price": 10000000
+										}
+									]
+								}`,
+							},
+						},
+					},
+				},
+			},
+		}
+
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(mockGeminiResponse)
+		}))
+		defer server.Close()
+
+		engine := providers.NewGeminiEngine("test-api-key", "gemini-2.0-flash",
+			providers.WithBaseURL(server.URL),
+			providers.WithHTTPClient(server.Client()),
+		)
+
+		res, err := engine.Extract(ctx, validImg)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if res.DocumentType != "invoice" {
+			t.Errorf("expected doc_type invoice, got %s", res.DocumentType)
+		}
+		if res.InvoiceData == nil || res.InvoiceData.InvoiceNumber != "INV-2026-0001" {
+			t.Errorf("expected InvoiceData with InvoiceNumber INV-2026-0001, got %v", res.InvoiceData)
+		}
+		if res.InvoiceData.GrandTotal != 11100000 {
+			t.Errorf("expected GrandTotal 11100000, got %.2f", res.InvoiceData.GrandTotal)
+		}
+		if len(res.InvoiceData.LineItems) != 1 {
+			t.Errorf("expected 1 line item, got %d", len(res.InvoiceData.LineItems))
+		}
+		if res.Confidence < 0.90 {
+			t.Errorf("expected high confidence, got %f", res.Confidence)
+		}
+	})
+
 	t.Run("unsupported document returns ErrUnsupportedDocument", func(t *testing.T) {
 		mockGeminiResponse := map[string]any{
 			"candidates": []map[string]any{

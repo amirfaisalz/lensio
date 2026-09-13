@@ -21,6 +21,8 @@ var (
 	MarkerNPWPLowConfidence     = []byte("MOCK_NPWP_LOW_CONFIDENCE")
 	MarkerKKDoc                 = []byte("MOCK_KK_DOC")
 	MarkerKKLowConfidence       = []byte("MOCK_KK_LOW_CONFIDENCE")
+	MarkerInvoiceDoc            = []byte("MOCK_INVOICE_DOC")
+	MarkerInvoiceLowConfidence  = []byte("MOCK_INVOICE_LOW_CONFIDENCE")
 )
 
 // MockOCREngine provides deterministic OCR extraction for tests without external network calls.
@@ -264,6 +266,63 @@ func (m *MockOCREngine) Extract(ctx context.Context, image []byte) (*ocr.OCRResu
 			Confidence:   confidence,
 			RawText:      "REPUBLIK INDONESIA KARTU KELUARGA NO. KK 3171010101200001 KEPALA KELUARGA BUDI SANTOSO ALAMAT JL. SUDIRMAN NO. 12 RT/RW 001/002 DESA/KELURAHAN SENAYAN KECAMATAN KEBAYORAN BARU KABUPATEN/KOTA JAKARTA SELATAN PROVINSI DKI JAKARTA TANGGAL DIKELUARKAN 01-01-2020 BUDI SANTOSO 3171010101900001 LAKI-LAKI JAKARTA 01-01-1990 ISLAM STRATA I KARYAWAN SWASTA KAWIN KEPALA KELUARGA WNI SANTOSO MARYAM SITI AMINAH 3171014101920002 PEREMPUAN BANDUNG 01-01-1992 ISLAM STRATA I IBU RUMAH TANGGA KAWIN ISTRI WNI AHMAD FATIMAH RUDI SANTOSO 3171011505150003 LAKI-LAKI JAKARTA 15-05-2015 ISLAM BELUM/TIDAK BEKERJA PELAJAR/MAHASISWA BELUM KAWIN ANAK WNI BUDI SANTOSO SITI AMINAH",
 			KKData:       kkData,
+		}, nil
+	}
+
+	if bytes.Contains(image, MarkerInvoiceDoc) || bytes.Contains(image, MarkerInvoiceLowConfidence) {
+		confidence := 0.99
+		var invoiceData *ocr.InvoiceData
+		if bytes.Contains(image, MarkerInvoiceLowConfidence) {
+			confidence = 0.45
+			invoiceData = &ocr.InvoiceData{
+				InvoiceNumber: "INV-2026-0001",
+				InvoiceDate:   "2026-03-15",
+				SellerName:    "PT TECH UTAMA SYNTHETIC",
+				BuyerName:     "PT MAJU MUNDUR SYNTHETIC",
+				Currency:      "IDR",
+				Subtotal:      10000000,
+				DPP:           10000000,
+				PPN:           1100000,
+				GrandTotal:    11100000,
+			}
+		} else {
+			invoiceData = &ocr.InvoiceData{
+				InvoiceNumber: "INV-2026-0001",
+				InvoiceDate:   "2026-03-15",
+				DueDate:       "2026-04-15",
+				SellerName:    "PT TECH UTAMA SYNTHETIC",
+				SellerNPWP:    "092542943407000",
+				SellerAddress: "JL. JEND. SUDIRMAN KAV. 21, JAKARTA",
+				BuyerName:     "PT MAJU MUNDUR SYNTHETIC",
+				BuyerNPWP:     "092542943407000",
+				BuyerAddress:  "JL. THAMRIN NO. 10, JAKARTA",
+				Currency:      "IDR",
+				LineItems: []ocr.InvoiceLineItem{
+					{
+						Description: "Enterprise Cloud Hosting",
+						Quantity:    2,
+						UnitPrice:   3500000,
+						TotalPrice:  7000000,
+					},
+					{
+						Description: "Platform Maintenance & SLA",
+						Quantity:    1,
+						UnitPrice:   3000000,
+						TotalPrice:  3000000,
+					},
+				},
+				Subtotal:   10000000,
+				Discount:   0,
+				DPP:        10000000,
+				PPN:        1100000,
+				GrandTotal: 11100000,
+			}
+		}
+		return &ocr.OCRResult{
+			DocumentType: "invoice",
+			Confidence:   confidence,
+			RawText:      "FAKTUR PAJAK INVOICE INV-2026-0001 TANGGAL 15-03-2026 JATUH TEMPO 15-04-2026 PENGUSAHA KENA PAJAK PT TECH UTAMA SYNTHETIC NPWP 09.254.294.3-407.000 PEMBELI PT MAJU MUNDUR SYNTHETIC NPWP 09.254.294.3-407.000 ENTERPRISE CLOUD HOSTING 2 3500000 7000000 PLATFORM MAINTENANCE 1 3000000 3000000 SUBTOTAL 10000000 DPP 10000000 PPN 1100000 GRAND TOTAL 11100000",
+			InvoiceData:  invoiceData,
 		}, nil
 	}
 

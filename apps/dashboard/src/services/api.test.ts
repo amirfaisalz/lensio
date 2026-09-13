@@ -308,6 +308,64 @@ describe("ApiClient", () => {
 		expect(result.status).toBe("completed");
 	});
 
+	it("executes Invoice OCR multipart request", async () => {
+		const mockInvoice = {
+			id: "ocr_inv_123",
+			status: "completed",
+			confidence: 0.99,
+			processing: {
+				latency_ms: 130,
+			},
+			data: {
+				invoice_number: "INV-2026-0001",
+				invoice_date: "2026-03-15",
+				due_date: "2026-04-15",
+				seller_name: "PT TECH UTAMA SYNTHETIC",
+				seller_npwp: "092542943407000",
+				buyer_name: "PT MAJU MUNDUR SYNTHETIC",
+				buyer_npwp: "092542943407000",
+				currency: "IDR",
+				subtotal: 10000000,
+				discount: 0,
+				dpp: 10000000,
+				ppn: 1100000,
+				grand_total: 11100000,
+				line_items: [
+					{
+						description: "Enterprise Cloud Hosting",
+						quantity: 2,
+						unit_price: 3500000,
+						total_price: 7000000,
+					},
+					{
+						description: "Maintenance SLA",
+						quantity: 1,
+						unit_price: 3000000,
+						total_price: 3000000,
+					},
+				],
+			},
+			field_confidence: {
+				invoice_number: 1.0,
+				grand_total: 0.99,
+			},
+		};
+
+		vi.spyOn(globalThis, "fetch").mockResolvedValueOnce({
+			ok: true,
+			json: async () => mockInvoice,
+		} as Response);
+
+		const dummyBlob = new Blob(["fake image"], { type: "image/jpeg" });
+		const result = await api.executeInvoiceOCR(dummyBlob);
+
+		expect(result.data.invoice_number).toBe("INV-2026-0001");
+		expect(result.data.seller_name).toBe("PT TECH UTAMA SYNTHETIC");
+		expect(result.data.grand_total).toBe(11100000);
+		expect(result.data.line_items).toHaveLength(2);
+		expect(result.status).toBe("completed");
+	});
+
 	it("registers user successfully", async () => {
 		vi.spyOn(globalThis, "fetch").mockResolvedValueOnce({
 			ok: true,

@@ -345,6 +345,75 @@ describe("PlaygroundPage", () => {
 		});
 	});
 
+	it("tests synthetic fixture Invoice OCR execution when switched to Invoice tab", async () => {
+		const mockInvoiceResult = {
+			id: "ocr_inv_play_1",
+			document_type: "invoice",
+			status: "completed",
+			confidence: 0.99,
+			processing: {
+				latency_ms: 150,
+			},
+			data: {
+				invoice_number: "INV/2023/11/001",
+				invoice_date: "2023-11-20",
+				due_date: "2023-12-20",
+				seller_name: "PT TEKNOLOGI MAJU JAYA",
+				seller_npwp: "01.234.567.8-901.000",
+				seller_address: "JL. SUDIRMAN NO. 123",
+				buyer_name: "PT GLOBAL SOLUSI MANDIRI",
+				buyer_npwp: "02.345.678.9-012.000",
+				buyer_address: "JL. THAMRIN NO. 45",
+				currency: "IDR",
+				subtotal: 10000000,
+				discount: 500000,
+				dpp: 9500000,
+				ppn: 1045000,
+				grand_total: 10545000,
+				line_items: [
+					{
+						description: "Cloud Server Hosting",
+						quantity: 2,
+						unit_price: 5000000,
+						total_price: 10000000,
+					},
+				],
+			},
+			field_confidence: {
+				invoice_number: 1.0,
+				seller_name: 0.99,
+			},
+		};
+
+		const invoiceSpy = vi
+			.spyOn(api, "executeInvoiceOCR")
+			.mockResolvedValue(mockInvoiceResult as any);
+
+		renderWithAuth(<PlaygroundPage />, {
+			initialOrg: TEST_ORG,
+			initialApiKey: "lensio_live_testkey123",
+		});
+
+		// Switch to Invoice tab
+		const invoiceTabBtn = screen.getByRole("button", { name: /^Invoice$/i });
+		fireEvent.click(invoiceTabBtn);
+
+		// Click "Load Synthetic Fixture"
+		const fixtureBtn = screen.getByRole("button", {
+			name: /Load Synthetic Fixture/i,
+		});
+		fireEvent.click(fixtureBtn);
+
+		await waitFor(() => {
+			expect(invoiceSpy).toHaveBeenCalledTimes(1);
+			expect(screen.getByText(/Normalized Field Verification/)).toBeDefined();
+			expect(screen.getByText("INV/2023/11/001")).toBeDefined();
+			expect(screen.getByText("PT TEKNOLOGI MAJU JAYA")).toBeDefined();
+			expect(screen.getByText("Cloud Server Hosting")).toBeDefined();
+			expect(screen.getByText(/99% Confidence/)).toBeDefined();
+		});
+	});
+
 	it("shows warning and blocks execution when apiKey is missing", async () => {
 		const ocrSpy = vi.spyOn(api, "executeKTPOCR");
 		const onNavigate = vi.fn();

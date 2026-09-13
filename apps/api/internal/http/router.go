@@ -153,6 +153,9 @@ func NewRouterWithDeps(deps RouterDeps) http.Handler {
 		kkHandler := handlers.KKOCRHandler(deps.OCREngine, deps.OCRStore, quotaChecker)
 		mux.Handle("POST /api/v1/ocr/kk", authMiddleware(scopeWriteMiddleware(idempotencyMiddleware(kkHandler))))
 
+		invoiceHandler := handlers.InvoiceOCRHandler(deps.OCREngine, deps.OCRStore, quotaChecker)
+		mux.Handle("POST /api/v1/ocr/invoice", authMiddleware(scopeWriteMiddleware(idempotencyMiddleware(invoiceHandler))))
+
 		if deps.OCRStore != nil {
 			getOcrHandler := handlers.GetOCRRequestHandler(deps.OCRStore)
 			mux.Handle("GET /api/v1/ocr/{id}", authMiddleware(scopeReadMiddleware(getOcrHandler)))

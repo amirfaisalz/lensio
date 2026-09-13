@@ -150,6 +150,45 @@ export interface KKResponse {
 	warnings?: string[];
 }
 
+export interface InvoiceLineItem {
+	description: string;
+	quantity: number;
+	unit_price: number;
+	total_price: number;
+}
+
+export interface InvoiceData {
+	invoice_number: string;
+	invoice_date: string;
+	due_date?: string;
+	seller_name: string;
+	seller_npwp?: string;
+	seller_address?: string;
+	buyer_name: string;
+	buyer_npwp?: string;
+	buyer_address?: string;
+	currency: string;
+	subtotal: number;
+	discount?: number;
+	dpp: number;
+	ppn: number;
+	grand_total: number;
+	line_items: InvoiceLineItem[];
+}
+
+export interface InvoiceResponse {
+	id: string;
+	document_type: "invoice" | string;
+	status?: "completed" | "failed" | "low_confidence" | string;
+	confidence: number;
+	processing: {
+		latency_ms: number;
+	};
+	data: InvoiceData;
+	field_confidence?: FieldConfidence;
+	warnings?: string[];
+}
+
 export interface APIKeyListItem {
 	id: string;
 	name: string;

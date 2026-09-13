@@ -11,11 +11,11 @@ import { useState } from "react";
 import type { NavigationPage } from "../components/layout/Sidebar";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../services/api";
-import type { KKResponse, KTPResponse, NPWPResponse, PassportResponse, SIMResponse } from "../types/api";
+import type { InvoiceResponse, KKResponse, KTPResponse, NPWPResponse, PassportResponse, SIMResponse } from "../types/api";
 
 // 400x250 valid synthetic KTP JPEG fixture
 const SYNTHETIC_KTP_BASE64 =
-	"/9j/2wCEAAMCAgMCAgMDAwMEAwMEBQgFBQQEBQoHBwYIDAoMDAsKCwsNDhIQDQ4RDgsLEBYQERMUFRUVDA8XGBYUGBIUFRQBAwQEBQQFCQUFCRQNCw0UFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFP/AABEIAPoBkAMBIgACEQEDEQH/xAGiAAABBQEBAQEBAQAAAAAAAAAAAQIDBAUGBwgJCgsQAAIBAwMCBAMFBQQEAAABfQECAwAEEQUSITFBBhNRYQcicRQygZGhCCNCscEVUtHwJDNicoIJChYXGBkaJSYnKCkqNDU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6g4SFhoeIiYqSk5SVlpeYmZqio6Slpqeoqaqys7S1tre4ubrCw8TFxsfIycrS09TV1tfY2drh4uPk5ebn6Onq8fLz9PX29/j5+gEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoLEQACAQIEBAMEBwUEBAABAncAAQIDEQQFITEGEkFRB2FxEyIygQgUQpGhscEJIzNS8BVictEKFiQ04SXxFxgZGiYnKCkqNDU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6g4SFhoeIiYqSk5SVlpeYmZqio6Slpqeoqaqys7S1tre4ubrCw8TFxsfIycrS09TV1tfY2dri4+Tl5ufo6ery8/T19vf4+fr/2gAMAwEAAhEDEQA/AP0Fooor6M+fCiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooA//Z";
+	"/9j/2wCEAAMCAgMCAgMDAwMEAwMEBQgFBQQEBQoHBwYIDAoMDAsKCwsNDhIQDQ4RDgsLEBYQERMUFRUVDA8XGBYUGBIUFRQBAwQEBQQFCQUFCRQNCw0UFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFP/AABEIAPoBkAMBIgACEQEDEQH/xAGiAAABBQEBAQEBAQAAAAAAAAAAAQIDBAUGBwgJCgsQAAIBAwMCBAMFBQQEAAABfQECAwAEEQUSITFBBhNRYQcicRQygZGhCCNCscEVUtHwJDNicoIJChYXGBkaJSYnKCkqNDU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6g4SFhoeIiYqSk5SVlpeYmZqio6Slpqeoqaqys7S1tre4ubrCw8TFxsfIycrS09TV1tfY2drh4uPk5ebn6Onq8fLz9PX29/j5+gEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoLEQACAQIEBAMEBwUEBAABAncAAQIDEQQFITEGEkFRB2FxEyIygQgUQpGhscEJIzNS8BVictEKFiQ04SXxFxgZGiYnKCkqNDU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6g4SFhoeIiYqSk5SVlpeYmZqio6Slpqeoqaqys7S1tre4ubrCw8TFxsfIycrS09TV1tfY2drh4uPk5ebn6Onq8fLz9PX29/j5+gEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoLEQACAQIEBAMEBwUEBAABAncAAQIDEQQFITEGEkFRB2FxEyIygQgUQpGhscEJIzNS8BVictEKFiQ04SXxFxgZGiYnKCkqNDU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6g4SFhoeIiYqSk5SVlpeYmZqio6Slpqeoqaqys7S1tre4ubrCw8TFxsfIycrS09TV1tfY2dri4+Tl5ufo6ery8/T19vf4+fr/2gAMAwEAAhEDEQA/AP0Fooor6M+fCiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooA//Z";
 
 function base64ToUint8Array(base64: string): Uint8Array {
 	const binaryString = atob(base64);
@@ -35,10 +35,10 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({
 }) => {
 	const { currentOrg, apiKey } = useAuth();
 
-	const [docType, setDocType] = useState<"ktp" | "sim" | "passport" | "npwp" | "kk">("ktp");
+	const [docType, setDocType] = useState<"ktp" | "sim" | "passport" | "npwp" | "kk" | "invoice">("ktp");
 	const [ocrLoading, setOcrLoading] = useState(false);
 	const [ocrResult, setOcrResult] = useState<
-		KTPResponse | SIMResponse | PassportResponse | NPWPResponse | KKResponse | null
+		KTPResponse | SIMResponse | PassportResponse | NPWPResponse | KKResponse | InvoiceResponse | null
 	>(null);
 	const [ocrError, setOcrError] = useState<string | null>(null);
 	const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
@@ -54,7 +54,9 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({
 		try {
 			setSelectedFileName(
 				file.name ||
-					(docType === "kk"
+					(docType === "invoice"
+						? "invoice_document.jpg"
+						: docType === "kk"
 						? "kartu_keluarga_document.jpg"
 						: docType === "npwp"
 						? "npwp_document.jpg"
@@ -66,8 +68,10 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({
 			);
 			setOcrLoading(true);
 			setOcrError(null);
-			let res: KTPResponse | SIMResponse | PassportResponse | NPWPResponse | KKResponse;
-			if (docType === "kk") {
+			let res: KTPResponse | SIMResponse | PassportResponse | NPWPResponse | KKResponse | InvoiceResponse;
+			if (docType === "invoice") {
+				res = await api.executeInvoiceOCR(file, apiKey);
+			} else if (docType === "kk") {
 				res = await api.executeKKOCR(file, apiKey);
 			} else if (docType === "npwp") {
 				res = await api.executeNPWPOCR(file, apiKey);
@@ -91,7 +95,9 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({
 	const handleLoadSyntheticSample = async () => {
 		try {
 			const filename =
-				docType === "kk"
+				docType === "invoice"
+					? "synthetic_invoice_fixture.jpg"
+					: docType === "kk"
 					? "synthetic_kk_fixture.jpg"
 					: docType === "npwp"
 					? "synthetic_npwp_fixture.jpg"
@@ -105,7 +111,13 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({
 			setOcrError(null);
 
 			let bytes = base64ToUint8Array(SYNTHETIC_KTP_BASE64);
-			if (docType === "kk") {
+			if (docType === "invoice") {
+				const marker = new TextEncoder().encode("MOCK_INVOICE_DOC");
+				const combined = new Uint8Array(bytes.length + marker.length);
+				combined.set(bytes);
+				combined.set(marker, bytes.length);
+				bytes = combined;
+			} else if (docType === "kk") {
 				const marker = new TextEncoder().encode("MOCK_KK_DOC");
 				const combined = new Uint8Array(bytes.length + marker.length);
 				combined.set(bytes);
@@ -189,7 +201,7 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({
 						Live OCR Playground
 					</h2>
 					<p className="text-xs text-slate-500 dark:text-slate-400">
-						Interactive test harness for Indonesian identity documents (KTP, SIM, Passport, NPWP & KK)
+						Interactive test harness for Indonesian identity documents (KTP, SIM, Passport, NPWP, KK & Invoice)
 						with synthetic fixtures.
 					</p>
 				</div>
@@ -277,6 +289,22 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({
 						>
 							KK
 						</button>
+						<button
+							type="button"
+							onClick={() => {
+								setDocType("invoice");
+								setOcrResult(null);
+								setSelectedFileName(null);
+								setOcrError(null);
+							}}
+							className={`px-3 py-1 rounded-md transition-all cursor-pointer ${
+								docType === "invoice"
+									? "bg-white dark:bg-slate-700 text-[#1877F2] dark:text-white"
+									: "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:text-white dark:hover:text-white"
+							}`}
+						>
+							Invoice
+						</button>
 					</div>
 					<button
 						type="button"
@@ -324,7 +352,7 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({
 								Click to upload or drag & drop
 							</p>
 							<p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-								Upload Indonesian {docType === "passport" ? "Passport" : docType === "npwp" ? "NPWP" : docType === "kk" ? "Kartu Keluarga" : docType === "sim" ? "SIM" : "KTP"} image
+								Upload Indonesian {docType === "invoice" ? "Invoice / E-Faktur" : docType === "passport" ? "Passport" : docType === "npwp" ? "NPWP" : docType === "kk" ? "Kartu Keluarga" : docType === "sim" ? "SIM" : "KTP"} image
 								(JPEG, PNG, max 5MB)
 							</p>
 							<input
@@ -378,7 +406,7 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({
 								<div className="h-full flex items-center justify-center text-slate-500 dark:text-slate-400 py-16">
 									<RefreshCw className="w-5 h-5 animate-spin mr-2 text-[#1877F2]" />
 									<span>
-										Processing {docType === "passport" ? "Passport" : docType === "npwp" ? "NPWP" : docType === "sim" ? "SIM" : "KTP"} OCR
+										Processing {docType === "invoice" ? "Invoice" : docType === "passport" ? "Passport" : docType === "npwp" ? "NPWP" : docType === "kk" ? "Kartu Keluarga" : docType === "sim" ? "SIM" : "KTP"} OCR
 										extraction...
 									</span>
 								</div>
@@ -390,7 +418,7 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({
 								<div className="h-full flex flex-col items-center justify-center text-slate-500 dark:text-slate-400 py-16 text-center">
 									<p>No document submitted yet.</p>
 									<p className="text-[11px] text-slate-600 dark:text-slate-400 mt-1">
-										Upload a {docType === "passport" ? "Passport" : docType === "npwp" ? "NPWP" : docType === "sim" ? "SIM" : "KTP"} image or click
+										Upload a {docType === "invoice" ? "Invoice" : docType === "passport" ? "Passport" : docType === "npwp" ? "NPWP" : docType === "kk" ? "Kartu Keluarga" : docType === "sim" ? "SIM" : "KTP"} image or click
 										"Load Synthetic Fixture" above.
 									</p>
 								</div>
@@ -404,18 +432,159 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({
 					<div className="px-4 sm:px-6 py-4 bg-slate-50/80 dark:bg-white/[0.02] border-t border-slate-100 dark:border-white/10">
 						<h4 className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-3">
 							Normalized Field Verification (
-							{"passport_number" in ocrResult.data
-								? "Passport"
-								: "nomor_kk" in ocrResult.data
-									? "Kartu Keluarga"
-									: "nomor_sim" in ocrResult.data
-										? "SIM"
-										: "npwp" in ocrResult.data
-											? "NPWP"
-											: "KTP"}
+							{"invoice_number" in ocrResult.data
+								? "Commercial Invoice / E-Faktur"
+								: "passport_number" in ocrResult.data
+									? "Passport"
+									: "nomor_kk" in ocrResult.data
+										? "Kartu Keluarga"
+										: "nomor_sim" in ocrResult.data
+											? "SIM"
+											: "npwp" in ocrResult.data
+												? "NPWP"
+												: "KTP"}
 							)
 						</h4>
-						{"passport_number" in ocrResult.data ? (
+						{"invoice_number" in ocrResult.data ? (
+							<div className="space-y-4">
+								<div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-3 text-xs">
+									<div className="bg-white dark:bg-slate-800 p-2.5 rounded border border-slate-200 dark:border-white/10">
+										<span className="text-slate-400 dark:text-slate-500 block text-[10px] uppercase font-semibold">
+											Nomor Invoice
+										</span>
+										<span className="font-mono font-bold text-slate-900 dark:text-white">
+											{ocrResult.data.invoice_number}
+										</span>
+									</div>
+									<div className="bg-white dark:bg-slate-800 p-2.5 rounded border border-slate-200 dark:border-white/10">
+										<span className="text-slate-400 dark:text-slate-500 block text-[10px] uppercase font-semibold">
+											Tanggal Invoice
+										</span>
+										<span className="font-mono text-slate-900 dark:text-white">
+											{ocrResult.data.invoice_date}
+										</span>
+									</div>
+									{ocrResult.data.due_date && (
+										<div className="bg-white dark:bg-slate-800 p-2.5 rounded border border-slate-200 dark:border-white/10">
+											<span className="text-slate-400 dark:text-slate-500 block text-[10px] uppercase font-semibold">
+												Jatuh Tempo
+											</span>
+											<span className="font-mono text-slate-900 dark:text-white">
+												{ocrResult.data.due_date}
+											</span>
+										</div>
+									)}
+									<div className="bg-white dark:bg-slate-800 p-2.5 rounded border border-slate-200 dark:border-white/10">
+										<span className="text-slate-400 dark:text-slate-500 block text-[10px] uppercase font-semibold">
+											Grand Total ({ocrResult.data.currency || "IDR"})
+										</span>
+										<span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">
+											{ocrResult.data.grand_total.toLocaleString("id-ID")}
+										</span>
+									</div>
+
+									{/* Seller Section */}
+									<div className="bg-white dark:bg-slate-800 p-2.5 rounded border border-slate-200 dark:border-white/10 sm:col-span-2">
+										<span className="text-slate-400 dark:text-slate-500 block text-[10px] uppercase font-semibold">
+											Penjual (Seller)
+										</span>
+										<div className="font-semibold text-slate-900 dark:text-white truncate">
+											{ocrResult.data.seller_name}
+										</div>
+										{ocrResult.data.seller_npwp && (
+											<div className="font-mono text-[11px] text-slate-500 dark:text-slate-400">
+												NPWP: {ocrResult.data.seller_npwp}
+											</div>
+										)}
+										{ocrResult.data.seller_address && (
+											<div className="text-[11px] text-slate-600 dark:text-slate-400 truncate mt-0.5">
+												{ocrResult.data.seller_address}
+											</div>
+										)}
+									</div>
+
+									{/* Buyer Section */}
+									<div className="bg-white dark:bg-slate-800 p-2.5 rounded border border-slate-200 dark:border-white/10 sm:col-span-2">
+										<span className="text-slate-400 dark:text-slate-500 block text-[10px] uppercase font-semibold">
+											Pembeli (Buyer)
+										</span>
+										<div className="font-semibold text-slate-900 dark:text-white truncate">
+											{ocrResult.data.buyer_name}
+										</div>
+										{ocrResult.data.buyer_npwp && (
+											<div className="font-mono text-[11px] text-slate-500 dark:text-slate-400">
+												NPWP: {ocrResult.data.buyer_npwp}
+											</div>
+										)}
+										{ocrResult.data.buyer_address && (
+											<div className="text-[11px] text-slate-600 dark:text-slate-400 truncate mt-0.5">
+												{ocrResult.data.buyer_address}
+											</div>
+										)}
+									</div>
+
+									{/* Tax & Breakdown Cards */}
+									<div className="bg-white dark:bg-slate-800 p-2.5 rounded border border-slate-200 dark:border-white/10">
+										<span className="text-slate-400 dark:text-slate-500 block text-[10px] uppercase font-semibold">
+											Subtotal
+										</span>
+										<span className="font-mono text-slate-900 dark:text-white">
+											{ocrResult.data.subtotal.toLocaleString("id-ID")}
+										</span>
+									</div>
+									<div className="bg-white dark:bg-slate-800 p-2.5 rounded border border-slate-200 dark:border-white/10">
+										<span className="text-slate-400 dark:text-slate-500 block text-[10px] uppercase font-semibold">
+											Diskon
+										</span>
+										<span className="font-mono text-slate-900 dark:text-white">
+											{(ocrResult.data.discount ?? 0).toLocaleString("id-ID")}
+										</span>
+									</div>
+									<div className="bg-white dark:bg-slate-800 p-2.5 rounded border border-slate-200 dark:border-white/10">
+										<span className="text-slate-400 dark:text-slate-500 block text-[10px] uppercase font-semibold">
+											DPP
+										</span>
+										<span className="font-mono text-slate-900 dark:text-white">
+											{ocrResult.data.dpp.toLocaleString("id-ID")}
+										</span>
+									</div>
+									<div className="bg-white dark:bg-slate-800 p-2.5 rounded border border-slate-200 dark:border-white/10">
+										<span className="text-slate-400 dark:text-slate-500 block text-[10px] uppercase font-semibold">
+											PPN (11% / 12%)
+										</span>
+										<span className="font-mono text-slate-900 dark:text-white">
+											{ocrResult.data.ppn.toLocaleString("id-ID")}
+										</span>
+									</div>
+								</div>
+
+								{/* Line Items Table */}
+								{ocrResult.data.line_items && ocrResult.data.line_items.length > 0 && (
+									<div className="mt-4 border border-slate-200 dark:border-white/10 rounded-lg overflow-x-auto">
+										<table className="w-full text-left text-xs">
+											<thead className="bg-slate-100 dark:bg-white/5 text-[10px] uppercase font-semibold text-slate-500 dark:text-slate-400">
+												<tr>
+													<th className="p-2.5">Deskripsi Barang / Jasa</th>
+													<th className="p-2.5 text-right">Kuantitas</th>
+													<th className="p-2.5 text-right">Harga Satuan</th>
+													<th className="p-2.5 text-right">Total Harga</th>
+												</tr>
+											</thead>
+											<tbody className="divide-y divide-slate-200 dark:divide-white/10 text-slate-800 dark:text-slate-200">
+												{ocrResult.data.line_items.map((item, idx) => (
+													<tr key={idx} className="hover:bg-slate-50 dark:hover:bg-white/5">
+														<td className="p-2.5 font-medium">{item.description}</td>
+														<td className="p-2.5 font-mono text-right">{item.quantity}</td>
+														<td className="p-2.5 font-mono text-right">{item.unit_price.toLocaleString("id-ID")}</td>
+														<td className="p-2.5 font-mono text-right font-semibold">{item.total_price.toLocaleString("id-ID")}</td>
+													</tr>
+												))}
+											</tbody>
+										</table>
+									</div>
+								)}
+							</div>
+						) : "passport_number" in ocrResult.data ? (
 							<div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-3 text-xs">
 								<div className="bg-white dark:bg-slate-800 p-2.5 rounded border border-slate-200 dark:border-white/10">
 									<span className="text-slate-400 dark:text-slate-500 block text-[10px] uppercase font-semibold">

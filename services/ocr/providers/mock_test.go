@@ -231,5 +231,40 @@ func TestMockOCREngine(t *testing.T) {
 			t.Errorf("expected low confidence < 0.50, got %f", res.Confidence)
 		}
 	})
+
+	t.Run("marker Invoice doc extraction", func(t *testing.T) {
+		res, err := engine.Extract(ctx, providers.MarkerInvoiceDoc)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if res.DocumentType != "invoice" {
+			t.Errorf("expected doc_type invoice, got %s", res.DocumentType)
+		}
+		if res.Confidence < 0.90 {
+			t.Errorf("expected high confidence, got %f", res.Confidence)
+		}
+		if res.InvoiceData == nil || res.InvoiceData.InvoiceNumber != "INV-2026-0001" {
+			t.Errorf("expected InvoiceData with InvoiceNumber INV-2026-0001, got %v", res.InvoiceData)
+		}
+		if res.InvoiceData.GrandTotal != 11100000 {
+			t.Errorf("expected GrandTotal 11100000, got %.2f", res.InvoiceData.GrandTotal)
+		}
+		if len(res.InvoiceData.LineItems) != 2 {
+			t.Errorf("expected 2 line items, got %d", len(res.InvoiceData.LineItems))
+		}
+	})
+
+	t.Run("marker Invoice low confidence", func(t *testing.T) {
+		res, err := engine.Extract(ctx, providers.MarkerInvoiceLowConfidence)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if res.DocumentType != "invoice" {
+			t.Errorf("expected doc_type invoice, got %s", res.DocumentType)
+		}
+		if res.Confidence >= 0.50 {
+			t.Errorf("expected low confidence < 0.50, got %f", res.Confidence)
+		}
+	})
 }
 

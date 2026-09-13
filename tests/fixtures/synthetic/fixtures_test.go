@@ -119,6 +119,29 @@ func TestSyntheticFixtures(t *testing.T) {
 		t.Fatal("expected non-empty kk low confidence image")
 	}
 
+	invoicePng := synthetic.GenerateValidInvoiceImage()
+	if len(invoicePng) == 0 {
+		t.Fatal("expected non-empty invoice png image")
+	}
+	mime, err = ocr.ValidateImage(invoicePng)
+	if err != nil || mime != ocr.MIMEPNG {
+		t.Fatalf("expected valid invoice png, got mime=%s err=%v", mime, err)
+	}
+
+	invoiceJpeg := synthetic.GenerateValidInvoiceJPEG()
+	if len(invoiceJpeg) == 0 {
+		t.Fatal("expected non-empty invoice jpeg image")
+	}
+	mime, err = ocr.ValidateImage(invoiceJpeg)
+	if err != nil || mime != ocr.MIMEJPEG {
+		t.Fatalf("expected valid invoice jpeg, got mime=%s err=%v", mime, err)
+	}
+
+	invoiceLowConf := synthetic.GenerateInvoiceLowConfidenceImage()
+	if len(invoiceLowConf) == 0 {
+		t.Fatal("expected non-empty invoice low confidence image")
+	}
+
 	unsupported := synthetic.GenerateUnsupportedDocImage()
 	if len(unsupported) == 0 {
 		t.Fatal("expected non-empty unsupported doc image")

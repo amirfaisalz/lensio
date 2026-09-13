@@ -24,6 +24,9 @@ var (
 	// ErrUnsupportedKKDocument indicates the image is not an Indonesian Kartu Keluarga.
 	ErrUnsupportedKKDocument = errors.New("uploaded document was not identified as an Indonesian Kartu Keluarga")
 
+	// ErrUnsupportedInvoiceDocument indicates the image is not an Indonesian commercial invoice or e-faktur.
+	ErrUnsupportedInvoiceDocument = errors.New("uploaded document was not identified as an Indonesian commercial invoice or e-faktur")
+
 	// ErrOCRFailed indicates upstream OCR engine processing error or timeout.
 	ErrOCRFailed = errors.New("upstream ocr engine failure")
 
@@ -128,6 +131,34 @@ type KKData struct {
 	AnggotaKeluarga    []KKFamilyMember `json:"anggota_keluarga"`
 }
 
+// InvoiceLineItem represents an individual item or service listed on an Indonesian commercial invoice.
+type InvoiceLineItem struct {
+	Description string  `json:"description"`
+	Quantity    float64 `json:"quantity"`
+	UnitPrice   float64 `json:"unit_price"`
+	TotalPrice  float64 `json:"total_price"`
+}
+
+// InvoiceData represents structured fields extracted from an Indonesian Commercial Invoice / E-Faktur.
+type InvoiceData struct {
+	InvoiceNumber string            `json:"invoice_number"`
+	InvoiceDate   string            `json:"invoice_date"` // YYYY-MM-DD
+	DueDate       string            `json:"due_date,omitempty"` // YYYY-MM-DD
+	SellerName    string            `json:"seller_name"`
+	SellerNPWP    string            `json:"seller_npwp,omitempty"`
+	SellerAddress string            `json:"seller_address,omitempty"`
+	BuyerName     string            `json:"buyer_name"`
+	BuyerNPWP     string            `json:"buyer_npwp,omitempty"`
+	BuyerAddress  string            `json:"buyer_address,omitempty"`
+	Currency      string            `json:"currency"` // IDR | USD | EUR, etc.
+	Subtotal      float64           `json:"subtotal"`
+	Discount      float64           `json:"discount,omitempty"`
+	DPP           float64           `json:"dpp"` // Dasar Pengenaan Pajak
+	PPN           float64           `json:"ppn"` // Pajak Pertambahan Nilai
+	GrandTotal    float64           `json:"grand_total"`
+	LineItems     []InvoiceLineItem `json:"line_items"`
+}
+
 // OCRResult represents the complete structured result of an OCR extraction.
 //nolint:revive // spec mandates ocr.OCRResult naming
 type OCRResult struct {
@@ -139,6 +170,7 @@ type OCRResult struct {
 	PassportData *PassportData `json:"passport_data,omitempty"`
 	NPWPData     *NPWPData     `json:"npwp_data,omitempty"`
 	KKData       *KKData       `json:"kk_data,omitempty"`
+	InvoiceData  *InvoiceData  `json:"invoice_data,omitempty"`
 }
 
 // OCREngine defines the pluggable document extraction contract.

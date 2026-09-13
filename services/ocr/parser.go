@@ -71,6 +71,17 @@ var (
 	kkKabupatenRegex   = regexp.MustCompile(`(?i)(?:Kabupaten/Kota|Kabupaten|Kota)[\s:;.-]+([^\r\n]+)`)
 	kkProvinsiRegex    = regexp.MustCompile(`(?i)(?:Provinsi)[\s:;.-]+([^\r\n]+)`)
 	kkDikeluarkanRegex = regexp.MustCompile(`(?i)(?:Dikeluarkan\s*Tanggal|Tgl\s*Dikeluarkan)[\s:;.-]*(\d{1,2}[-\s/.]\d{1,2}[-\s/.]\d{4})`)
+
+	// Invoice specific regex patterns
+	invoiceNomorRegex    = regexp.MustCompile(`(?i)(?:Invoice\s*(?:No\.?|Nomor)|Nomor\s*(?:Faktur|Invoice)|No\.?\s*(?:Faktur|Invoice))[\t :;.-]*([A-Z0-9/.-]{3,30})`)
+	invoiceDateRegex     = regexp.MustCompile(`(?i)(?:Tanggal(?:\s*Faktur|\s*Invoice)?|Date|Tgl)[\s:;.-]*(\d{1,2}[-\s/.]\d{1,2}[-\s/.]\d{4})`)
+	invoiceDueDateRegex  = regexp.MustCompile(`(?i)(?:Jatuh\s*Tempo|Due\s*Date)[\s:;.-]*(\d{1,2}[-\s/.]\d{1,2}[-\s/.]\d{4})`)
+	invoiceSellerRegex   = regexp.MustCompile(`(?i)(?:Pengusaha\s*Kena\s*Pajak|Nama\s*Penjual|Seller|Dari)[\s:;.-]+([^\r\n]+)`)
+	invoiceBuyerRegex    = regexp.MustCompile(`(?i)(?:Pembeli\s*BKP\s*/\s*Penerima\s*JKP|Nama\s*Pembeli|Buyer|Kepada)[\s:;.-]+([^\r\n]+)`)
+	invoiceSubtotalRegex = regexp.MustCompile(`(?i)(?:Jumlah\s*Harga\s*Jual|Subtotal|Sub\s*Total)[\s:;.Rp]*([\d.,]+)`)
+	invoiceDPPRegex      = regexp.MustCompile(`(?i)(?:Dasar\s*Pengenaan\s*Pajak|DPP)[\s:;.Rp]*([\d.,]+)`)
+	invoicePPNRegex      = regexp.MustCompile(`(?i)(?:Pajak\s*Pertambahan\s*Nilai|PPN|P\.P\.N\.)[\s:;.Rp]*([\d.,]+)`)
+	invoiceTotalRegex    = regexp.MustCompile(`(?i)(?:Total\s*Tagihan|Grand\s*Total|Jumlah\s*Yang\s*Harus\s*Dibayar|Total)[\s:;.Rp]*([\d.,]+)`)
 )
 
 // cleanDigits fixes common OCR confusion in numeric fields (O->0, I/l->1).
@@ -481,5 +492,87 @@ func ParseKKFromRawText(rawText string) *KKData {
 
 	return data
 }
+
+// parseAmount converts string currency representation (e.g. "1.500.000,00" or "1500000") to float64.
+func parseAmount(s string) float64 {
+	s = strings.TrimSpace(s)
+	s = strings.TrimPrefix(s, "Rp")
+	s = strings.TrimPrefix(s, "RP")
+	s = strings.TrimPrefix(s, "rp")
+	s = strings.TrimSpace(s)
+	s = strings.Trim(s, ":;,-. ")
+
+	if strings.Contains(s, ",") && strings.Contains(s, ".") {
+		s = strings.ReplaceAll(s, ".", "")
+		s = strings.ReplaceAll(s, ",", ".")
+	} else if strings.Contains(s, ".") && !strings.Contains(s, ",") {
+		parts := strings.Split(s, ".")
+		if len(parts) > 1 && len(parts[len(parts)-1]) == 3 {
+			s = strings.ReplaceAll(s, ".", "")
+		}
+	} else if strings.Contains(s, ",") && !strings.Contains(s, ".") {
+		parts := strings.Split(s, ",")
+		if len(parts) > 1 && len(parts[len(parts)-1]) != 3 {
+			s = strings.ReplaceAll(s, ",", ".")
+		} else {
+			s = strings.ReplaceAll(s, ",", "")
+		}
+	}
+
+	var val float64
+	_, _ = fmt.Sscanf(s, "%f", &val)
+	return val
+}
+
+// ParseInvoiceFromRawText extracts structured Invoice / E-Faktur fields from raw OCR text using regex and heuristics.
+func ParseInvoiceFromRawText(rawText string) *InvoiceData {
+	data := &InvoiceData{
+		Currency:  "IDR",
+		LineItems: make([]InvoiceLineItem, 0),
+	}
+
+	// 1. Invoice Number
+	if m := invoiceNomorRegex.FindStringSubmatch(rawText); len(m) > 1 {
+		data.InvoiceNumber = strings.TrimSpace(m[1])
+	}
+
+	// 2. Invoice Date
+	if m := invoiceDateRegex.FindStringSubmatch(rawText); len(m) > 1 {
+		data.InvoiceDate = normalizeDate(m[1])
+	}
+
+	// 3. Due Date
+	if m := invoiceDueDateRegex.FindStringSubmatch(rawText); len(m) > 1 {
+		data.DueDate = normalizeDate(m[1])
+	}
+
+	// 4. Seller & Buyer
+	if m := invoiceSellerRegex.FindStringSubmatch(rawText); len(m) > 1 {
+		data.SellerName = cleanField(m[1])
+	}
+	if m := invoiceBuyerRegex.FindStringSubmatch(rawText); len(m) > 1 {
+		data.BuyerName = cleanField(m[1])
+	}
+
+	// 5. Subtotal, DPP, PPN, Grand Total
+	if m := invoiceSubtotalRegex.FindStringSubmatch(rawText); len(m) > 1 {
+		data.Subtotal = parseAmount(m[1])
+	}
+	if m := invoiceDPPRegex.FindStringSubmatch(rawText); len(m) > 1 {
+		data.DPP = parseAmount(m[1])
+	}
+	if m := invoicePPNRegex.FindStringSubmatch(rawText); len(m) > 1 {
+		data.PPN = parseAmount(m[1])
+	}
+	if m := invoiceTotalRegex.FindStringSubmatch(rawText); len(m) > 1 {
+		data.GrandTotal = parseAmount(m[1])
+	}
+
+	// Auto-fill DPP / GrandTotal if needed
+	_ = ValidateInvoice(data)
+
+	return data
+}
+
 
 

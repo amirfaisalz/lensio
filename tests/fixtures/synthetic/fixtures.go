@@ -105,6 +105,26 @@ func GenerateKKLowConfidenceImage() []byte {
 	return GenerateCustomImage(300, 200, color.RGBA{R: 230, G: 235, B: 240, A: 255}, providers.MarkerKKLowConfidence)
 }
 
+// GenerateValidInvoiceImage returns a valid in-memory PNG image meeting dimensions and embedded with MarkerInvoiceDoc.
+func GenerateValidInvoiceImage() []byte {
+	return GenerateCustomImage(500, 700, color.RGBA{R: 250, G: 250, B: 250, A: 255}, providers.MarkerInvoiceDoc)
+}
+
+// GenerateValidInvoiceJPEG returns a valid in-memory JPEG image with Invoice marker.
+func GenerateValidInvoiceJPEG() []byte {
+	img := image.NewRGBA(image.Rect(0, 0, 500, 700))
+	draw.Draw(img, img.Bounds(), &image.Uniform{C: color.RGBA{R: 252, G: 252, B: 252, A: 255}}, image.Point{}, draw.Src)
+	var buf bytes.Buffer
+	_ = jpeg.Encode(&buf, img, &jpeg.Options{Quality: 90})
+	buf.Write(providers.MarkerInvoiceDoc)
+	return buf.Bytes()
+}
+
+// GenerateInvoiceLowConfidenceImage returns an image containing the Invoice low confidence test marker.
+func GenerateInvoiceLowConfidenceImage() []byte {
+	return GenerateCustomImage(300, 200, color.RGBA{R: 240, G: 240, B: 235, A: 255}, providers.MarkerInvoiceLowConfidence)
+}
+
 // GenerateUnsupportedDocImage returns an image containing the unsupported doc test marker.
 func GenerateUnsupportedDocImage() []byte {
 	return GenerateCustomImage(300, 200, color.RGBA{R: 255, G: 240, B: 240, A: 255}, providers.MarkerUnsupportedDoc)

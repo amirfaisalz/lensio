@@ -48,8 +48,13 @@
   - [x] API endpoint & handler with idempotency, quota check, and usage metering.
   - [x] Synthetic fixtures & unit/integration tests with 100% test coverage.
   - [x] OpenAPI 3.0 specification update & dashboard playground integration.
-- [ ] **Phase 12.4: Indonesian Commercial Invoice / E-Faktur OCR (`POST /api/v1/ocr/invoice`)**
-  - [ ] Line-item extraction, tax calculation validation, and supplier details.
+- [x] **Phase 12.4: Indonesian Commercial Invoice / E-Faktur OCR (`POST /api/v1/ocr/invoice`)**
+  - [x] Line-item extraction, tax calculation validation, and supplier details.
+  - [x] Domain validator: Invoice number, invoice & due dates, tax arithmetic verification ($\sum(\text{Qty} \times \text{Price}) = \text{Subtotal}$, $\text{DPP} = \text{Subtotal} - \text{Discount}$, $\text{GrandTotal} = \text{DPP} + \text{PPN}$).
+  - [x] Multi-line items tabular extraction & tax rate parsing (11% / 12% PPN).
+  - [x] API endpoint & handler with idempotency, quota check, and usage metering.
+  - [x] Synthetic fixtures & unit/integration tests with 100% test coverage.
+  - [x] OpenAPI 3.0 specification update & dashboard playground integration.
 
 ---
 

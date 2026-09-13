@@ -620,6 +620,73 @@ paths:
         '502':
           $ref: '#/components/responses/OCRFailed'
 
+  /api/v1/ocr/invoice:
+    post:
+      summary: Extract Indonesian Commercial Invoice / E-Faktur OCR Data
+      description: |
+        Processes an uploaded Indonesian commercial invoice or e-faktur document image,
+        performs classification, extracts seller and buyer details (names, addresses, NPWPs),
+        financial breakdown (currency, subtotal, discount, DPP, PPN, grand total),
+        and line items with mathematical arithmetic validation.
+      operationId: extractInvoice
+      tags:
+        - OCR
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: false
+          schema:
+            type: string
+            maxLength: 256
+          description: Unique client token to guarantee safe retries without duplicate processing or billing.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - document
+              properties:
+                document:
+                  type: string
+                  format: binary
+                  description: Commercial invoice or e-faktur image file (JPEG, PNG, WebP up to 5MB)
+      responses:
+        '200':
+          description: Successfully extracted and validated invoice data
+          headers:
+            Idempotent-Replayed:
+              schema:
+                type: boolean
+              description: True if the response was served from the idempotency cache without re-processing.
+            X-RateLimit-Limit:
+              $ref: '#/components/headers/X-RateLimit-Limit'
+            X-RateLimit-Remaining:
+              $ref: '#/components/headers/X-RateLimit-Remaining'
+            X-RateLimit-Reset:
+              $ref: '#/components/headers/X-RateLimit-Reset'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvoiceResponse'
+        '400':
+          $ref: '#/components/responses/InvalidDocument'
+        '401':
+          $ref: '#/components/responses/InvalidAPIKey'
+        '403':
+          $ref: '#/components/responses/InsufficientScope'
+        '409':
+          $ref: '#/components/responses/RequestInProgress'
+        '422':
+          $ref: '#/components/responses/UnsupportedDocument'
+        '429':
+          $ref: '#/components/responses/RateLimitExceeded'
+        '502':
+          $ref: '#/components/responses/OCRFailed'
+
   /api/v1/ocr/{id}:
     get:
       summary: Get OCR Request Status / Metadata
@@ -1346,6 +1413,99 @@ components:
             latency_ms:
               type: integer
               example: 180
+
+    InvoiceResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        document_type:
+          type: string
+          example: invoice
+        confidence:
+          type: number
+          format: float
+          example: 0.99
+        data:
+          type: object
+          properties:
+            invoice_number:
+              type: string
+              example: "010.000-24.12345678"
+            invoice_date:
+              type: string
+              example: "2026-03-15"
+            due_date:
+              type: string
+              example: "2026-04-15"
+            seller_name:
+              type: string
+              example: "PT TECH UTAMA SYNTHETIC"
+            seller_npwp:
+              type: string
+              example: "092542943407000"
+            seller_address:
+              type: string
+              example: "JL. JEND. SUDIRMAN KAV. 21, JAKARTA"
+            buyer_name:
+              type: string
+              example: "PT MAJU MUNDUR SYNTHETIC"
+            buyer_npwp:
+              type: string
+              example: "092542943407000"
+            buyer_address:
+              type: string
+              example: "JL. THAMRIN NO. 10, JAKARTA"
+            currency:
+              type: string
+              example: "IDR"
+            subtotal:
+              type: number
+              format: float
+              example: 10000000
+            discount:
+              type: number
+              format: float
+              example: 0
+            dpp:
+              type: number
+              format: float
+              example: 10000000
+            ppn:
+              type: number
+              format: float
+              example: 1100000
+            grand_total:
+              type: number
+              format: float
+              example: 11100000
+            line_items:
+              type: array
+              items:
+                type: object
+                properties:
+                  description:
+                    type: string
+                    example: "Enterprise Cloud Hosting"
+                  quantity:
+                    type: number
+                    format: float
+                    example: 2
+                  unit_price:
+                    type: number
+                    format: float
+                    example: 3500000
+                  total_price:
+                    type: number
+                    format: float
+                    example: 7000000
+        processing:
+          type: object
+          properties:
+            latency_ms:
+              type: integer
+              example: 140
 
     OCRRequestMetadata:
       type: object
