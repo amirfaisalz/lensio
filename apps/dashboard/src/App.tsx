@@ -141,8 +141,19 @@ export const DashboardLayout: React.FC = () => {
 export const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({
 	children,
 }) => {
-	const { isConnected } = useAuth();
+	const { isConnected, isInitializing } = useAuth();
 	const location = useLocation();
+
+	if (isInitializing) {
+		return (
+			<div
+				data-testid="auth-loading"
+				className="flex min-h-screen items-center justify-center bg-[#F0F2F5]"
+			>
+				<div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#1877F2]" />
+			</div>
+		);
+	}
 
 	if (!isConnected) {
 		return <Navigate to="/login" state={{ from: location }} replace />;
@@ -155,7 +166,18 @@ export const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({
 export const PublicOnlyRoute: React.FC<{
 	children: React.ReactNode;
 }> = ({ children }) => {
-	const { isConnected } = useAuth();
+	const { isConnected, isInitializing } = useAuth();
+
+	if (isInitializing) {
+		return (
+			<div
+				data-testid="auth-loading"
+				className="flex min-h-screen items-center justify-center bg-[#F0F2F5]"
+			>
+				<div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#1877F2]" />
+			</div>
+		);
+	}
 
 	if (isConnected) {
 		return <Navigate to="/dashboard" replace />;
@@ -164,9 +186,24 @@ export const PublicOnlyRoute: React.FC<{
 	return <>{children}</>;
 };
 
-export const AppRoutes: React.FC = () => {
-	const { isConnected } = useAuth();
+export const RootRedirect: React.FC = () => {
+	const { isConnected, isInitializing } = useAuth();
 
+	if (isInitializing) {
+		return (
+			<div
+				data-testid="auth-loading"
+				className="flex min-h-screen items-center justify-center bg-[#F0F2F5]"
+			>
+				<div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#1877F2]" />
+			</div>
+		);
+	}
+
+	return <Navigate to={isConnected ? "/dashboard" : "/login"} replace />;
+};
+
+export const AppRoutes: React.FC = () => {
 	return (
 		<Routes>
 			{/* Public Authentication Routes */}
@@ -206,20 +243,10 @@ export const AppRoutes: React.FC = () => {
 			/>
 
 			{/* Root Redirect */}
-			<Route
-				path="/"
-				element={
-					<Navigate to={isConnected ? "/dashboard" : "/login"} replace />
-				}
-			/>
+			<Route path="/" element={<RootRedirect />} />
 
 			{/* Catch-all Fallback */}
-			<Route
-				path="*"
-				element={
-					<Navigate to={isConnected ? "/dashboard" : "/login"} replace />
-				}
-			/>
+			<Route path="*" element={<RootRedirect />} />
 		</Routes>
 	);
 };

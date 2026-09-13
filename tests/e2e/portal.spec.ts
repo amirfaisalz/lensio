@@ -69,7 +69,7 @@ test.describe.serial(
 			}
 		});
 
-		test.beforeEach(async ({ context }) => {
+		test.beforeEach(async ({ context, page }) => {
 			if (sessionCookieVal) {
 				await context.addCookies([
 					{
@@ -81,6 +81,16 @@ test.describe.serial(
 						sameSite: "Lax",
 					},
 				]);
+				await page.addInitScript(() => {
+					window.localStorage.setItem("lensio_auth_mode", "oidc");
+				});
+			}
+			if (createdApiKey) {
+				await page.addInitScript((key) => {
+					(
+						window as unknown as { __LENSIO_API_KEY__?: string }
+					).__LENSIO_API_KEY__ = key;
+				}, createdApiKey);
 			}
 		});
 

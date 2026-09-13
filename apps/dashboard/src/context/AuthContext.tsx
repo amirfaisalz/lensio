@@ -31,6 +31,7 @@ export interface AuthContextValue {
 	apiKey: string | null;
 	environment: "live" | "test";
 	isConnected: boolean;
+	isInitializing: boolean;
 	authMode: AuthMode;
 	oidcUser: OIDCUserSession | null;
 	currentOrg: OrganizationContext | null;
@@ -111,9 +112,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
 	initialApiKey = null,
 	initialAuthMode,
 }) => {
-	const [apiKey, setApiKeyState] = useState<string | null>(() =>
-		initialApiKey !== null ? initialApiKey : api.getApiKey(),
-	);
+	const [apiKey, setApiKeyState] = useState<string | null>(() => {
+		if (initialApiKey !== null) return initialApiKey;
+		if (typeof window !== "undefined") {
+			const win = window as unknown as { __LENSIO_API_KEY__?: string };
+			if (win.__LENSIO_API_KEY__) {
+				api.setApiKey(win.__LENSIO_API_KEY__);
+				return win.__LENSIO_API_KEY__;
+			}
+		}
+		return api.getApiKey();
+	});
 	const [authMode, setAuthMode] = useState<AuthMode>(() => {
 		if (initialAuthMode) return initialAuthMode;
 		if (initialApiKey) return "apikey";
@@ -191,10 +200,26 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
 		}
 	}, [apiKey]);
 
-	// Initialize and verify cookie-backed session on mount if previously in OIDC mode
+	const [isInitializing, setIsInitializing] = useState<boolean>(() => {
+		if (initialOrg || initialUser || initialApiKey) {
+			return false;
+		}
+		if (
+			typeof window !== "undefined" &&
+			localStorage.getItem(STORAGE_KEY_AUTH_MODE) === "oidc"
+		) {
+			return true;
+		}
+		return false;
+	});
+
+	// Initialize and verify cookie-backed session on mount if in OIDC mode
 	useEffect(() => {
 		const restoreSession = async () => {
-			if (initialOrg || initialUser) return;
+			if (initialOrg || initialUser || initialApiKey) {
+				setIsInitializing(false);
+				return;
+			}
 			if (
 				typeof window !== "undefined" &&
 				localStorage.getItem(STORAGE_KEY_AUTH_MODE) === "oidc"
@@ -246,12 +271,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
 					// Cookie expired or unauthenticated; clear state
 					setOidcUser(null);
 					updateActiveOrg(null);
+					if (typeof window !== "undefined") {
+						localStorage.removeItem(STORAGE_KEY_AUTH_MODE);
+					}
+				} finally {
+					setIsInitializing(false);
 				}
 			}
 		};
 
 		restoreSession();
-	}, [initialOrg, initialUser, updateActiveOrg]);
+	}, [initialOrg, initialUser, initialApiKey, updateActiveOrg]);
 
 	// Keep API client header synchronized (in OIDC mode, rely purely on HttpOnly Cookie)
 	useEffect(() => {
@@ -561,6 +591,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
 				apiKey,
 				environment,
 				isConnected,
+				isInitializing,
 				authMode,
 				oidcUser,
 				currentOrg,
