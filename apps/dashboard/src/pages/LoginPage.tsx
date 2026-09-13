@@ -575,7 +575,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
 												type="checkbox"
 												checked={rememberMe}
 												onChange={(e) => setRememberMe(e.target.checked)}
-												className="w-4 h-4 rounded border-slate-300 text-[#1877F2] focus:ring-[#1877F2]"
+												className="w-4 h-4 rounded border-slate-300 bg-white text-[#1877F2] accent-[#1877F2] scheme-light focus:ring-[#1877F2]"
 											/>
 											<span className="text-xs">Ingat sesi saya</span>
 										</label>
@@ -763,7 +763,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
 												type="checkbox"
 												checked={agreeTerms}
 												onChange={(e) => setAgreeTerms(e.target.checked)}
-												className="w-4 h-4 rounded border-slate-300 text-[#1877F2] focus:ring-[#1877F2] mt-0.5"
+												className="w-4 h-4 rounded border-slate-300 bg-white text-[#1877F2] accent-[#1877F2] scheme-light focus:ring-[#1877F2] mt-0.5"
 											/>
 											<span>
 												Saya menyetujui{" "}
