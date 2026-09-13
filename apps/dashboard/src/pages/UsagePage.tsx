@@ -7,17 +7,15 @@ import {
 	RefreshCw,
 } from "lucide-react";
 import type React from "react";
-import { useCallback, useContext, useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Modal } from "../components/common/Modal";
 import { TableSkeleton } from "../components/common/Skeleton";
-import { AuthContext } from "../context/AuthContext";
+import { useAuth } from "../context/AuthContext";
 import { api } from "../services/api";
 import type { DailyUsage, EndpointUsage } from "../types/api";
 
 export const UsagePage: React.FC = () => {
-	const auth = useContext(AuthContext);
-	const currentOrg = auth?.currentOrg;
-	const createOrganization = auth?.createOrganization;
+	const { currentOrg, createOrganization, isInitializing } = useAuth();
 
 	const [daily, setDaily] = useState<DailyUsage[]>([]);
 	const [endpoints, setEndpoints] = useState<EndpointUsage[]>([]);
@@ -30,8 +28,11 @@ export const UsagePage: React.FC = () => {
 	const [newOrgPlan, setNewOrgPlan] = useState("free");
 	const [isCreatingOrg, setIsCreatingOrg] = useState(false);
 
+	const orgId = currentOrg?.id;
+
 	const loadData = useCallback(async () => {
-		if (auth !== undefined && !currentOrg) {
+		if (isInitializing) return;
+		if (!orgId) {
 			setIsLoading(false);
 			setDaily([]);
 			setEndpoints([]);
@@ -43,8 +44,8 @@ export const UsagePage: React.FC = () => {
 			setIsLoading(true);
 			setError(null);
 			const [dailyRes, endpointRes] = await Promise.all([
-				api.fetchDailyUsage(currentOrg?.id),
-				api.fetchEndpointUsage(currentOrg?.id),
+				api.fetchDailyUsage(orgId),
+				api.fetchEndpointUsage(orgId),
 			]);
 			setDaily(dailyRes);
 			setEndpoints(endpointRes);
@@ -55,10 +56,15 @@ export const UsagePage: React.FC = () => {
 		} finally {
 			setIsLoading(false);
 		}
-	}, [auth, currentOrg]);
+	}, [orgId, isInitializing]);
 
 	useEffect(() => {
 		loadData();
+	}, [loadData]);
+
+	const handleRefresh = useCallback(() => {
+		api.clearCache();
+		void loadData();
 	}, [loadData]);
 
 	const handleCreateOrg = async (e: React.FormEvent) => {
@@ -77,7 +83,7 @@ export const UsagePage: React.FC = () => {
 		}
 	};
 
-	if (auth !== undefined && !currentOrg) {
+	if (!isInitializing && !currentOrg) {
 		return (
 			<div className="space-y-6">
 				<div>
@@ -197,7 +203,7 @@ export const UsagePage: React.FC = () => {
 				</div>
 				<button
 					type="button"
-					onClick={loadData}
+					onClick={handleRefresh}
 					disabled={isLoading}
 					className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300 bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-lg hover:bg-slate-50 dark:hover:bg-white/10 transition-colors w-full sm:w-auto cursor-pointer"
 				>
@@ -213,7 +219,7 @@ export const UsagePage: React.FC = () => {
 					<span>{error}</span>
 					<button
 						type="button"
-						onClick={loadData}
+						onClick={handleRefresh}
 						className="font-semibold underline cursor-pointer"
 					>
 						Retry

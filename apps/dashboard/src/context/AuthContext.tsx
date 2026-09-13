@@ -4,6 +4,7 @@ import {
 	useCallback,
 	useContext,
 	useEffect,
+	useMemo,
 	useState,
 } from "react";
 import { api } from "../services/api";
@@ -585,31 +586,43 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
 
 	const isConnected = authMode === "oidc" ? Boolean(oidcUser) : Boolean(apiKey);
 
+	const contextValue = useMemo<AuthContextValue>(
+		() => ({
+			apiKey,
+			environment,
+			isConnected,
+			isInitializing,
+			authMode,
+			oidcUser,
+			currentOrg,
+			organizations,
+			setApiKey: handleSetApiKey,
+			setEnvironment,
+			loginOIDC: handleLoginOIDC,
+			loginWithPassword,
+			registerUser,
+			verifyUserEmail,
+			isEmailVerified,
+			createOrganization,
+			registerOrLogin: handleRegisterOrLogin,
+			switchOrganization: handleSwitchOrganization,
+			switchAuthMode: handleSwitchAuthMode,
+			logout: handleLogout,
+		}),
+		[
+			apiKey,
+			environment,
+			isConnected,
+			isInitializing,
+			authMode,
+			oidcUser,
+			currentOrg,
+			organizations,
+		],
+	);
+
 	return (
-		<AuthContext.Provider
-			value={{
-				apiKey,
-				environment,
-				isConnected,
-				isInitializing,
-				authMode,
-				oidcUser,
-				currentOrg,
-				organizations,
-				setApiKey: handleSetApiKey,
-				setEnvironment,
-				loginOIDC: handleLoginOIDC,
-				loginWithPassword,
-				registerUser,
-				verifyUserEmail,
-				isEmailVerified,
-				createOrganization,
-				registerOrLogin: handleRegisterOrLogin,
-				switchOrganization: handleSwitchOrganization,
-				switchAuthMode: handleSwitchAuthMode,
-				logout: handleLogout,
-			}}
-		>
+		<AuthContext.Provider value={contextValue}>
 			{children}
 		</AuthContext.Provider>
 	);

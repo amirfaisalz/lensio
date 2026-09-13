@@ -1,10 +1,20 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { AuthProvider } from "../context/AuthContext";
+import { api } from "../services/api";
 import { RequestsPage } from "./RequestsPage";
+
+const TEST_ORG = {
+	id: "org-test-uuid",
+	name: "Test Org",
+	slug: "test-org",
+	planCode: "free",
+};
 
 describe("RequestsPage", () => {
 	beforeEach(() => {
 		localStorage.clear();
+		api.clearCache();
 		vi.restoreAllMocks();
 	});
 
@@ -42,7 +52,11 @@ describe("RequestsPage", () => {
 			}),
 		} as Response);
 
-		render(<RequestsPage />);
+		render(
+			<AuthProvider initialOrg={TEST_ORG}>
+				<RequestsPage />
+			</AuthProvider>,
+		);
 
 		await waitFor(() => {
 			expect(screen.getAllByText("200 OK").length).toBeGreaterThan(0);
@@ -73,7 +87,11 @@ describe("RequestsPage", () => {
 			json: async () => ({ data: [], total: 0, limit: 25, offset: 0 }),
 		} as Response);
 
-		render(<RequestsPage />);
+		render(
+			<AuthProvider initialOrg={TEST_ORG}>
+				<RequestsPage />
+			</AuthProvider>,
+		);
 
 		await waitFor(() => {
 			expect(screen.getByText("All Statuses")).toBeDefined();
@@ -108,7 +126,11 @@ describe("RequestsPage", () => {
 			json: async () => ({ data: [], total: 0, limit: 25, offset: 0 }),
 		} as Response);
 
-		render(<RequestsPage />);
+		render(
+			<AuthProvider initialOrg={TEST_ORG}>
+				<RequestsPage />
+			</AuthProvider>,
+		);
 
 		await waitFor(() => {
 			expect(screen.getByText("No matching requests found.")).toBeDefined();
@@ -124,7 +146,11 @@ describe("RequestsPage", () => {
 			}),
 		} as Response);
 
-		render(<RequestsPage />);
+		render(
+			<AuthProvider initialOrg={TEST_ORG}>
+				<RequestsPage />
+			</AuthProvider>,
+		);
 
 		await waitFor(() => {
 			expect(

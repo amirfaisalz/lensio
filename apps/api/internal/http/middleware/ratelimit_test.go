@@ -197,3 +197,39 @@ func TestRateLimitMiddleware_AuthMeAndLogoutBypass(t *testing.T) {
 		t.Errorf("expected next called 2 times, got %d", nextCalled)
 	}
 }
+
+func TestRateLimitMiddleware_AccountEndpointsBypass(t *testing.T) {
+	limiter := ratelimit.NewLimiter()
+	exhaustOrg := "ad39edb4-a2d7-476a-b6e3-a11aca1930ee"
+	// Exhaust limiter for this org key
+	for i := 0; i < 20; i++ {
+		limiter.Allow(exhaustOrg, 1)
+	}
+
+	mw := middleware.NewRateLimitMiddleware(limiter, nil, exhaustOrg)
+
+	nextCalled := 0
+	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		nextCalled++
+		w.WriteHeader(http.StatusOK)
+	})
+
+	handler := mw.Handler(next)
+
+	for _, path := range []string{
+		"/api/v1/account/members?org_id=" + exhaustOrg,
+		"/api/v1/account?org_id=" + exhaustOrg,
+		"/api/v1/account/plan?org_id=" + exhaustOrg,
+	} {
+		req := httptest.NewRequest(http.MethodGet, path, nil)
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Errorf("expected 200 for %s, got %d", path, rec.Code)
+		}
+	}
+	if nextCalled != 3 {
+		t.Errorf("expected next called 3 times, got %d", nextCalled)
+	}
+}

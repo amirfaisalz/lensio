@@ -1,10 +1,20 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { AuthProvider } from "../context/AuthContext";
+import { api } from "../services/api";
 import { UsagePage } from "./UsagePage";
+
+const TEST_ORG = {
+	id: "org-test-uuid",
+	name: "Test Org",
+	slug: "test-org",
+	planCode: "free",
+};
 
 describe("UsagePage", () => {
 	beforeEach(() => {
 		localStorage.clear();
+		api.clearCache();
 		vi.restoreAllMocks();
 	});
 
@@ -60,7 +70,11 @@ describe("UsagePage", () => {
 			return { ok: true, json: async () => ({}) } as Response;
 		});
 
-		render(<UsagePage />);
+		render(
+			<AuthProvider initialOrg={TEST_ORG}>
+				<UsagePage />
+			</AuthProvider>,
+		);
 
 		await waitFor(() => {
 			expect(screen.getByText("Usage & Analytics")).toBeDefined();
@@ -85,7 +99,11 @@ describe("UsagePage", () => {
 			return { ok: true, json: async () => ({}) } as Response;
 		});
 
-		render(<UsagePage />);
+		render(
+			<AuthProvider initialOrg={TEST_ORG}>
+				<UsagePage />
+			</AuthProvider>,
+		);
 
 		await waitFor(() => {
 			expect(
@@ -106,7 +124,11 @@ describe("UsagePage", () => {
 			}),
 		} as Response);
 
-		render(<UsagePage />);
+		render(
+			<AuthProvider initialOrg={TEST_ORG}>
+				<UsagePage />
+			</AuthProvider>,
+		);
 
 		await waitFor(() => {
 			expect(

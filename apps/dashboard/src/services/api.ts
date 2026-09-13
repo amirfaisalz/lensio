@@ -34,6 +34,17 @@ const API_BASE =
 		? `${window.location.protocol}//${window.location.hostname.replace("ca-dash-", "ca-api-")}`
 		: "");
 
+// Cache dashboard GETs briefly so fast sidebar navigation reuses data
+// instead of bursting the per-org per-minute rate limit (free: 10 req/min).
+const GET_CACHE_TTL_MS = 30_000;
+// Single automatic retry on 429 keeps occasional bursts invisible to users.
+const MAX_429_WAIT_MS = 5_000;
+
+interface GetCacheEntry {
+	expiresAt: number;
+	data: unknown;
+}
+
 export interface ApiClientError extends Error {
 	code?: string;
 	status?: number;
@@ -41,6 +52,8 @@ export interface ApiClientError extends Error {
 
 class ApiClient {
 	private activeApiKey: string | null = null;
+	private getCache = new Map<string, GetCacheEntry>();
+	private inflightGets = new Map<string, Promise<unknown>>();
 
 	public getApiKey(): string | null {
 		return this.activeApiKey;
@@ -48,6 +61,12 @@ class ApiClient {
 
 	public setApiKey(key: string | null): void {
 		this.activeApiKey = key;
+		this.clearCache();
+	}
+
+	public clearCache(): void {
+		this.getCache.clear();
+		this.inflightGets.clear();
 	}
 
 	private getHeaders(isMultipart = false): HeadersInit {
@@ -80,6 +99,68 @@ class ApiClient {
 		});
 	}
 
+	private async fetchJSON<T>(
+		url: string,
+		init: RequestInit = {},
+		useCache = false,
+	): Promise<T> {
+		if (useCache) {
+			const cached = this.getCache.get(url);
+			if (cached && cached.expiresAt > Date.now()) {
+				return cached.data as T;
+			}
+			const pending = this.inflightGets.get(url);
+			if (pending) {
+				return pending as Promise<T>;
+			}
+		}
+
+		const task = this.fetchWithRetry<T>(url, init);
+		if (!useCache) {
+			return task;
+		}
+		this.inflightGets.set(url, task);
+		try {
+			const data = await task;
+			this.getCache.set(url, {
+				expiresAt: Date.now() + GET_CACHE_TTL_MS,
+				data,
+			});
+			return data;
+		} finally {
+			this.inflightGets.delete(url);
+		}
+	}
+
+	private async fetchWithRetry<T>(url: string, init: RequestInit): Promise<T> {
+		const res = await this.fetchWithAuth(url, {
+			...init,
+			method: init.method ?? "GET",
+		});
+		if (res.status === 429) {
+			const headers = res.headers as Headers | undefined;
+			const retryAfterSec = Number(headers?.get("Retry-After") ?? "0");
+			const waitMs = Math.min(
+				Math.max(Math.trunc(retryAfterSec * 1000) || 0, 0),
+				MAX_429_WAIT_MS,
+			);
+			try {
+				await res.json();
+			} catch {
+				// ignore drain errors before retry
+			}
+			if (waitMs > 0) {
+				await new Promise((resolve) => setTimeout(resolve, waitMs));
+			}
+			const retryRes = await this.fetchWithAuth(url, {
+				...init,
+				method: init.method ?? "GET",
+			});
+			return this.handleResponse<T>(retryRes);
+		}
+		return this.handleResponse<T>(res);
+	}
+
 	private async handleResponse<T>(res: Response): Promise<T> {
 		if (!res.ok) {
 			let errorMessage = `Request failed with status ${res.status}`;
@@ -94,6 +175,16 @@ class ApiClient {
 				}
 			} catch {
 				// use fallback status error
+			}
+			if (res.status === 429) {
+				const headers = res.headers as Headers | undefined;
+				const retryAfter = headers?.get("Retry-After");
+				errorMessage = retryAfter
+					? `Terlalu banyak permintaan, coba lagi dalam ${retryAfter} detik`
+					: "Terlalu banyak permintaan, coba lagi beberapa detik lagi";
+				if (!errorCode) {
+					errorCode = "rate_limit_exceeded";
+				}
 			}
 			const err = new Error(errorMessage) as ApiClientError;
 			err.code = errorCode;
@@ -121,27 +212,26 @@ class ApiClient {
 		const res = await this.fetchWithAuth(`${API_BASE}/api/v1/auth/logout`, {
 			method: "POST",
 		});
-		return this.handleResponse<{ status: string; message: string }>(res);
+		const result = await this.handleResponse<{
+			status: string;
+			message: string;
+		}>(res);
+		this.clearCache();
+		return result;
 	}
 
 	public async fetchUsageSummary(orgId?: string): Promise<UsageSummary> {
 		const url = orgId
 			? `${API_BASE}/api/v1/usage?org_id=${encodeURIComponent(orgId)}`
 			: `${API_BASE}/api/v1/usage`;
-		const res = await this.fetchWithAuth(url, {
-			method: "GET",
-		});
-		return this.handleResponse<UsageSummary>(res);
+		return this.fetchJSON<UsageSummary>(url, {}, true);
 	}
 
 	public async fetchDailyUsage(orgId?: string): Promise<DailyUsage[]> {
 		const url = orgId
 			? `${API_BASE}/api/v1/usage/daily?org_id=${encodeURIComponent(orgId)}`
 			: `${API_BASE}/api/v1/usage/daily`;
-		const res = await this.fetchWithAuth(url, {
-			method: "GET",
-		});
-		const result = await this.handleResponse<{ data: DailyUsage[] }>(res);
+		const result = await this.fetchJSON<{ data: DailyUsage[] }>(url, {}, true);
 		return result.data || [];
 	}
 
@@ -149,10 +239,11 @@ class ApiClient {
 		const url = orgId
 			? `${API_BASE}/api/v1/usage/endpoints?org_id=${encodeURIComponent(orgId)}`
 			: `${API_BASE}/api/v1/usage/endpoints`;
-		const res = await this.fetchWithAuth(url, {
-			method: "GET",
-		});
-		const result = await this.handleResponse<{ data: EndpointUsage[] }>(res);
+		const result = await this.fetchJSON<{ data: EndpointUsage[] }>(
+			url,
+			{},
+			true,
+		);
 		return result.data || [];
 	}
 
@@ -174,20 +265,18 @@ class ApiClient {
 
 		const qs = query.toString();
 		const url = `${API_BASE}/api/v1/usage/records${qs ? `?${qs}` : ""}`;
-		const res = await this.fetchWithAuth(url, {
-			method: "GET",
-		});
-		return this.handleResponse<UsageRecordsResponse>(res);
+		return this.fetchJSON<UsageRecordsResponse>(url, {}, true);
 	}
 
 	public async fetchAPIKeys(orgId?: string): Promise<APIKeyListItem[]> {
 		const url = orgId
 			? `${API_BASE}/api/v1/auth/api-keys?org_id=${encodeURIComponent(orgId)}`
 			: `${API_BASE}/api/v1/auth/api-keys`;
-		const res = await this.fetchWithAuth(url, {
-			method: "GET",
-		});
-		const result = await this.handleResponse<{ data: APIKeyListItem[] }>(res);
+		const result = await this.fetchJSON<{ data: APIKeyListItem[] }>(
+			url,
+			{},
+			true,
+		);
 		return result.data || [];
 	}
 
@@ -196,7 +285,9 @@ class ApiClient {
 			method: "POST",
 			body: JSON.stringify(req),
 		});
-		return this.handleResponse<CreateKeyResponse>(res);
+		const created = await this.handleResponse<CreateKeyResponse>(res);
+		this.clearCache();
+		return created;
 	}
 
 	public async revokeAPIKey(
@@ -209,27 +300,25 @@ class ApiClient {
 		const res = await this.fetchWithAuth(url, {
 			method: "DELETE",
 		});
-		return this.handleResponse<{ message: string; id: string }>(res);
+		const revoked = await this.handleResponse<{ message: string; id: string }>(
+			res,
+		);
+		this.clearCache();
+		return revoked;
 	}
 
 	public async fetchAccount(orgId?: string): Promise<OrganizationDetails> {
 		const url = orgId
 			? `${API_BASE}/api/v1/account?org_id=${encodeURIComponent(orgId)}`
 			: `${API_BASE}/api/v1/account`;
-		const res = await this.fetchWithAuth(url, {
-			method: "GET",
-		});
-		return this.handleResponse<OrganizationDetails>(res);
+		return this.fetchJSON<OrganizationDetails>(url, {}, true);
 	}
 
 	public async fetchAccountPlan(orgId?: string): Promise<PlanDetails> {
 		const url = orgId
 			? `${API_BASE}/api/v1/account/plan?org_id=${encodeURIComponent(orgId)}`
 			: `${API_BASE}/api/v1/account/plan`;
-		const res = await this.fetchWithAuth(url, {
-			method: "GET",
-		});
-		return this.handleResponse<PlanDetails>(res);
+		return this.fetchJSON<PlanDetails>(url, {}, true);
 	}
 
 	public async updateAccountPlan(
@@ -243,17 +332,19 @@ class ApiClient {
 			method: "PUT",
 			body: JSON.stringify({ plan_code: planCode }),
 		});
-		return this.handleResponse<{ message: string; plan_code: string }>(res);
+		const updated = await this.handleResponse<{
+			message: string;
+			plan_code: string;
+		}>(res);
+		this.clearCache();
+		return updated;
 	}
 
 	public async fetchAccountMembers(orgId?: string): Promise<UserMember[]> {
 		const url = orgId
 			? `${API_BASE}/api/v1/account/members?org_id=${encodeURIComponent(orgId)}`
 			: `${API_BASE}/api/v1/account/members`;
-		const res = await this.fetchWithAuth(url, {
-			method: "GET",
-		});
-		const result = await this.handleResponse<{ data: UserMember[] }>(res);
+		const result = await this.fetchJSON<{ data: UserMember[] }>(url, {}, true);
 		return result.data || [];
 	}
 
@@ -422,7 +513,9 @@ class ApiClient {
 				body: JSON.stringify(req),
 			},
 		);
-		return this.handleResponse<CreateOrganizationResponse>(res);
+		const created = await this.handleResponse<CreateOrganizationResponse>(res);
+		this.clearCache();
+		return created;
 	}
 }
 

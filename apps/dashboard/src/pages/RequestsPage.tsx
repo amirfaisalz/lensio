@@ -11,17 +11,15 @@ import {
 	XCircle,
 } from "lucide-react";
 import type React from "react";
-import { useCallback, useContext, useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Modal } from "../components/common/Modal";
 import { TableSkeleton } from "../components/common/Skeleton";
-import { AuthContext } from "../context/AuthContext";
+import { useAuth } from "../context/AuthContext";
 import { api } from "../services/api";
 import type { UsageRecord } from "../types/api";
 
 export const RequestsPage: React.FC = () => {
-	const auth = useContext(AuthContext);
-	const currentOrg = auth?.currentOrg;
-	const createOrganization = auth?.createOrganization;
+	const { currentOrg, createOrganization, isInitializing } = useAuth();
 
 	const [records, setRecords] = useState<UsageRecord[]>([]);
 	const [total, setTotal] = useState(0);
@@ -45,8 +43,11 @@ export const RequestsPage: React.FC = () => {
 	const [newOrgPlan, setNewOrgPlan] = useState("free");
 	const [isCreatingOrg, setIsCreatingOrg] = useState(false);
 
+	const orgId = currentOrg?.id;
+
 	const loadRecords = useCallback(async () => {
-		if (auth !== undefined && !currentOrg) {
+		if (isInitializing) return;
+		if (!orgId) {
 			setIsLoading(false);
 			setRecords([]);
 			setTotal(0);
@@ -62,7 +63,7 @@ export const RequestsPage: React.FC = () => {
 				offset,
 				status_code: statusCodeFilter,
 				endpoint: endpointFilter || undefined,
-				org_id: currentOrg?.id,
+				org_id: orgId,
 			});
 			setRecords(res.data || []);
 			setTotal(res.total || 0);
@@ -73,10 +74,15 @@ export const RequestsPage: React.FC = () => {
 		} finally {
 			setIsLoading(false);
 		}
-	}, [auth, currentOrg, limit, offset, statusCodeFilter, endpointFilter]);
+	}, [orgId, isInitializing, limit, offset, statusCodeFilter, endpointFilter]);
 
 	useEffect(() => {
 		loadRecords();
+	}, [loadRecords]);
+
+	const handleRefresh = useCallback(() => {
+		api.clearCache();
+		void loadRecords();
 	}, [loadRecords]);
 
 	const handleCreateOrg = async (e: React.FormEvent) => {
@@ -95,7 +101,7 @@ export const RequestsPage: React.FC = () => {
 		}
 	};
 
-	if (auth !== undefined && !currentOrg) {
+	if (!isInitializing && !currentOrg) {
 		return (
 			<div className="space-y-6">
 				<div>
@@ -242,7 +248,7 @@ export const RequestsPage: React.FC = () => {
 
 				<button
 					type="button"
-					onClick={loadRecords}
+					onClick={handleRefresh}
 					disabled={isLoading}
 					className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300 bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-lg hover:bg-slate-50 dark:hover:bg-white/10 transition-colors w-full sm:w-auto cursor-pointer"
 				>
@@ -258,7 +264,7 @@ export const RequestsPage: React.FC = () => {
 					<span>{error}</span>
 					<button
 						type="button"
-						onClick={loadRecords}
+						onClick={handleRefresh}
 						className="font-semibold underline cursor-pointer"
 					>
 						Retry

@@ -5,6 +5,7 @@ describe("ApiClient", () => {
 	beforeEach(() => {
 		localStorage.clear();
 		api.setApiKey(null);
+		api.clearCache();
 		vi.restoreAllMocks();
 	});
 
@@ -485,5 +486,126 @@ describe("ApiClient", () => {
 
 		const logoutRes = await api.logout();
 		expect(logoutRes.status).toBe("ok");
+	});
+
+	it("serves repeated dashboard GETs from cache without refetching", async () => {
+		const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue({
+			ok: true,
+			status: 200,
+			json: async () => ({
+				total_requests: 42,
+				success_count: 40,
+				error_count: 2,
+				quota_limit: 100,
+				quota_remaining: 58,
+				p95_latency_ms: 120,
+				rate_limit_violations: 0,
+				billing_cycle_reset: "2026-10-01T00:00:00Z",
+			}),
+		} as Response);
+
+		const first = await api.fetchUsageSummary("org-1");
+		const second = await api.fetchUsageSummary("org-1");
+
+		expect(first.total_requests).toBe(42);
+		expect(second.total_requests).toBe(42);
+		expect(fetchSpy).toHaveBeenCalledTimes(1);
+	});
+
+	it("dedupes concurrent identical dashboard GETs into one request", async () => {
+		const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue({
+			ok: true,
+			status: 200,
+			json: async () => ({ data: [] }),
+		} as Response);
+
+		const [a, b] = await Promise.all([
+			api.fetchDailyUsage("org-1"),
+			api.fetchDailyUsage("org-1"),
+		]);
+
+		expect(a).toEqual([]);
+		expect(b).toEqual([]);
+		expect(fetchSpy).toHaveBeenCalledTimes(1);
+	});
+
+	it("retries once after 429 and succeeds", async () => {
+		const fetchSpy = vi.spyOn(globalThis, "fetch");
+		fetchSpy.mockResolvedValueOnce({
+			ok: false,
+			status: 429,
+			headers: { get: () => "0" },
+			json: async () => ({
+				error: {
+					code: "rate_limit_exceeded",
+					message: "API rate limit exceeded",
+				},
+			}),
+		} as unknown as Response);
+		fetchSpy.mockResolvedValueOnce({
+			ok: true,
+			status: 200,
+			json: async () => ({ data: [] }),
+		} as Response);
+
+		const keys = await api.fetchAPIKeys("org-1");
+
+		expect(keys).toEqual([]);
+		expect(fetchSpy).toHaveBeenCalledTimes(2);
+	});
+
+	it("throws a friendly message when 429 persists after retry", async () => {
+		vi.spyOn(globalThis, "fetch").mockResolvedValue({
+			ok: false,
+			status: 429,
+			headers: { get: () => "0" },
+			json: async () => ({
+				error: {
+					code: "rate_limit_exceeded",
+					message: "API rate limit exceeded",
+				},
+			}),
+		} as unknown as Response);
+
+		try {
+			await api.fetchEndpointUsage("org-1");
+			expect.unreachable("expected fetchEndpointUsage to throw on 429");
+		} catch (err) {
+			expect(err instanceof Error).toBe(true);
+			expect((err as Error).message).toContain("Terlalu banyak permintaan");
+			expect((err as { status?: number }).status).toBe(429);
+			expect((err as { code?: string }).code).toBe("rate_limit_exceeded");
+		}
+	});
+
+	it("invalidates dashboard cache after mutations", async () => {
+		const fetchSpy = vi.spyOn(globalThis, "fetch");
+		fetchSpy.mockResolvedValueOnce({
+			ok: true,
+			status: 200,
+			json: async () => ({ data: [{ id: "key-1" }] }),
+		} as Response);
+		fetchSpy.mockResolvedValueOnce({
+			ok: true,
+			status: 201,
+			json: async () => ({ id: "key-2", name: "Second Key" }),
+		} as Response);
+		fetchSpy.mockResolvedValueOnce({
+			ok: true,
+			status: 200,
+			json: async () => ({ data: [{ id: "key-1" }, { id: "key-2" }] }),
+		} as Response);
+
+		const before = await api.fetchAPIKeys("org-1");
+		await api.createAPIKey({
+			name: "Second Key",
+			environment: "live",
+			scopes: ["ocr:write"],
+		});
+		const after = await api.fetchAPIKeys("org-1");
+
+		expect(before).toHaveLength(1);
+		expect(after).toHaveLength(2);
+		expect(fetchSpy).toHaveBeenCalledTimes(3);
 	});
 });

@@ -1,11 +1,20 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthProvider } from "../context/AuthContext";
+import { api } from "../services/api";
 import { AccountPage } from "./AccountPage";
+
+const TEST_ORG = {
+	id: "org-1234-uuid",
+	name: "Acme Corporation",
+	slug: "acme-corp",
+	planCode: "free",
+};
 
 describe("AccountPage", () => {
 	beforeEach(() => {
 		localStorage.clear();
+		api.clearCache();
 		vi.restoreAllMocks();
 	});
 
@@ -55,7 +64,11 @@ describe("AccountPage", () => {
 			return { ok: true, json: async () => ({}) } as Response;
 		});
 
-		render(<AccountPage />);
+		render(
+			<AuthProvider initialOrg={TEST_ORG}>
+				<AccountPage />
+			</AuthProvider>,
+		);
 
 		await waitFor(() => {
 			expect(screen.getByText("Acme Corporation")).toBeDefined();
@@ -97,7 +110,11 @@ describe("AccountPage", () => {
 			return { ok: true, json: async () => ({}) } as Response;
 		});
 
-		render(<AccountPage />);
+		render(
+			<AuthProvider initialOrg={TEST_ORG}>
+				<AccountPage />
+			</AuthProvider>,
+		);
 
 		await waitFor(() => {
 			expect(screen.getByText("Acme Corporation")).toBeDefined();
@@ -130,7 +147,11 @@ describe("AccountPage", () => {
 			}),
 		} as Response);
 
-		render(<AccountPage />);
+		render(
+			<AuthProvider initialOrg={TEST_ORG}>
+				<AccountPage />
+			</AuthProvider>,
+		);
 
 		await waitFor(() => {
 			expect(screen.getByText("Account database failure")).toBeDefined();

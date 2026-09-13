@@ -72,6 +72,11 @@ export const APIKeysPage: React.FC = () => {
 		loadKeys();
 	}, [loadKeys]);
 
+	const handleRefresh = useCallback(() => {
+		api.clearCache();
+		void loadKeys();
+	}, [loadKeys]);
+
 	const handleCreateOrg = (e: React.FormEvent) => {
 		e.preventDefault();
 		if (!newOrgName.trim()) return;
@@ -266,7 +271,7 @@ export const APIKeysPage: React.FC = () => {
 				<div className="flex items-center gap-2 w-full sm:w-auto justify-end">
 					<button
 						type="button"
-						onClick={loadKeys}
+						onClick={handleRefresh}
 						disabled={isLoading}
 						className="p-2 text-slate-600 dark:text-slate-400 bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-lg hover:bg-slate-50 dark:hover:bg-white/10 transition-colors cursor-pointer"
 						title="Refresh keys list"
@@ -292,7 +297,7 @@ export const APIKeysPage: React.FC = () => {
 					<span>{error}</span>
 					<button
 						type="button"
-						onClick={loadKeys}
+						onClick={handleRefresh}
 						className="font-semibold underline cursor-pointer"
 					>
 						Retry
