@@ -8,7 +8,7 @@
 
 ## Master Progress Overview
 
-### Completed Phases (Phases 0 – 11)
+### Completed Phases (Phases 0 – 12)
 - [x] **Phase 0: Project Inception, Setup & Guardrails** — Repository conventions, `.githooks/pre-commit` (4-layer verification), root `AGENTS.md`, and operational guardrails (`.agents/`).
 - [x] **Phase 1: Core Foundation & Scaffolding** — Go monorepo layout, PostgreSQL schema migrations (`golang-migrate`), `/health` & `/ready` probes, Docker Compose.
 - [x] **Phase 2: API Contract & Security Core** — OpenAPI 3.0 spec, SHA-256 API key hashing lifecycle, scoped middleware (`ocr:read`, `ocr:write`, `usage:read`), standardized error envelopes (`request_id`).
@@ -21,10 +21,11 @@
 - [x] **Phase 9: Reliability & Failure Drills** — Playwright E2E test suite, and 4 documented production failure drill post-mortems (upstream timeout, DB outage, broken smoke test gate, production regression).
 - [x] **Phase 10: Documentation & Portfolio Polish** — ADRs (001–005), production runbooks (`architecture.md`, `security.md`, `observability.md`, `rollback.md`), external client demos (`VeriForm`, `RentEase`), open-source README.
 - [x] **Phase 11: Production Platform Maturity & Enterprise Alignment** — k6 load testing (1,000 rps), API idempotency, Keycloak OIDC, SpiceDB ReBAC, circuit breaker resilience, Prometheus SLO alerting, ADRs (006–007), and SIM OCR (`POST /api/v1/ocr/sim`).
+- [x] **Phase 12: Document OCR Expansion** — Indonesian Passport (`POST /api/v1/ocr/passport`), NPWP (`POST /api/v1/ocr/npwp`), Kartu Keluarga (`POST /api/v1/ocr/kk`), and Commercial Invoice / E-Faktur (`POST /api/v1/ocr/invoice`) with deterministic validators, synthetic fixtures, OpenAPI specs, and dashboard playground integration.
 
 ---
 
-## Active Phase: Phase 12 — Document OCR Expansion
+## Completed Phase: Phase 12 — Document OCR Expansion
 
 > [!NOTE]
 > All core platform foundation, reliability, and security hardening (Phases 0–11) are complete.
