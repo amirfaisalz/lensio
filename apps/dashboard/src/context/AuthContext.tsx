@@ -293,243 +293,43 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
 		}
 	}, [authMode, apiKey]);
 
-	const handleSetApiKey = (key: string | null) => {
-		const trimmed = key ? key.trim() : null;
-		setApiKeyState(trimmed);
-		if (trimmed) {
-			setAuthMode("apikey");
-			if (typeof window !== "undefined") {
-				localStorage.setItem(STORAGE_KEY_AUTH_MODE, "apikey");
-			}
-			api.setApiKey(trimmed);
-		} else {
-			if (oidcUser) {
-				setAuthMode("oidc");
+	const handleSetApiKey = useCallback(
+		(key: string | null) => {
+			const trimmed = key ? key.trim() : null;
+			setApiKeyState(trimmed);
+			if (trimmed) {
+				setAuthMode("apikey");
 				if (typeof window !== "undefined") {
-					localStorage.setItem(STORAGE_KEY_AUTH_MODE, "oidc");
+					localStorage.setItem(STORAGE_KEY_AUTH_MODE, "apikey");
 				}
+				api.setApiKey(trimmed);
+			} else {
+				if (oidcUser) {
+					setAuthMode("oidc");
+					if (typeof window !== "undefined") {
+						localStorage.setItem(STORAGE_KEY_AUTH_MODE, "oidc");
+					}
+				}
+				api.setApiKey(null);
 			}
-			api.setApiKey(null);
-		}
-	};
+		},
+		[oidcUser],
+	);
 
-	const handleLoginOIDC = (session: OIDCUserSession) => {
-		const org = session.organization ?? null;
-		const sanitizedSession: OIDCUserSession = {
-			...session,
-			token: "", // Zero secret tokens in localStorage
-			organization: org ?? undefined,
-		};
-		setOidcUser(sanitizedSession);
-		if (org) {
-			setOrganizations((prev) => {
-				const next = prev.some((o) => o.id === org.id)
-					? prev.map((o) => (o.id === org.id ? org : o))
-					: [...prev, org];
-				if (typeof window !== "undefined") {
-					localStorage.setItem(STORAGE_KEY_ORGANIZATIONS, JSON.stringify(next));
-				}
-				return next;
-			});
-		}
-		updateActiveOrg(org);
-		setAuthMode("oidc");
-		if (typeof window !== "undefined") {
-			localStorage.setItem(STORAGE_KEY_AUTH_MODE, "oidc");
-		}
-		api.setApiKey(null);
-	};
-
-	const loginWithPassword = async (
-		email: string,
-		password: string,
-	): Promise<void> => {
-		const res = await api.login({ email: email.trim(), password });
-		const username = res.user.email.split("@")[0];
-		const orgContext: OrganizationContext | null = res.organization
-			? {
-					id: res.organization.id,
-					name: res.organization.name,
-					slug: res.organization.slug,
-					planCode: res.organization.plan_code,
-				}
-			: null;
-
-		handleLoginOIDC({
-			sub: res.user.id,
-			email: res.user.email,
-			preferredUsername: username,
-			name: res.user.full_name,
-			roles: ["developer", "ocr:write", "ocr:read", "usage:read"],
-			token: "",
-			organization: orgContext ?? undefined,
-		});
-	};
-
-	const isEmailVerified = (_email: string): boolean => {
-		return true;
-	};
-
-	const registerUser = async (
-		fullName: string,
-		email: string,
-		password: string,
-	): Promise<{ requiresVerification: boolean; verificationToken?: string }> => {
-		try {
-			const res = await api.register({
-				full_name: fullName.trim(),
-				email: email.trim(),
-				password,
-			});
-			return {
-				requiresVerification: true,
-				verificationToken: res.verification_token,
+	const handleLoginOIDC = useCallback(
+		(session: OIDCUserSession) => {
+			const org = session.organization ?? null;
+			const sanitizedSession: OIDCUserSession = {
+				...session,
+				token: "", // Zero secret tokens in localStorage
+				organization: org ?? undefined,
 			};
-		} catch (err: unknown) {
-			// If already a registered error from server, rethrow
-			if (err instanceof Error && err.message.includes("sudah terdaftar")) {
-				throw err;
-			}
-			// Fallback for offline/mock test environments
-			return {
-				requiresVerification: true,
-			};
-		}
-	};
-
-	const verifyUserEmail = async (
-		email: string,
-		token?: string,
-	): Promise<boolean> => {
-		try {
-			await api.verifyEmail({
-				email: email.trim(),
-				token,
-			});
-			return true;
-		} catch {
-			// Fallback for offline/mock test environments
-			return true;
-		}
-	};
-
-	const createOrganization = async (
-		name: string,
-		planCode = "free",
-	): Promise<OrganizationContext> => {
-		const cleanName = name.trim();
-		try {
-			const res = await api.createOrganization({
-				name: cleanName,
-				plan_code: planCode,
-			});
-			const newOrg: OrganizationContext = {
-				id: res.organization.id,
-				name: res.organization.name,
-				slug: res.organization.slug,
-				planCode: res.organization.plan_code,
-			};
-			setOrganizations((prev) => {
-				const next = [...prev.filter((o) => o.id !== newOrg.id), newOrg];
-				if (typeof window !== "undefined") {
-					localStorage.setItem(STORAGE_KEY_ORGANIZATIONS, JSON.stringify(next));
-				}
-				return next;
-			});
-			updateActiveOrg(newOrg);
-			if (oidcUser) {
-				const updatedSession: OIDCUserSession = {
-					...oidcUser,
-					organization: newOrg,
-				};
-				setOidcUser(updatedSession);
-			}
-			return newOrg;
-		} catch {
-			// Fallback for isolated unit tests
-			const slug = cleanName
-				.toLowerCase()
-				.replace(/[^a-z0-9]+/g, "-")
-				.replace(/^-|-$/g, "");
-			const newOrg: OrganizationContext = {
-				id: `org-${slug || Date.now()}`,
-				name: cleanName,
-				slug: slug || "org",
-				planCode: planCode || "free",
-			};
-			setOrganizations((prev) => {
-				const next = [...prev.filter((o) => o.id !== newOrg.id), newOrg];
-				if (typeof window !== "undefined") {
-					localStorage.setItem(STORAGE_KEY_ORGANIZATIONS, JSON.stringify(next));
-				}
-				return next;
-			});
-			updateActiveOrg(newOrg);
-			if (oidcUser) {
-				const updatedSession: OIDCUserSession = {
-					...oidcUser,
-					organization: newOrg,
-				};
-				setOidcUser(updatedSession);
-			}
-			return newOrg;
-		}
-	};
-
-	const handleRegisterOrLogin = (
-		email: string,
-		fullName: string,
-		orgName?: string,
-		role = "owner",
-	) => {
-		const username = email.split("@")[0];
-		const roles =
-			role === "admin"
-				? ["admin", "developer", "ocr:write", "ocr:read", "usage:read"]
-				: ["developer", "ocr:write", "ocr:read", "usage:read"];
-
-		let org: OrganizationContext | undefined;
-		if (orgName?.trim()) {
-			const cleanOrgName = orgName.trim();
-			org = {
-				id: `org-${cleanOrgName
-					.toLowerCase()
-					.replace(/[^a-z0-9]+/g, "-")
-					.replace(/^-|-$/g, "")}`,
-				name: cleanOrgName,
-				slug: cleanOrgName
-					.toLowerCase()
-					.replace(/[^a-z0-9]+/g, "-")
-					.replace(/^-|-$/g, ""),
-				planCode: "free",
-			};
-		}
-
-		const token = createDevJwtToken(
-			`sub-${username}`,
-			email.trim(),
-			username,
-			roles,
-		);
-
-		const session: OIDCUserSession = {
-			sub: `sub-${username}`,
-			email: email.trim(),
-			preferredUsername: username,
-			name: fullName.trim() || username,
-			roles,
-			token,
-			organization: org,
-		};
-
-		handleLoginOIDC(session);
-	};
-
-	const handleSwitchOrganization = (org: OrganizationContext | null) => {
-		if (org) {
-			setOrganizations((prev) => {
-				if (!prev.some((o) => o.id === org.id)) {
-					const next = [...prev, org];
+			setOidcUser(sanitizedSession);
+			if (org) {
+				setOrganizations((prev) => {
+					const next = prev.some((o) => o.id === org.id)
+						? prev.map((o) => (o.id === org.id ? org : o))
+						: [...prev, org];
 					if (typeof window !== "undefined") {
 						localStorage.setItem(
 							STORAGE_KEY_ORGANIZATIONS,
@@ -537,42 +337,250 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
 						);
 					}
 					return next;
-				}
-				return prev;
-			});
-		}
-		// Reset active API key when switching organizations to prevent cross-tenant key pollution
-		setApiKeyState(null);
-		api.setApiKey(null);
-		if (oidcUser) {
+				});
+			}
+			updateActiveOrg(org);
 			setAuthMode("oidc");
 			if (typeof window !== "undefined") {
 				localStorage.setItem(STORAGE_KEY_AUTH_MODE, "oidc");
 			}
-		}
-		updateActiveOrg(org);
-		if (oidcUser) {
-			const updatedSession: OIDCUserSession = {
-				...oidcUser,
-				organization: org ?? undefined,
-			};
-			setOidcUser(updatedSession);
-		}
-	};
-
-	const handleSwitchAuthMode = (mode: AuthMode) => {
-		setAuthMode(mode);
-		if (typeof window !== "undefined") {
-			localStorage.setItem(STORAGE_KEY_AUTH_MODE, mode);
-		}
-		if (mode === "oidc") {
 			api.setApiKey(null);
-		} else {
-			api.setApiKey(apiKey);
-		}
-	};
+		},
+		[updateActiveOrg],
+	);
 
-	const handleLogout = () => {
+	const loginWithPassword = useCallback(
+		async (email: string, password: string): Promise<void> => {
+			const res = await api.login({ email: email.trim(), password });
+			const username = res.user.email.split("@")[0];
+			const orgContext: OrganizationContext | null = res.organization
+				? {
+						id: res.organization.id,
+						name: res.organization.name,
+						slug: res.organization.slug,
+						planCode: res.organization.plan_code,
+					}
+				: null;
+
+			handleLoginOIDC({
+				sub: res.user.id,
+				email: res.user.email,
+				preferredUsername: username,
+				name: res.user.full_name,
+				roles: ["developer", "ocr:write", "ocr:read", "usage:read"],
+				token: "",
+				organization: orgContext ?? undefined,
+			});
+		},
+		[handleLoginOIDC],
+	);
+
+	const isEmailVerified = useCallback((_email: string): boolean => {
+		return true;
+	}, []);
+
+	const registerUser = useCallback(
+		async (
+			fullName: string,
+			email: string,
+			password: string,
+		): Promise<{
+			requiresVerification: boolean;
+			verificationToken?: string;
+		}> => {
+			try {
+				const res = await api.register({
+					full_name: fullName.trim(),
+					email: email.trim(),
+					password,
+				});
+				return {
+					requiresVerification: true,
+					verificationToken: res.verification_token,
+				};
+			} catch (err: unknown) {
+				// If already a registered error from server, rethrow
+				if (err instanceof Error && err.message.includes("sudah terdaftar")) {
+					throw err;
+				}
+				// Fallback for offline/mock test environments
+				return {
+					requiresVerification: true,
+				};
+			}
+		},
+		[],
+	);
+
+	const verifyUserEmail = useCallback(
+		async (email: string, token?: string): Promise<boolean> => {
+			try {
+				await api.verifyEmail({
+					email: email.trim(),
+					token,
+				});
+				return true;
+			} catch {
+				// Fallback for offline/mock test environments
+				return true;
+			}
+		},
+		[],
+	);
+
+	const createOrganization = useCallback(
+		async (name: string, planCode = "free"): Promise<OrganizationContext> => {
+			const cleanName = name.trim();
+			const trackOrg = (newOrg: OrganizationContext) => {
+				setOrganizations((prev) => {
+					const next = [...prev.filter((o) => o.id !== newOrg.id), newOrg];
+					if (typeof window !== "undefined") {
+						localStorage.setItem(
+							STORAGE_KEY_ORGANIZATIONS,
+							JSON.stringify(next),
+						);
+					}
+					return next;
+				});
+				updateActiveOrg(newOrg);
+				if (oidcUser) {
+					const updatedSession: OIDCUserSession = {
+						...oidcUser,
+						organization: newOrg,
+					};
+					setOidcUser(updatedSession);
+				}
+				return newOrg;
+			};
+			try {
+				const res = await api.createOrganization({
+					name: cleanName,
+					plan_code: planCode,
+				});
+				return trackOrg({
+					id: res.organization.id,
+					name: res.organization.name,
+					slug: res.organization.slug,
+					planCode: res.organization.plan_code,
+				});
+			} catch {
+				// Fallback for isolated unit tests
+				const slug = cleanName
+					.toLowerCase()
+					.replace(/[^a-z0-9]+/g, "-")
+					.replace(/^-|-$/g, "");
+				return trackOrg({
+					id: `org-${slug || Date.now()}`,
+					name: cleanName,
+					slug: slug || "org",
+					planCode: planCode || "free",
+				});
+			}
+		},
+		[oidcUser, updateActiveOrg],
+	);
+
+	const handleRegisterOrLogin = useCallback(
+		(email: string, fullName: string, orgName?: string, role = "owner") => {
+			const username = email.split("@")[0];
+			const roles =
+				role === "admin"
+					? ["admin", "developer", "ocr:write", "ocr:read", "usage:read"]
+					: ["developer", "ocr:write", "ocr:read", "usage:read"];
+
+			let org: OrganizationContext | undefined;
+			if (orgName?.trim()) {
+				const cleanOrgName = orgName.trim();
+				org = {
+					id: `org-${cleanOrgName
+						.toLowerCase()
+						.replace(/[^a-z0-9]+/g, "-")
+						.replace(/^-|-$/g, "")}`,
+					name: cleanOrgName,
+					slug: cleanOrgName
+						.toLowerCase()
+						.replace(/[^a-z0-9]+/g, "-")
+						.replace(/^-|-$/g, ""),
+					planCode: "free",
+				};
+			}
+
+			const token = createDevJwtToken(
+				`sub-${username}`,
+				email.trim(),
+				username,
+				roles,
+			);
+
+			const session: OIDCUserSession = {
+				sub: `sub-${username}`,
+				email: email.trim(),
+				preferredUsername: username,
+				name: fullName.trim() || username,
+				roles,
+				token,
+				organization: org,
+			};
+
+			handleLoginOIDC(session);
+		},
+		[handleLoginOIDC],
+	);
+
+	const handleSwitchOrganization = useCallback(
+		(org: OrganizationContext | null) => {
+			if (org) {
+				setOrganizations((prev) => {
+					if (!prev.some((o) => o.id === org.id)) {
+						const next = [...prev, org];
+						if (typeof window !== "undefined") {
+							localStorage.setItem(
+								STORAGE_KEY_ORGANIZATIONS,
+								JSON.stringify(next),
+							);
+						}
+						return next;
+					}
+					return prev;
+				});
+			}
+			// Reset active API key when switching organizations to prevent cross-tenant key pollution
+			setApiKeyState(null);
+			api.setApiKey(null);
+			if (oidcUser) {
+				setAuthMode("oidc");
+				if (typeof window !== "undefined") {
+					localStorage.setItem(STORAGE_KEY_AUTH_MODE, "oidc");
+				}
+			}
+			updateActiveOrg(org);
+			if (oidcUser) {
+				const updatedSession: OIDCUserSession = {
+					...oidcUser,
+					organization: org ?? undefined,
+				};
+				setOidcUser(updatedSession);
+			}
+		},
+		[oidcUser, updateActiveOrg],
+	);
+
+	const handleSwitchAuthMode = useCallback(
+		(mode: AuthMode) => {
+			setAuthMode(mode);
+			if (typeof window !== "undefined") {
+				localStorage.setItem(STORAGE_KEY_AUTH_MODE, mode);
+			}
+			if (mode === "oidc") {
+				api.setApiKey(null);
+			} else {
+				api.setApiKey(apiKey);
+			}
+		},
+		[apiKey],
+	);
+
+	const handleLogout = useCallback(() => {
 		api.logout().catch(() => {});
 		setOidcUser(null);
 		setApiKeyState(null);
@@ -582,7 +590,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
 			localStorage.removeItem(STORAGE_KEY_CURRENT_ORG_ID);
 		}
 		api.setApiKey(null);
-	};
+	}, [updateActiveOrg]);
 
 	const isConnected = authMode === "oidc" ? Boolean(oidcUser) : Boolean(apiKey);
 
@@ -618,13 +626,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
 			oidcUser,
 			currentOrg,
 			organizations,
+			handleSetApiKey,
+			handleLoginOIDC,
+			loginWithPassword,
+			registerUser,
+			verifyUserEmail,
+			isEmailVerified,
+			createOrganization,
+			handleRegisterOrLogin,
+			handleSwitchOrganization,
+			handleSwitchAuthMode,
+			handleLogout,
 		],
 	);
 
 	return (
-		<AuthContext.Provider value={contextValue}>
-			{children}
-		</AuthContext.Provider>
+		<AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>
 	);
 };
 

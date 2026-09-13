@@ -3,10 +3,13 @@ import {
 	Building2,
 	Check,
 	ChevronDown,
+	Copy,
 	CreditCard,
+	FileImage,
 	Globe,
 	KeyRound,
 	Landmark,
+	Minimize2,
 	Receipt,
 	RefreshCw,
 	RotateCcw,
@@ -19,7 +22,6 @@ import {
 } from "lucide-react";
 import type React from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Modal } from "../components/common/Modal";
 import type { NavigationPage } from "../components/layout/Sidebar";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../services/api";
@@ -216,9 +218,66 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({
 	>(null);
 	const [ocrError, setOcrError] = useState<string | null>(null);
 	const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
+	const [copiedPayload, setCopiedPayload] = useState(false);
+
+	const handleCopyPayload = async () => {
+		if (!ocrResult || !navigator.clipboard?.writeText) {
+			return;
+		}
+		try {
+			await navigator.clipboard.writeText(JSON.stringify(ocrResult, null, 2));
+			setCopiedPayload(true);
+			setTimeout(() => setCopiedPayload(false), 2000);
+		} catch {
+			setCopiedPayload(false);
+		}
+	};
+
+	const renderStatusPill = () => {
+		const base =
+			"inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border shrink-0";
+		if (ocrLoading) {
+			return (
+				<span
+					className={`${base} bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-amber-500/20 text-amber-700 dark:text-amber-300`}
+				>
+					<span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
+					Memindai…
+				</span>
+			);
+		}
+		if (ocrError) {
+			return (
+				<span
+					className={`${base} bg-rose-50 dark:bg-rose-500/10 border-rose-200 dark:border-rose-500/20 text-rose-700 dark:text-rose-300`}
+				>
+					<span className="w-1.5 h-1.5 rounded-full bg-current" />
+					Gagal
+				</span>
+			);
+		}
+		if (ocrResult) {
+			return (
+				<span
+					className={`${base} bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/20 text-emerald-700 dark:text-emerald-300`}
+				>
+					<span className="w-1.5 h-1.5 rounded-full bg-current" />
+					Selesai
+				</span>
+			);
+		}
+		return (
+			<span
+				className={`${base} bg-slate-100 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-500 dark:text-slate-400`}
+			>
+				<span className="w-1.5 h-1.5 rounded-full bg-current" />
+				Siap
+			</span>
+		);
+	};
 	const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 	const previewUrlRef = useRef<string | null>(null);
-	const [isZoomOpen, setIsZoomOpen] = useState(false);
+	const [isExpanded, setIsExpanded] = useState(false);
 	const [zoom, setZoom] = useState(1);
 	const [pan, setPan] = useState({ x: 0, y: 0 });
 	const [isDragging, setIsDragging] = useState(false);
@@ -235,21 +294,17 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({
 		[],
 	);
 
-	const openZoom = () => {
+	const toggleExpand = () => {
 		setZoom(1);
 		setPan({ x: 0, y: 0 });
-		setIsZoomOpen(true);
-	};
-
-	const closeZoom = () => {
-		setIsZoomOpen(false);
 		setIsDragging(false);
 		dragRef.current = null;
+		setIsExpanded((v) => !v);
 	};
 
 	useEffect(() => {
 		const el = viewerRef.current;
-		if (!isZoomOpen || !el) {
+		if (!isExpanded || !el) {
 			return;
 		}
 		const onWheel = (e: WheelEvent) => {
@@ -260,7 +315,7 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({
 		return () => {
 			el.removeEventListener("wheel", onWheel);
 		};
-	}, [isZoomOpen, clampZoom]);
+	}, [isExpanded, clampZoom]);
 
 	const handleViewerPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
 		if (zoom <= 1) {
@@ -614,6 +669,7 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({
 											setSelectedFileName(null);
 											setOcrError(null);
 											clearPreviewFile();
+											setIsExpanded(false);
 											setIsDropdownOpen(false);
 										}}
 										className={`w-full flex items-center justify-between p-2.5 rounded-lg text-left transition-colors cursor-pointer ${
@@ -705,9 +761,39 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({
 
 			{/* Main Playground Workspace Card */}
 			<div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-white/10 overflow-hidden">
+				<div className="px-4 sm:px-6 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 dark:border-white/10 bg-slate-50/60 dark:bg-white/[0.02]">
+					<div className="flex items-center gap-2 min-w-0">
+						<FileImage className="w-4 h-4 text-[#1877F2] shrink-0" />
+						<span className="truncate font-mono text-xs text-slate-700 dark:text-slate-300">
+							{selectedFileName ?? "Belum ada dokumen"}
+						</span>
+						<span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-[#E7F3FF] dark:bg-[#1877F2]/20 text-[#1877F2] dark:text-[#7aa9f5] shrink-0">
+							{activeService.shortName}
+						</span>
+					</div>
+					<div className="flex items-center gap-2 shrink-0">
+						{renderStatusPill()}
+						{ocrResult && (
+							<button
+								type="button"
+								onClick={handleCopyPayload}
+								aria-label="Salin JSON hasil"
+								title="Salin JSON hasil"
+								className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/10 transition-colors cursor-pointer"
+							>
+								{copiedPayload ? (
+									<Check className="w-3.5 h-3.5 text-emerald-600" />
+								) : (
+									<Copy className="w-3.5 h-3.5" />
+								)}
+								<span>{copiedPayload ? "Disalin" : "Salin JSON"}</span>
+							</button>
+						)}
+					</div>
+				</div>
 				<div className="p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
 					{/* Left: File Drop Zone */}
-					<div>
+					<div className="lg:sticky lg:top-20 lg:self-start">
 						<label
 							htmlFor="ktp-file-input"
 							className="border-2 border-dashed border-slate-300 dark:border-white/20 hover:border-[#1877F2] rounded-xl p-8 flex flex-col items-center justify-center text-center cursor-pointer transition-colors bg-slate-50/50 dark:bg-white/5 hover:bg-[#F0F2F5]/50 dark:hover:bg-white/10 min-h-[220px]"
@@ -744,15 +830,6 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({
 							/>
 						</label>
 
-						{selectedFileName && (
-							<div className="mt-3 flex items-center justify-between px-3 py-2 bg-slate-50 dark:bg-white/5 rounded-lg border border-slate-200 dark:border-white/10 text-xs text-slate-600 dark:text-slate-400">
-								<span className="truncate font-mono">{selectedFileName}</span>
-								{ocrLoading && (
-									<RefreshCw className="w-3.5 h-3.5 animate-spin text-[#1877F2]" />
-								)}
-							</div>
-						)}
-
 						{previewUrl && (
 							<div className="mt-3 overflow-hidden rounded-lg border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5">
 								<div className="px-3 pt-2 flex items-center justify-between">
@@ -761,26 +838,102 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({
 									</p>
 									<button
 										type="button"
-										onClick={openZoom}
+										onClick={toggleExpand}
 										className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#1877F2] hover:underline cursor-pointer"
 									>
-										<ZoomIn className="w-3.5 h-3.5" />
-										<span>Perbesar</span>
+										{isExpanded ? (
+											<Minimize2 className="w-3.5 h-3.5" />
+										) : (
+											<ZoomIn className="w-3.5 h-3.5" />
+										)}
+										<span>{isExpanded ? "Perkecil" : "Perbesar"}</span>
 									</button>
 								</div>
-								<button
-									type="button"
-									onClick={openZoom}
-									title="Klik untuk memperbesar"
-									aria-label={`Perbesar pratinjau ${selectedFileName ?? "dokumen"}`}
-									className="block w-full cursor-zoom-in"
-								>
-									<img
-										src={previewUrl}
-										alt={`Pratinjau ${selectedFileName ?? "dokumen"}`}
-										className="max-h-60 w-full object-contain pointer-events-none"
-									/>
-								</button>
+								{isExpanded ? (
+									<div className="px-3 pb-3">
+										<div className="py-2 flex items-center gap-1.5">
+											<button
+												type="button"
+												onClick={() => setZoom((z) => clampZoom(z - 0.5))}
+												disabled={zoom <= 1}
+												aria-label="Perkecil gambar"
+												className="p-1.5 text-slate-600 dark:text-slate-300 bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-lg hover:bg-slate-100 dark:hover:bg-white/10 disabled:opacity-40 transition-colors cursor-pointer"
+											>
+												<ZoomOut className="w-3.5 h-3.5" />
+											</button>
+											<span className="text-[11px] font-mono text-slate-500 dark:text-slate-400 tabular-nums min-w-10 text-center">
+												{Math.round(zoom * 100)}%
+											</span>
+											<button
+												type="button"
+												onClick={() => setZoom((z) => clampZoom(z + 0.5))}
+												disabled={zoom >= 4}
+												aria-label="Perbesar gambar"
+												className="p-1.5 text-slate-600 dark:text-slate-300 bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-lg hover:bg-slate-100 dark:hover:bg-white/10 disabled:opacity-40 transition-colors cursor-pointer"
+											>
+												<ZoomIn className="w-3.5 h-3.5" />
+											</button>
+											<button
+												type="button"
+												onClick={() => {
+													setZoom(1);
+													setPan({ x: 0, y: 0 });
+												}}
+												aria-label="Atur ulang zoom"
+												className="inline-flex items-center gap-1 px-2 py-1.5 text-[11px] font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer"
+											>
+												<RotateCcw className="w-3.5 h-3.5" />
+												<span>Reset</span>
+											</button>
+											<span className="ml-auto text-[10px] text-slate-400 dark:text-slate-500">
+												Seret / scroll untuk zoom
+											</span>
+										</div>
+										<div
+											ref={viewerRef}
+											onPointerDown={handleViewerPointerDown}
+											onPointerMove={handleViewerPointerMove}
+											onPointerUp={endViewerDrag}
+											onPointerCancel={endViewerDrag}
+											className="overflow-hidden rounded-lg bg-slate-950 flex items-center justify-center min-h-[40vh] max-h-[70vh] touch-none select-none"
+											style={{
+												cursor:
+													zoom > 1
+														? isDragging
+															? "grabbing"
+															: "grab"
+														: "default",
+											}}
+										>
+											<img
+												src={previewUrl}
+												alt={`Pratinjau diperbesar ${selectedFileName ?? "dokumen"}`}
+												draggable={false}
+												className="max-h-[70vh] w-auto max-w-none"
+												style={{
+													transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+													transition: isDragging
+														? "none"
+														: "transform 120ms ease-out",
+												}}
+											/>
+										</div>
+									</div>
+								) : (
+									<button
+										type="button"
+										onClick={toggleExpand}
+										title="Klik untuk memperbesar"
+										aria-label={`Perbesar pratinjau ${selectedFileName ?? "dokumen"}`}
+										className="block w-full cursor-zoom-in"
+									>
+										<img
+											src={previewUrl}
+											alt={`Pratinjau ${selectedFileName ?? "dokumen"}`}
+											className="max-h-60 w-full object-contain pointer-events-none"
+										/>
+									</button>
+								)}
 							</div>
 						)}
 
@@ -795,7 +948,7 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({
 					</div>
 
 					{/* Right: Results JSON Viewer */}
-					<div className="bg-slate-900 text-slate-100 rounded-xl p-4 flex flex-col font-mono text-[11px] sm:text-xs overflow-hidden min-h-[260px] max-h-[420px]">
+					<div className="bg-slate-900 text-slate-100 rounded-xl p-4 flex flex-col font-mono text-[11px] sm:text-xs overflow-hidden min-h-[260px] h-full">
 						<div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-800 text-slate-400 dark:text-slate-500 text-[11px]">
 							<span>RESPONSE PAYLOAD</span>
 							{ocrLoading && ocrResult && (
@@ -1468,78 +1621,6 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({
 					</div>
 				)}
 			</div>
-
-			{previewUrl && (
-				<Modal
-					isOpen={isZoomOpen}
-					onClose={closeZoom}
-					title={selectedFileName ?? "Pratinjau gambar"}
-					maxWidth="2xl"
-					footer={
-						<>
-							<span className="text-xs font-mono text-slate-500 dark:text-slate-400 tabular-nums mr-auto">
-								{Math.round(zoom * 100)}%
-							</span>
-							<button
-								type="button"
-								onClick={() => setZoom((z) => clampZoom(z - 0.5))}
-								disabled={zoom <= 1}
-								aria-label="Perkecil gambar"
-								className="p-2 text-slate-600 dark:text-slate-300 bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-lg hover:bg-slate-50 dark:hover:bg-white/10 disabled:opacity-40 transition-colors cursor-pointer"
-							>
-								<ZoomOut className="w-4 h-4" />
-							</button>
-							<button
-								type="button"
-								onClick={() => setZoom((z) => clampZoom(z + 0.5))}
-								disabled={zoom >= 4}
-								aria-label="Perbesar gambar"
-								className="p-2 text-slate-600 dark:text-slate-300 bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-lg hover:bg-slate-50 dark:hover:bg-white/10 disabled:opacity-40 transition-colors cursor-pointer"
-							>
-								<ZoomIn className="w-4 h-4" />
-							</button>
-							<button
-								type="button"
-								onClick={() => {
-									setZoom(1);
-									setPan({ x: 0, y: 0 });
-								}}
-								aria-label="Atur ulang zoom"
-								className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-lg hover:bg-slate-50 dark:hover:bg-white/10 transition-colors cursor-pointer"
-							>
-								<RotateCcw className="w-3.5 h-3.5" />
-								<span>Reset</span>
-							</button>
-						</>
-					}
-				>
-					<div
-						ref={viewerRef}
-						onPointerDown={handleViewerPointerDown}
-						onPointerMove={handleViewerPointerMove}
-						onPointerUp={endViewerDrag}
-						onPointerCancel={endViewerDrag}
-						className="overflow-hidden rounded-xl bg-slate-950 flex items-center justify-center min-h-[50vh] max-h-[65vh] touch-none select-none"
-						style={{
-							cursor: zoom > 1 ? (isDragging ? "grabbing" : "grab") : "default",
-						}}
-					>
-						<img
-							src={previewUrl}
-							alt={`Pratinjau diperbesar ${selectedFileName ?? "dokumen"}`}
-							draggable={false}
-							className="max-h-[65vh] w-auto max-w-none"
-							style={{
-								transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
-								transition: isDragging ? "none" : "transform 120ms ease-out",
-							}}
-						/>
-					</div>
-					<p className="text-xs text-slate-500 dark:text-slate-400">
-						Seret untuk menggeser saat diperbesar, scroll untuk zoom.
-					</p>
-				</Modal>
-			)}
 		</div>
 	);
 };
