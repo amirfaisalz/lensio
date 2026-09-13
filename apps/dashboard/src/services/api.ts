@@ -12,6 +12,7 @@ import type {
 	LoginRequest,
 	LoginResponse,
 	OrganizationDetails,
+	PassportResponse,
 	PlanDetails,
 	RegisterRequest,
 	RegisterResponse,
@@ -293,6 +294,27 @@ class ApiClient {
 			headers,
 		});
 		return this.handleResponse<SIMResponse>(res);
+	}
+
+	public async executePassportOCR(
+		file: File | Blob,
+		apiKeyOverride?: string,
+	): Promise<PassportResponse> {
+		const formData = new FormData();
+		formData.append("document", file);
+
+		const headers: Record<string, string> = {};
+		const keyToUse = apiKeyOverride || this.activeApiKey;
+		if (keyToUse) {
+			headers.Authorization = `Bearer ${keyToUse}`;
+		}
+
+		const res = await this.fetchWithAuth(`${API_BASE}/api/v1/ocr/passport`, {
+			method: "POST",
+			body: formData,
+			headers,
+		});
+		return this.handleResponse<PassportResponse>(res);
 	}
 
 	public async register(req: RegisterRequest): Promise<RegisterResponse> {

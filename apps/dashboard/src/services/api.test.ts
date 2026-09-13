@@ -138,6 +138,87 @@ describe("ApiClient", () => {
 		expect(result.status).toBe("completed");
 	});
 
+	it("executes SIM OCR multipart request", async () => {
+		const mockSim = {
+			id: "ocr_sim_123",
+			document_type: "sim" as const,
+			status: "completed",
+			confidence: 0.98,
+			processing: { latency_ms: 120 },
+			data: {
+				nomor_sim: "123456789012",
+				golongan: "A",
+				nama: "BUDI SANTOSO",
+				alamat: "JL. SUDIRMAN NO. 1",
+				rt_rw: "001/002",
+				kelurahan: "GELORA",
+				kecamatan: "TANAH ABANG",
+				kota: "JAKARTA PUSAT",
+				pekerjaan: "KARYAWAN",
+				tempat_lahir: "JAKARTA",
+				tanggal_lahir: "1990-01-01",
+				jenis_kelamin: "PRIA",
+				golongan_darah: "O",
+				masa_berlaku: "2029-01-01",
+				polda: "POLDA METRO JAYA",
+			},
+			field_confidence: {
+				nomor_sim: 0.99,
+				nama: 0.98,
+			},
+		};
+
+		vi.spyOn(globalThis, "fetch").mockResolvedValueOnce({
+			ok: true,
+			json: async () => mockSim,
+		} as Response);
+
+		const dummyBlob = new Blob(["fake image"], { type: "image/jpeg" });
+		const result = await api.executeSIMOCR(dummyBlob);
+
+		expect(result.data.nomor_sim).toBe("123456789012");
+		expect(result.data.golongan).toBe("A");
+		expect(result.status).toBe("completed");
+	});
+
+	it("executes Passport OCR multipart request", async () => {
+		const mockPassport = {
+			id: "ocr_pass_123",
+			document_type: "passport" as const,
+			status: "completed",
+			confidence: 0.99,
+			processing: { latency_ms: 130 },
+			data: {
+				passport_number: "X1234567",
+				full_name: "BUDI SANTOSO",
+				nationality: "IDN",
+				date_of_birth: "1990-01-01",
+				gender: "M",
+				expiry_date: "2030-01-01",
+				issuing_country: "IDN",
+				issuing_office: "JAKARTA SELATAN",
+				mrz_line1: "P<IDNSANTOSO<<BUDI<<<<<<<<<<<<<<<<<<<<<<<<<<",
+				mrz_line2: "X1234567<7IDN9001011M3001019<<<<<<<<<<<<<<<2",
+			},
+			field_confidence: {
+				passport_number: 0.99,
+				full_name: 0.99,
+			},
+		};
+
+		vi.spyOn(globalThis, "fetch").mockResolvedValueOnce({
+			ok: true,
+			json: async () => mockPassport,
+		} as Response);
+
+		const dummyBlob = new Blob(["fake image"], { type: "image/jpeg" });
+		const result = await api.executePassportOCR(dummyBlob);
+
+		expect(result.data.passport_number).toBe("X1234567");
+		expect(result.data.full_name).toBe("BUDI SANTOSO");
+		expect(result.status).toBe("completed");
+	});
+
 	it("registers user successfully", async () => {
 		vi.spyOn(globalThis, "fetch").mockResolvedValueOnce({
 			ok: true,

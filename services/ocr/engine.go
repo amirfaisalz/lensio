@@ -15,6 +15,9 @@ var (
 	// ErrUnsupportedSIMDocument indicates the image is not an Indonesian SIM.
 	ErrUnsupportedSIMDocument = errors.New("uploaded document was not identified as an Indonesian SIM")
 
+	// ErrUnsupportedPassportDocument indicates the image is not an Indonesian Passport.
+	ErrUnsupportedPassportDocument = errors.New("uploaded document was not identified as an Indonesian Passport")
+
 	// ErrOCRFailed indicates upstream OCR engine processing error or timeout.
 	ErrOCRFailed = errors.New("upstream ocr engine failure")
 
@@ -57,14 +60,30 @@ type SIMData struct {
 	MasaBerlaku   string `json:"masa_berlaku"`      // YYYY-MM-DD
 }
 
+// PassportData represents structured fields extracted from an Indonesian Passport (Paspor Republik Indonesia).
+type PassportData struct {
+	PassportNumber string `json:"passport_number"`
+	FullName       string `json:"full_name"`
+	Nationality    string `json:"nationality"`
+	DateOfBirth    string `json:"date_of_birth"` // YYYY-MM-DD
+	PlaceOfBirth   string `json:"place_of_birth"`
+	Gender         string `json:"gender"`        // LAKI-LAKI | PEREMPUAN
+	IssueDate      string `json:"issue_date"`    // YYYY-MM-DD
+	ExpiryDate     string `json:"expiry_date"`   // YYYY-MM-DD
+	IssuingOffice  string `json:"issuing_office"`
+	MRZLine1       string `json:"mrz_line1,omitempty"`
+	MRZLine2       string `json:"mrz_line2,omitempty"`
+}
+
 // OCRResult represents the complete structured result of an OCR extraction.
 //nolint:revive // spec mandates ocr.OCRResult naming
 type OCRResult struct {
-	DocumentType string   `json:"document_type"`
-	Confidence   float64  `json:"confidence"`
-	RawText      string   `json:"raw_text,omitempty"`
-	Data         *KTPData `json:"data,omitempty"`
-	SIMData      *SIMData `json:"sim_data,omitempty"`
+	DocumentType string        `json:"document_type"`
+	Confidence   float64       `json:"confidence"`
+	RawText      string        `json:"raw_text,omitempty"`
+	Data         *KTPData      `json:"data,omitempty"`
+	SIMData      *SIMData      `json:"sim_data,omitempty"`
+	PassportData *PassportData `json:"passport_data,omitempty"`
 }
 
 // OCREngine defines the pluggable document extraction contract.

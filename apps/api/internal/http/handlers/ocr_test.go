@@ -770,3 +770,293 @@ func BenchmarkSIMOCRHandler(b *testing.B) {
 		}
 	}
 }
+
+func TestPassportOCRHandler(t *testing.T) {
+	oldLogger := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(io.Discard, nil)))
+	defer slog.SetDefault(oldLogger)
+
+	engine := providers.NewMockEngine()
+	ocrStore := newDummyOCRStore()
+	quotaChecker := &mockQuotaChecker{allowed: true, remaining: 100, limit: 100}
+	handler := handlers.PassportOCRHandler(engine, ocrStore, quotaChecker)
+
+	validImage := synthetic.GenerateValidPassportImage()
+
+	t.Run("successful passport extraction 200 OK", func(t *testing.T) {
+		req := createMultipartRequest(t, "document", "passport.png", validImage)
+		req = withAuth(req, "org-1", "key-1")
+		rec := httptest.NewRecorder()
+
+		handler.ServeHTTP(rec, req)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+		}
+
+		var resp handlers.PassportResponse
+		if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+			t.Fatalf("failed unmarshaling response: %v", err)
+		}
+		if resp.DocumentType != "passport" {
+			t.Errorf("expected doc_type passport, got %s", resp.DocumentType)
+		}
+		if resp.Data == nil || resp.Data.PassportNumber != "X1234567" {
+			t.Errorf("expected PassportNumber X1234567, got %v", resp.Data)
+		}
+		if resp.Confidence < 0.90 {
+			t.Errorf("expected confidence >= 0.90, got %f", resp.Confidence)
+		}
+		if resp.ID == "" {
+			t.Error("expected non-empty record ID")
+		}
+
+		// Verify record persisted in store
+		saved, err := ocrStore.GetOCRRequestByID(context.Background(), "org-1", resp.ID)
+		if err != nil || saved.DocType != "passport" {
+			t.Fatalf("expected saved record with doc_type passport, got %v, err=%v", saved, err)
+		}
+	})
+
+	t.Run("low confidence extraction", func(t *testing.T) {
+		lowConfImg := synthetic.GeneratePassportLowConfidenceImage()
+		req := createMultipartRequest(t, "document", "passport_low.png", lowConfImg)
+		req = withAuth(req, "org-1", "key-1")
+		rec := httptest.NewRecorder()
+
+		handler.ServeHTTP(rec, req)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+		}
+	})
+
+	t.Run("unauthenticated request returns 401", func(t *testing.T) {
+		req := createMultipartRequest(t, "document", "passport.png", validImage)
+		rec := httptest.NewRecorder()
+
+		handler.ServeHTTP(rec, req)
+		if rec.Code != http.StatusUnauthorized {
+			t.Fatalf("expected 401, got %d", rec.Code)
+		}
+	})
+
+	t.Run("quota checker error returns 500", func(t *testing.T) {
+		errChecker := &mockQuotaChecker{err: errors.New("db failure")}
+		errHandler := handlers.PassportOCRHandler(engine, ocrStore, errChecker)
+
+		req := createMultipartRequest(t, "document", "passport.png", validImage)
+		req = withAuth(req, "org-1", "key-1")
+		rec := httptest.NewRecorder()
+
+		errHandler.ServeHTTP(rec, req)
+		if rec.Code != http.StatusInternalServerError {
+			t.Fatalf("expected 500, got %d", rec.Code)
+		}
+	})
+
+	t.Run("quota exceeded returns 429", func(t *testing.T) {
+		exceededChecker := &mockQuotaChecker{allowed: false, remaining: 0, limit: 100}
+		exceededHandler := handlers.PassportOCRHandler(engine, ocrStore, exceededChecker)
+
+		req := createMultipartRequest(t, "document", "passport.png", validImage)
+		req = withAuth(req, "org-1", "key-1")
+		rec := httptest.NewRecorder()
+
+		exceededHandler.ServeHTTP(rec, req)
+		if rec.Code != http.StatusTooManyRequests {
+			t.Fatalf("expected 429, got %d", rec.Code)
+		}
+	})
+
+	t.Run("bad body returns 400 invalid_document", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/ocr/passport", bytes.NewReader([]byte("not multipart")))
+		req.Header.Set("Content-Type", "multipart/form-data; boundary=missing")
+		req = withAuth(req, "org-1", "key-1")
+		rec := httptest.NewRecorder()
+
+		handler.ServeHTTP(rec, req)
+		if rec.Code != http.StatusBadRequest {
+			t.Fatalf("expected 400, got %d", rec.Code)
+		}
+	})
+
+	t.Run("missing document form file returns 400", func(t *testing.T) {
+		req := createMultipartRequest(t, "other_file", "doc.png", validImage)
+		req = withAuth(req, "org-1", "key-1")
+		rec := httptest.NewRecorder()
+
+		handler.ServeHTTP(rec, req)
+		if rec.Code != http.StatusBadRequest {
+			t.Fatalf("expected 400, got %d", rec.Code)
+		}
+	})
+
+	t.Run("corrupt image returns 400 invalid_document", func(t *testing.T) {
+		corruptImg := synthetic.GenerateCorruptedImage()
+		req := createMultipartRequest(t, "document", "corrupt.jpg", corruptImg)
+		req = withAuth(req, "org-1", "key-1")
+		rec := httptest.NewRecorder()
+
+		handler.ServeHTTP(rec, req)
+		if rec.Code != http.StatusBadRequest {
+			t.Fatalf("expected 400, got %d", rec.Code)
+		}
+	})
+
+	t.Run("nil engine returns 502", func(t *testing.T) {
+		nilHandler := handlers.PassportOCRHandler(nil, ocrStore, nil)
+		req := createMultipartRequest(t, "document", "passport.png", validImage)
+		req = withAuth(req, "org-1", "key-1")
+		rec := httptest.NewRecorder()
+
+		nilHandler.ServeHTTP(rec, req)
+		if rec.Code != http.StatusBadGateway {
+			t.Fatalf("expected 502, got %d", rec.Code)
+		}
+	})
+
+	t.Run("engine returns ErrUnsupportedPassportDocument 422", func(t *testing.T) {
+		engine.SetCustomError(ocr.ErrUnsupportedPassportDocument)
+		defer engine.Reset()
+
+		req := createMultipartRequest(t, "document", "passport.png", validImage)
+		req = withAuth(req, "org-1", "key-1")
+		rec := httptest.NewRecorder()
+
+		handler.ServeHTTP(rec, req)
+		if rec.Code != http.StatusUnprocessableEntity {
+			t.Fatalf("expected 422, got %d", rec.Code)
+		}
+	})
+
+	t.Run("engine returns ErrCircuitOpen 504", func(t *testing.T) {
+		engine.SetCustomError(ocr.ErrCircuitOpen)
+		defer engine.Reset()
+
+		req := createMultipartRequest(t, "document", "passport.png", validImage)
+		req = withAuth(req, "org-1", "key-1")
+		rec := httptest.NewRecorder()
+
+		handler.ServeHTTP(rec, req)
+		if rec.Code != http.StatusGatewayTimeout {
+			t.Fatalf("expected 504, got %d", rec.Code)
+		}
+	})
+
+	t.Run("engine returns context deadline exceeded 504", func(t *testing.T) {
+		engine.SetCustomError(context.DeadlineExceeded)
+		defer engine.Reset()
+
+		req := createMultipartRequest(t, "document", "passport.png", validImage)
+		req = withAuth(req, "org-1", "key-1")
+		rec := httptest.NewRecorder()
+
+		handler.ServeHTTP(rec, req)
+		if rec.Code != http.StatusGatewayTimeout {
+			t.Fatalf("expected 504, got %d", rec.Code)
+		}
+	})
+
+	t.Run("engine returns ErrOCRFailed 502", func(t *testing.T) {
+		engine.SetCustomError(ocr.ErrOCRFailed)
+		defer engine.Reset()
+
+		req := createMultipartRequest(t, "document", "passport.png", validImage)
+		req = withAuth(req, "org-1", "key-1")
+		rec := httptest.NewRecorder()
+
+		handler.ServeHTTP(rec, req)
+		if rec.Code != http.StatusBadGateway {
+			t.Fatalf("expected 502, got %d", rec.Code)
+		}
+	})
+
+	t.Run("engine returns generic error 500", func(t *testing.T) {
+		engine.SetCustomError(errors.New("something catastrophic"))
+		defer engine.Reset()
+
+		req := createMultipartRequest(t, "document", "passport.png", validImage)
+		req = withAuth(req, "org-1", "key-1")
+		rec := httptest.NewRecorder()
+
+		handler.ServeHTTP(rec, req)
+		if rec.Code != http.StatusInternalServerError {
+			t.Fatalf("expected 500, got %d", rec.Code)
+		}
+	})
+
+	t.Run("engine returns wrong document type 422", func(t *testing.T) {
+		engine.SetCustomResult(&ocr.OCRResult{
+			DocumentType: "ktp",
+		})
+		defer engine.Reset()
+
+		req := createMultipartRequest(t, "document", "passport.png", validImage)
+		req = withAuth(req, "org-1", "key-1")
+		rec := httptest.NewRecorder()
+
+		handler.ServeHTTP(rec, req)
+		if rec.Code != http.StatusUnprocessableEntity {
+			t.Fatalf("expected 422, got %d", rec.Code)
+		}
+	})
+
+	t.Run("ocrStore error does not fail request", func(t *testing.T) {
+		brokenStore := &dummyOCRStore{err: errors.New("db connection failure")}
+		storeHandler := handlers.PassportOCRHandler(engine, brokenStore, quotaChecker)
+
+		req := createMultipartRequest(t, "document", "passport.png", validImage)
+		req = withAuth(req, "org-1", "key-1")
+		rec := httptest.NewRecorder()
+
+		storeHandler.ServeHTTP(rec, req)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("expected 200 even if store failed, got %d", rec.Code)
+		}
+	})
+}
+
+func BenchmarkPassportOCRHandler(b *testing.B) {
+	oldLogger := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(io.Discard, nil)))
+	defer slog.SetDefault(oldLogger)
+
+	validImage := synthetic.GenerateValidPassportImage()
+	engine := providers.NewMockEngine()
+	ocrStore := newDummyOCRStore()
+	quotaChecker := &mockQuotaChecker{allowed: true, remaining: 100, limit: 100}
+	handler := handlers.PassportOCRHandler(engine, ocrStore, quotaChecker)
+
+	var bodyBuf bytes.Buffer
+	writer := multipart.NewWriter(&bodyBuf)
+	part, err := writer.CreateFormFile("document", "passport.png")
+	if err != nil {
+		b.Fatalf("failed creating form file: %v", err)
+	}
+	if _, err := part.Write(validImage); err != nil {
+		b.Fatalf("failed writing image: %v", err)
+	}
+	writer.Close()
+	rawBody := bodyBuf.Bytes()
+	contentType := writer.FormDataContentType()
+
+	key := &store.APIKey{
+		ID:     "bench-key",
+		OrgID:  "bench-org",
+		Scopes: []string{"ocr:read", "ocr:write"},
+	}
+
+	b.ResetTimer()
+	b.ReportAllocs()
+
+	for i := 0; i < b.N; i++ {
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/ocr/passport", bytes.NewReader(rawBody))
+		req.Header.Set("Content-Type", contentType)
+		req = req.WithContext(middleware.WithAPIKey(req.Context(), key))
+		rec := httptest.NewRecorder()
+
+		handler.ServeHTTP(rec, req)
+		if rec.Code != http.StatusOK {
+			b.Fatalf("expected 200, got %d", rec.Code)
+		}
+	}
+}

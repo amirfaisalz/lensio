@@ -10,11 +10,13 @@ import (
 
 // Magic markers in image bytes to trigger specific mock behaviors during testing.
 var (
-	MarkerUnsupportedDoc   = []byte("MOCK_UNSUPPORTED_DOC")
-	MarkerOCRFailure       = []byte("MOCK_OCR_FAILURE")
-	MarkerLowConfidence    = []byte("MOCK_LOW_CONFIDENCE")
-	MarkerSIMDoc           = []byte("MOCK_SIM_DOC")
-	MarkerSIMLowConfidence = []byte("MOCK_SIM_LOW_CONFIDENCE")
+	MarkerUnsupportedDoc        = []byte("MOCK_UNSUPPORTED_DOC")
+	MarkerOCRFailure            = []byte("MOCK_OCR_FAILURE")
+	MarkerLowConfidence         = []byte("MOCK_LOW_CONFIDENCE")
+	MarkerSIMDoc                = []byte("MOCK_SIM_DOC")
+	MarkerSIMLowConfidence      = []byte("MOCK_SIM_LOW_CONFIDENCE")
+	MarkerPassportDoc           = []byte("MOCK_PASSPORT_DOC")
+	MarkerPassportLowConfidence = []byte("MOCK_PASSPORT_LOW_CONFIDENCE")
 )
 
 // MockOCREngine provides deterministic OCR extraction for tests without external network calls.
@@ -117,6 +119,37 @@ func (m *MockOCREngine) Extract(ctx context.Context, image []byte) (*ocr.OCRResu
 			Confidence:   confidence,
 			RawText:      "KEPOLISIAN NEGARA REPUBLIK INDONESIA SURAT IZIN MENGEMUDI DRIVING LICENSE SIM A No. SIM: 1234-5678-9012 1. NAMA: BUDI SANTOSO 2. TEMPAT/TGL LAHIR: JAKARTA, 01-01-1990 3. GOL. DARAH: O - JENIS KELAMIN: PRIA 4. ALAMAT: JL. MERDEKA NO. 10 5. PEKERJAAN: KARYAWAN SWASTA POLDA: METRO JAYA BERLAKU S/D: 01-01-2029",
 			SIMData:      simData,
+		}, nil
+	}
+
+	if bytes.Contains(image, MarkerPassportDoc) || bytes.Contains(image, MarkerPassportLowConfidence) {
+		confidence := 0.98
+		var passportData *ocr.PassportData
+		if bytes.Contains(image, MarkerPassportLowConfidence) {
+			confidence = 0.45
+			passportData = &ocr.PassportData{
+				PassportNumber: "X1234567",
+			}
+		} else {
+			passportData = &ocr.PassportData{
+				PassportNumber: "X1234567",
+				FullName:       "BUDI SANTOSO",
+				Nationality:    "IDN",
+				DateOfBirth:    "1990-01-01",
+				PlaceOfBirth:   "JAKARTA",
+				Gender:         "LAKI-LAKI",
+				IssueDate:      "2020-01-01",
+				ExpiryDate:     "2030-01-01",
+				IssuingOffice:  "KANIM JAKARTA SELATAN",
+				MRZLine1:       "P<IDNSANTOSO<<BUDI<<<<<<<<<<<<<<<<<<<<<<<<<<",
+				MRZLine2:       "X1234567<7IDN9001011M3001019<<<<<<<<<<<<<<<2",
+			}
+		}
+		return &ocr.OCRResult{
+			DocumentType: "passport",
+			Confidence:   confidence,
+			RawText:      "REPUBLIK INDONESIA PASPOR PASSPORT Jenis/Type: P Kode Negara/Country Code: IDN Nomor Paspor/Passport No: X1234567 Nama Lengkap/Full Name: BUDI SANTOSO Kewarganegaraan/Nationality: INDONESIA Tanggal Lahir/Date of Birth: 01-01-1990 Tempat Lahir/Place of Birth: JAKARTA Jenis Kelamin/Sex: LAKI-LAKI Tanggal Pengeluaran/Date of Issue: 01-01-2020 Tanggal Habis Berlaku/Date of Expiry: 01-01-2030 Kantor yang Mengeluarkan/Issuing Office: KANIM JAKARTA SELATAN P<IDNSANTOSO<<BUDI<<<<<<<<<<<<<<<<<<<<<<<<<< X1234567<7IDN9001011M3001019<<<<<<<<<<<<<<<2",
+			PassportData: passportData,
 		}, nil
 	}
 

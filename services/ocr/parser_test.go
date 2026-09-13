@@ -1,6 +1,7 @@
 package ocr_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/amirfaisalz/lensio/services/ocr"
@@ -217,5 +218,91 @@ Berlaku s/d : 01-01-2029
 
 	for i := 0; i < b.N; i++ {
 		_ = ocr.ParseSIMFromRawText(raw)
+	}
+}
+
+func TestParsePassportFromRawText(t *testing.T) {
+	raw := `
+REPUBLIK INDONESIA / REPUBLIC OF INDONESIA
+PASPOR / PASSPORT
+Jenis / Type: P  Kode Negara / Country Code: IDN  Nomor Paspor / Passport No: X1234567
+Nama Lengkap / Full Name: BUDI SANTOSO
+Kewarganegaraan / Nationality: INDONESIA
+Tanggal Lahir / Date of Birth: 01-01-1990
+Tempat Lahir / Place of Birth: JAKARTA
+Jenis Kelamin / Sex: LAKI-LAKI
+Tanggal Pengeluaran / Date of Issue: 01-01-2020
+Tanggal Habis Berlaku / Date of Expiry: 01-01-2030
+Kantor yang Mengeluarkan / Issuing Office: KANIM JAKARTA SELATAN
+P<IDNSANTOSO<<BUDI<<<<<<<<<<<<<<<<<<<<<<<<<<
+X1234567<7IDN9001011M3001019<<<<<<<<<<<<<<<2
+`
+	data := ocr.ParsePassportFromRawText(raw)
+	if data.PassportNumber != "X1234567" {
+		t.Errorf("expected PassportNumber X1234567, got %s", data.PassportNumber)
+	}
+	if data.FullName != "BUDI SANTOSO" {
+		t.Errorf("expected FullName BUDI SANTOSO, got %s", data.FullName)
+	}
+	if data.Nationality != "IDN" {
+		t.Errorf("expected Nationality IDN, got %s", data.Nationality)
+	}
+	if data.DateOfBirth != "1990-01-01" {
+		t.Errorf("expected DateOfBirth 1990-01-01, got %s", data.DateOfBirth)
+	}
+	if data.PlaceOfBirth != "JAKARTA" {
+		t.Errorf("expected PlaceOfBirth JAKARTA, got %s", data.PlaceOfBirth)
+	}
+	if data.Gender != "LAKI-LAKI" {
+		t.Errorf("expected Gender LAKI-LAKI, got %s", data.Gender)
+	}
+	if data.IssueDate != "2020-01-01" {
+		t.Errorf("expected IssueDate 2020-01-01, got %s", data.IssueDate)
+	}
+	if data.ExpiryDate != "2030-01-01" {
+		t.Errorf("expected ExpiryDate 2030-01-01, got %s", data.ExpiryDate)
+	}
+	if data.IssuingOffice != "KANIM JAKARTA SELATAN" {
+		t.Errorf("expected IssuingOffice KANIM JAKARTA SELATAN, got %s", data.IssuingOffice)
+	}
+	if !strings.HasPrefix(data.MRZLine1, "P<IDN") {
+		t.Errorf("expected MRZLine1 starting with P<IDN, got %s", data.MRZLine1)
+	}
+	if len(data.MRZLine2) != 44 {
+		t.Errorf("expected MRZLine2 len 44, got %d", len(data.MRZLine2))
+	}
+
+	t.Run("fallback passport number and female gender detection", func(t *testing.T) {
+		fallbackText := "PASPOR REPUBLIK INDONESIA A98765432 WANITA"
+		res := ocr.ParsePassportFromRawText(fallbackText)
+		if res.PassportNumber != "A98765432" {
+			t.Errorf("expected fallback PassportNumber A98765432, got %s", res.PassportNumber)
+		}
+		if res.Gender != "PEREMPUAN" {
+			t.Errorf("expected fallback gender PEREMPUAN, got %s", res.Gender)
+		}
+	})
+}
+
+func BenchmarkParsePassportFromRawText(b *testing.B) {
+	raw := `
+PASPOR REPUBLIK INDONESIA
+Passport No: X1234567
+Nama Lengkap: BUDI SANTOSO
+Nationality: IDN
+Date of Birth: 01-01-1990
+Place of Birth: JAKARTA
+Sex: M
+Date of Issue: 01-01-2020
+Date of Expiry: 01-01-2030
+Issuing Office: JAKARTA SELATAN
+P<IDNSANTOSO<<BUDI<<<<<<<<<<<<<<<<<<<<<<<<<<
+X1234567<7IDN9001011M3001019<<<<<<<<<<<<<<<1
+`
+	b.ResetTimer()
+	b.ReportAllocs()
+
+	for i := 0; i < b.N; i++ {
+		_ = ocr.ParsePassportFromRawText(raw)
 	}
 }

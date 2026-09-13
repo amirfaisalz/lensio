@@ -54,6 +54,15 @@ type SIMResponse struct {
 	Processing   ProcessingDetail `json:"processing"`
 }
 
+// PassportResponse represents the standard response payload for successful Passport OCR extraction.
+type PassportResponse struct {
+	ID           string            `json:"id"`
+	DocumentType string            `json:"document_type"`
+	Confidence   float64           `json:"confidence"`
+	Data         *ocr.PassportData `json:"data"`
+	Processing   ProcessingDetail  `json:"processing"`
+}
+
 // OCRRequestMetadata represents the non-PII execution metadata query response.
 type OCRRequestMetadata struct {
 	ID         string    `json:"id"`
@@ -652,6 +661,301 @@ func SIMOCRHandler(engine ocr.OCREngine, ocrStore store.OCRRequestStore, quotaCh
 			DocumentType: "sim",
 			Confidence:   confidence,
 			Data:         normalizedSIM,
+			Processing: ProcessingDetail{
+				LatencyMS: latencyMS,
+			},
+		})
+	}
+}
+
+// PassportOCRHandler processes an uploaded Indonesian Passport image, performs classification,
+// deterministic field normalization/validation, and returns structured data.
+// Uploaded image buffers are strictly processed in memory and discarded immediately.
+func PassportOCRHandler(engine ocr.OCREngine, ocrStore store.OCRRequestStore, quotaChecker QuotaChecker) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		startTime := time.Now()
+
+		key := middleware.GetAPIKey(r.Context())
+		if key == nil {
+			response.ErrorWithRequest(
+				w,
+				r,
+				http.StatusUnauthorized,
+				response.CodeInvalidAPIKey,
+				"Unauthenticated request",
+			)
+			return
+		}
+
+		if quotaChecker != nil {
+			allowed, _, _, err := quotaChecker.CheckQuota(r.Context(), key.OrgID)
+			if err != nil {
+				response.ErrorWithRequest(
+					w,
+					r,
+					http.StatusInternalServerError,
+					response.CodeInternalError,
+					"Failed checking quota availability",
+				)
+				return
+			}
+			if !allowed {
+				response.ErrorWithRequest(
+					w,
+					r,
+					http.StatusTooManyRequests,
+					response.CodeQuotaExceeded,
+					"Monthly API quota exceeded. Please upgrade your plan.",
+				)
+				return
+			}
+		}
+
+		// Enforce maximum upload body size (5MB + 1KB buffer for multipart headers)
+		r.Body = http.MaxBytesReader(w, r.Body, ocr.MaxImageSizeBytes+1024)
+		if err := r.ParseMultipartForm(ocr.MaxImageSizeBytes); err != nil {
+			response.ErrorWithRequest(
+				w,
+				r,
+				http.StatusBadRequest,
+				response.CodeInvalidDocument,
+				"File exceeds 5MB or invalid multipart form",
+			)
+			return
+		}
+		defer func() {
+			if r.MultipartForm != nil {
+				_ = r.MultipartForm.RemoveAll()
+			}
+		}()
+
+		file, _, err := r.FormFile("document")
+		if err != nil {
+			response.ErrorWithRequest(
+				w,
+				r,
+				http.StatusBadRequest,
+				response.CodeInvalidDocument,
+				"Missing 'document' image file in multipart form",
+			)
+			return
+		}
+		defer file.Close()
+
+		imgBytes, err := io.ReadAll(file)
+		if err != nil {
+			response.ErrorWithRequest(
+				w,
+				r,
+				http.StatusBadRequest,
+				response.CodeInvalidDocument,
+				"Failed reading uploaded document bytes",
+			)
+			return
+		}
+
+		tracer := telemetry.Tracer()
+
+		// Stage 1: Validate Image
+		valStart := time.Now()
+		_, valSpan := tracer.Start(r.Context(), "ocr.validate_image")
+		if _, err := ocr.ValidateImage(imgBytes); err != nil {
+			valSpan.RecordError(err)
+			valSpan.SetStatus(codes.Error, err.Error())
+			valSpan.End()
+
+			valDuration := time.Since(valStart).Seconds()
+			telemetry.RecordOCRStageDuration(r.Context(), "validation", "error", valDuration)
+			telemetry.RecordOCRError(r.Context(), "validation", response.CodeInvalidDocument)
+			telemetry.RecordOCRRequest(r.Context(), "passport", "failure", 0, time.Since(startTime).Seconds())
+
+			response.ErrorWithRequest(
+				w,
+				r,
+				http.StatusBadRequest,
+				response.CodeInvalidDocument,
+				err.Error(),
+			)
+			return
+		}
+		valSpan.SetStatus(codes.Ok, "valid")
+		valSpan.End()
+		telemetry.RecordOCRStageDuration(r.Context(), "validation", "success", time.Since(valStart).Seconds())
+
+		if engine == nil {
+			telemetry.RecordOCRError(r.Context(), "ocr_engine", response.CodeOCRFailed)
+			telemetry.RecordOCRRequest(r.Context(), "passport", "failure", 0, time.Since(startTime).Seconds())
+			response.ErrorWithRequest(
+				w,
+				r,
+				http.StatusBadGateway,
+				response.CodeOCRFailed,
+				"OCR engine not available",
+			)
+			return
+		}
+
+		// Stage 2: OCR Engine Extraction
+		engStart := time.Now()
+		engCtx, engSpan := tracer.Start(r.Context(), "ocr.engine_extract")
+		ocrResult, err := engine.Extract(engCtx, imgBytes)
+		clear(imgBytes)
+		engDuration := time.Since(engStart).Seconds()
+
+		if err != nil {
+			slog.ErrorContext(r.Context(), "passport ocr engine extraction failed", slog.String("error", err.Error()))
+			engSpan.RecordError(err)
+			engSpan.SetStatus(codes.Error, err.Error())
+			engSpan.End()
+			telemetry.RecordOCRStageDuration(r.Context(), "ocr_engine", "error", engDuration)
+
+			if errors.Is(err, ocr.ErrUnsupportedDocument) || errors.Is(err, ocr.ErrUnsupportedPassportDocument) {
+				telemetry.RecordOCRError(r.Context(), "ocr_engine", response.CodeUnsupportedDocument)
+				telemetry.RecordOCRRequest(r.Context(), "passport", "failure", 0, time.Since(startTime).Seconds())
+				response.ErrorWithRequest(
+					w,
+					r,
+					http.StatusUnprocessableEntity,
+					response.CodeUnsupportedDocument,
+					"Uploaded image was not identified as an Indonesian Passport",
+				)
+				return
+			}
+			if errors.Is(err, ocr.ErrCircuitOpen) {
+				telemetry.RecordOCRError(r.Context(), "circuit_breaker", response.CodeOCRFailed)
+				telemetry.RecordOCRRequest(r.Context(), "passport", "failure", 0, time.Since(startTime).Seconds())
+				response.ErrorWithRequest(
+					w,
+					r,
+					http.StatusGatewayTimeout,
+					response.CodeOCRFailed,
+					"OCR circuit breaker is open: upstream service temporarily unavailable",
+				)
+				return
+			}
+			if errors.Is(err, context.DeadlineExceeded) || strings.Contains(err.Error(), "context deadline exceeded") {
+				telemetry.RecordOCRError(r.Context(), "ocr_engine", response.CodeOCRFailed)
+				telemetry.RecordOCRRequest(r.Context(), "passport", "failure", 0, time.Since(startTime).Seconds())
+				response.ErrorWithRequest(
+					w,
+					r,
+					http.StatusGatewayTimeout,
+					response.CodeOCRFailed,
+					"OCR engine processing timeout",
+				)
+				return
+			}
+			if errors.Is(err, ocr.ErrOCRFailed) {
+				telemetry.RecordOCRError(r.Context(), "ocr_engine", response.CodeOCRFailed)
+				telemetry.RecordOCRRequest(r.Context(), "passport", "failure", 0, time.Since(startTime).Seconds())
+				response.ErrorWithRequest(
+					w,
+					r,
+					http.StatusBadGateway,
+					response.CodeOCRFailed,
+					"OCR engine processing timeout or failure",
+				)
+				return
+			}
+
+			telemetry.RecordOCRError(r.Context(), "ocr_engine", response.CodeInternalError)
+			telemetry.RecordOCRRequest(r.Context(), "passport", "failure", 0, time.Since(startTime).Seconds())
+			response.ErrorWithRequest(
+				w,
+				r,
+				http.StatusInternalServerError,
+				response.CodeInternalError,
+				"Internal error during document processing",
+			)
+			return
+		}
+		engSpan.SetStatus(codes.Ok, "extracted")
+		engSpan.End()
+		telemetry.RecordOCRStageDuration(r.Context(), "ocr_engine", "success", engDuration)
+
+		if ocrResult == nil || ocrResult.DocumentType != "passport" {
+			telemetry.RecordOCRError(r.Context(), "classification", response.CodeUnsupportedDocument)
+			telemetry.RecordOCRRequest(r.Context(), "passport", "failure", 0, time.Since(startTime).Seconds())
+			response.ErrorWithRequest(
+				w,
+				r,
+				http.StatusUnprocessableEntity,
+				response.CodeUnsupportedDocument,
+				"Uploaded image was not identified as an Indonesian Passport",
+			)
+			return
+		}
+
+		// Stage 3: Field Extraction & Normalization
+		normStart := time.Now()
+		_, normSpan := tracer.Start(r.Context(), "ocr.normalize_and_validate")
+		normalizedPassport, confidence, _ := ocr.ValidatePassport(ocrResult.PassportData)
+		normDuration := time.Since(normStart).Seconds()
+		normSpan.SetAttributes(
+			attribute.Float64("ocr.confidence", confidence),
+			attribute.String("ocr.doc_type", "passport"),
+		)
+		normSpan.SetStatus(codes.Ok, "normalized")
+		normSpan.End()
+		telemetry.RecordOCRStageDuration(r.Context(), "field_extraction", "success", normDuration)
+
+		latencyMS := int(time.Since(startTime).Milliseconds())
+		totalDurationSec := float64(latencyMS) / 1000.0
+		recordID := GenerateUUIDv4()
+
+		// Stage 4: Persist non-PII execution metadata in PostgreSQL
+		if ocrStore != nil {
+			_, storeSpan := tracer.Start(r.Context(), "ocr.store_metadata")
+			var apiKeyID *string
+			if key.ID != "" {
+				apiKeyID = &key.ID
+			}
+
+			ocrReq := &store.OCRRequest{
+				ID:         recordID,
+				OrgID:      key.OrgID,
+				APIKeyID:   apiKeyID,
+				Status:     "completed",
+				Confidence: confidence,
+				LatencyMS:  latencyMS,
+				DocType:    "passport",
+			}
+
+			if err := ocrStore.CreateOCRRequest(r.Context(), ocrReq); err != nil {
+				storeSpan.RecordError(err)
+				storeSpan.SetStatus(codes.Error, err.Error())
+				slog.ErrorContext(r.Context(), "failed saving ocr request metadata",
+					slog.String("error", err.Error()),
+					slog.String("record_id", recordID),
+				)
+			} else {
+				storeSpan.SetStatus(codes.Ok, "saved")
+			}
+			storeSpan.End()
+		}
+
+		// Record overall business metric
+		ocrStatus := "completed"
+		if confidence < 0.7 {
+			ocrStatus = "low_confidence"
+		}
+		telemetry.RecordOCRRequest(r.Context(), "passport", ocrStatus, confidence, totalDurationSec)
+
+		// Zero PII structured log
+		slog.InfoContext(r.Context(), "passport ocr request completed",
+			slog.String("request_id", response.GetRequestID(r.Context())),
+			slog.String("record_id", recordID),
+			slog.String("org_id", key.OrgID),
+			slog.Int("latency_ms", latencyMS),
+			slog.Float64("confidence", confidence),
+			slog.String("doc_type", "passport"),
+		)
+
+		response.JSON(w, http.StatusOK, PassportResponse{
+			ID:           recordID,
+			DocumentType: "passport",
+			Confidence:   confidence,
+			Data:         normalizedPassport,
 			Processing: ProcessingDetail{
 				LatencyMS: latencyMS,
 			},

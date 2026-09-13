@@ -61,6 +61,18 @@ func TestClassifyDocument(t *testing.T) {
 			wantDocType: "sim",
 			wantIsKTP:   true,
 		},
+		{
+			name:        "official Passport header",
+			text:        "REPUBLIK INDONESIA PASPOR PASSPORT KANTOR IMIGRASI NOMOR PASPOR X1234567",
+			wantDocType: "passport",
+			wantIsKTP:   true,
+		},
+		{
+			name:        "Passport MRZ marker and date of expiry",
+			text:        "P<IDNSANTOSO<<BUDI DATE OF EXPIRY DATE OF ISSUE",
+			wantDocType: "passport",
+			wantIsKTP:   true,
+		},
 	}
 
 	for _, tc := range tests {

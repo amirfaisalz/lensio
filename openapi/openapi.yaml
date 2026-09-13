@@ -421,6 +421,72 @@ paths:
         '502':
           $ref: '#/components/responses/OCRFailed'
 
+  /api/v1/ocr/passport:
+    post:
+      summary: Extract Indonesian Passport OCR Data
+      description: |
+        Processes an uploaded Indonesian Passport (Paspor Republik Indonesia) image,
+        performs classification, extracts visual text fields and MRZ (Machine Readable Zone),
+        and validates them deterministically using ICAO Doc 9303 checksum standards.
+      operationId: extractPassport
+      tags:
+        - OCR
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: false
+          schema:
+            type: string
+            maxLength: 256
+          description: Unique client token to guarantee safe retries without duplicate processing or billing.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - document
+              properties:
+                document:
+                  type: string
+                  format: binary
+                  description: Passport image file (JPEG, PNG, WebP up to 5MB)
+      responses:
+        '200':
+          description: Successfully extracted and validated Passport data
+          headers:
+            Idempotent-Replayed:
+              schema:
+                type: boolean
+              description: True if the response was served from the idempotency cache without re-processing.
+            X-RateLimit-Limit:
+              $ref: '#/components/headers/X-RateLimit-Limit'
+            X-RateLimit-Remaining:
+              $ref: '#/components/headers/X-RateLimit-Remaining'
+            X-RateLimit-Reset:
+              $ref: '#/components/headers/X-RateLimit-Reset'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PassportResponse'
+        '400':
+          $ref: '#/components/responses/InvalidDocument'
+        '401':
+          $ref: '#/components/responses/InvalidAPIKey'
+        '403':
+          $ref: '#/components/responses/InsufficientScope'
+        '409':
+          $ref: '#/components/responses/RequestInProgress'
+        '422':
+          $ref: '#/components/responses/UnsupportedDocument'
+        '429':
+          $ref: '#/components/responses/RateLimitExceeded'
+        '502':
+          $ref: '#/components/responses/OCRFailed'
+
   /api/v1/ocr/{id}:
     get:
       summary: Get OCR Request Status / Metadata
@@ -932,6 +998,62 @@ components:
             masa_berlaku:
               type: string
               example: "2029-01-01"
+        processing:
+          type: object
+          properties:
+            latency_ms:
+              type: integer
+              example: 1250
+
+    PassportResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        document_type:
+          type: string
+          example: passport
+        confidence:
+          type: number
+          format: float
+          example: 0.98
+        data:
+          type: object
+          properties:
+            passport_number:
+              type: string
+              example: "X1234567"
+            full_name:
+              type: string
+              example: "BUDI SANTOSO"
+            nationality:
+              type: string
+              example: "IDN"
+            place_of_birth:
+              type: string
+              example: "JAKARTA"
+            date_of_birth:
+              type: string
+              example: "1990-01-01"
+            gender:
+              type: string
+              example: "LAKI-LAKI"
+            issue_date:
+              type: string
+              example: "2020-01-01"
+            expiry_date:
+              type: string
+              example: "2030-01-01"
+            issuing_office:
+              type: string
+              example: "KANIM JAKARTA SELATAN"
+            mrz_line1:
+              type: string
+              example: "P<IDNSANTOSO<<BUDI<<<<<<<<<<<<<<<<<<<<<<<<<<"
+            mrz_line2:
+              type: string
+              example: "X1234567<7IDN9001011M3001019<<<<<<<<<<<<<<<2"
         processing:
           type: object
           properties:

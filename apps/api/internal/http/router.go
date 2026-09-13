@@ -144,6 +144,9 @@ func NewRouterWithDeps(deps RouterDeps) http.Handler {
 		simHandler := handlers.SIMOCRHandler(deps.OCREngine, deps.OCRStore, quotaChecker)
 		mux.Handle("POST /api/v1/ocr/sim", authMiddleware(scopeWriteMiddleware(idempotencyMiddleware(simHandler))))
 
+		passportHandler := handlers.PassportOCRHandler(deps.OCREngine, deps.OCRStore, quotaChecker)
+		mux.Handle("POST /api/v1/ocr/passport", authMiddleware(scopeWriteMiddleware(idempotencyMiddleware(passportHandler))))
+
 		if deps.OCRStore != nil {
 			getOcrHandler := handlers.GetOCRRequestHandler(deps.OCRStore)
 			mux.Handle("GET /api/v1/ocr/{id}", authMiddleware(scopeReadMiddleware(getOcrHandler)))

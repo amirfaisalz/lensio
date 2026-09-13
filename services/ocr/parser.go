@@ -34,6 +34,20 @@ var (
 	simPekerjaanRegex  = regexp.MustCompile(`(?i)(?:5\.?\s*Pekerjaan|Pekerjaan)[\s:;.-]+([^\n\r]+)`)
 	simPoldaRegex      = regexp.MustCompile(`(?i)(?:Polda|Kepolisian\s*Daerah)[\s:;.-]+([^\n\r]+)`)
 	simMasaBerlakuRegex = regexp.MustCompile(`(?i)(?:Berlaku\s*(?:s/d|hingga|sampai)|Masa\s*Berlaku)[\s:;.-]*(\d{1,2}[-\s/.]\d{1,2}[-\s/.]\d{4})`)
+
+	// Passport specific regex patterns
+	passportNomorRegex    = regexp.MustCompile(`(?i)(?:Passport\s*No\.?|Paspor\s*No\.?|No\.?\s*Paspor|Nomor\s*Paspor)[\s:;.-]*([A-Z][0-9A-Z]{7,8})`)
+	passportNomorFallback = regexp.MustCompile(`\b([A-Z][0-9]{7,8})\b`)
+	passportNamaRegex     = regexp.MustCompile(`(?i)(?:Nama\s*Lengkap(?:\s*/\s*Full\s*Name)?|Full\s*Name|Nama|Name)[\s:;.-]+([^\r\n]+)`)
+	passportNatRegex      = regexp.MustCompile(`(?i)(?:Kewarganegaraan(?:\s*/\s*Nationality)?|Nationality)[\s:;.-]*(INDONESIA|WNI|IDN|[A-Z]{3})`)
+	passportDOBRegex      = regexp.MustCompile(`(?i)(?:Tgl\s*Lahir|Date\s*of\s*Birth|Tanggal\s*Lahir)[\s:;.-]+(\d{1,2}[-\s/.]\d{1,2}[-\s/.]\d{4})`)
+	passportPOBRegex      = regexp.MustCompile(`(?i)(?:Tempat\s*Lahir(?:\s*/\s*Place\s*of\s*Birth)?|Place\s*of\s*Birth)[\s:;.-]+([^\r\n,;]+)`)
+	passportGenderRegex   = regexp.MustCompile(`(?i)(?:Jenis\s*Kelamin(?:\s*/\s*Sex)?|Sex)[\s:;.-]*([MF]|LAKI-LAKI|PEREMPUAN|PRIA|WANITA)`)
+	passportIssueRegex    = regexp.MustCompile(`(?i)(?:Tgl\s*Pengeluaran(?:\s*/\s*Date\s*of\s*Issue)?|Date\s*of\s*Issue)[\s:;.-]+(\d{1,2}[-\s/.]\d{1,2}[-\s/.]\d{4})`)
+	passportExpiryRegex   = regexp.MustCompile(`(?i)(?:Tgl\s*Habis\s*Berlaku(?:\s*/\s*Date\s*of\s*Expiry)?|Date\s*of\s*Expiry)[\s:;.-]+(\d{1,2}[-\s/.]\d{1,2}[-\s/.]\d{4})`)
+	passportOfficeRegex   = regexp.MustCompile(`(?i)(?:Kantor\s*yang\s*Mengeluarkan(?:\s*/\s*Issuing\s*Office)?|Issuing\s*Office)[\s:;.-]+([^\r\n]+)`)
+	passportMRZ1Regex     = regexp.MustCompile(`(P[<A-Z0-9]{43})`)
+	passportMRZ2Regex     = regexp.MustCompile(`([A-Z0-9][<A-Z0-9]{43})`)
 )
 
 // cleanDigits fixes common OCR confusion in numeric fields (O->0, I/l->1).
@@ -239,6 +253,90 @@ func ParseSIMFromRawText(rawText string) *SIMData {
 	// 10. Masa Berlaku
 	if m := simMasaBerlakuRegex.FindStringSubmatch(rawText); len(m) > 1 {
 		data.MasaBerlaku = normalizeDate(m[1])
+	}
+
+	return data
+}
+
+// ParsePassportFromRawText extracts structured Passport fields from raw OCR text using regex and heuristics.
+func ParsePassportFromRawText(rawText string) *PassportData {
+	data := &PassportData{}
+
+	// 1. Passport Number
+	if m := passportNomorRegex.FindStringSubmatch(rawText); len(m) > 1 {
+		data.PassportNumber = strings.ToUpper(strings.TrimSpace(m[1]))
+	}
+	if data.PassportNumber == "" {
+		if m := passportNomorFallback.FindStringSubmatch(rawText); len(m) > 1 {
+			data.PassportNumber = strings.ToUpper(strings.TrimSpace(m[1]))
+		}
+	}
+
+	// 2. Full Name
+	if m := passportNamaRegex.FindStringSubmatch(rawText); len(m) > 1 {
+		data.FullName = cleanField(m[1])
+	}
+
+	// 3. Nationality
+	if m := passportNatRegex.FindStringSubmatch(rawText); len(m) > 1 {
+		nat := strings.ToUpper(strings.TrimSpace(m[1]))
+		if nat == "INDONESIA" || nat == "WNI" {
+			nat = "IDN"
+		}
+		data.Nationality = nat
+	} else if strings.Contains(strings.ToUpper(rawText), "INDONESIA") || strings.Contains(strings.ToUpper(rawText), "IDN") {
+		data.Nationality = "IDN"
+	}
+
+	// 4. Date of Birth
+	if m := passportDOBRegex.FindStringSubmatch(rawText); len(m) > 1 {
+		data.DateOfBirth = normalizeDate(m[1])
+	}
+
+	// 5. Place of Birth
+	if m := passportPOBRegex.FindStringSubmatch(rawText); len(m) > 1 {
+		data.PlaceOfBirth = cleanField(m[1])
+	}
+
+	// 6. Gender
+	if m := passportGenderRegex.FindStringSubmatch(rawText); len(m) > 1 {
+		g := strings.ToUpper(strings.TrimSpace(m[1]))
+		switch g {
+		case "M", "PRIA", "LAKI-LAKI":
+			data.Gender = "LAKI-LAKI"
+		case "F", "WANITA", "PEREMPUAN":
+			data.Gender = "PEREMPUAN"
+		}
+	} else {
+		upper := strings.ToUpper(rawText)
+		if strings.Contains(upper, "LAKI-LAKI") || strings.Contains(upper, "PRIA") {
+			data.Gender = "LAKI-LAKI"
+		} else if strings.Contains(upper, "PEREMPUAN") || strings.Contains(upper, "WANITA") {
+			data.Gender = "PEREMPUAN"
+		}
+	}
+
+	// 7. Issue Date
+	if m := passportIssueRegex.FindStringSubmatch(rawText); len(m) > 1 {
+		data.IssueDate = normalizeDate(m[1])
+	}
+
+	// 8. Expiry Date
+	if m := passportExpiryRegex.FindStringSubmatch(rawText); len(m) > 1 {
+		data.ExpiryDate = normalizeDate(m[1])
+	}
+
+	// 9. Issuing Office
+	if m := passportOfficeRegex.FindStringSubmatch(rawText); len(m) > 1 {
+		data.IssuingOffice = cleanField(m[1])
+	}
+
+	// 10. MRZ Lines
+	if m := passportMRZ1Regex.FindStringSubmatch(rawText); len(m) > 1 {
+		data.MRZLine1 = strings.ToUpper(strings.TrimSpace(m[1]))
+	}
+	if m := passportMRZ2Regex.FindStringSubmatch(rawText); len(m) > 1 {
+		data.MRZLine2 = strings.ToUpper(strings.TrimSpace(m[1]))
 	}
 
 	return data

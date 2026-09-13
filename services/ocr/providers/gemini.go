@@ -140,11 +140,24 @@ type geminiExtractedJSON struct {
 	GolonganDarah string `json:"golongan_darah"`
 	Polda         string `json:"polda"`
 	MasaBerlaku   string `json:"masa_berlaku"`
+
+	// Passport fields
+	PassportNumber string `json:"passport_number"`
+	FullName       string `json:"full_name"`
+	Nationality    string `json:"nationality"`
+	PlaceOfBirth   string `json:"place_of_birth"`
+	DateOfBirth    string `json:"date_of_birth"`
+	Gender         string `json:"gender"`
+	IssueDate      string `json:"issue_date"`
+	ExpiryDate     string `json:"expiry_date"`
+	IssuingOffice  string `json:"issuing_office"`
+	MRZLine1       string `json:"mrz_line1"`
+	MRZLine2       string `json:"mrz_line2"`
 }
 
 const geminiDocumentPrompt = `You are a strict, high-accuracy Indonesian identity document OCR extraction engine.
 Analyze the provided image.
-First determine if the image is an Indonesian Kartu Tanda Penduduk (KTP) or Surat Izin Mengemudi (SIM).
+First determine if the image is an Indonesian Kartu Tanda Penduduk (KTP), Surat Izin Mengemudi (SIM), or Paspor Republik Indonesia (Passport).
 If it is neither, output JSON with "document_type": "unsupported".
 
 If it IS an Indonesian KTP, extract all visible fields into this exact JSON structure:
@@ -183,6 +196,24 @@ If it IS an Indonesian SIM (Surat Izin Mengemudi), extract all visible fields in
   "pekerjaan": "OCCUPATION",
   "polda": "POLDA REGION",
   "masa_berlaku": "YYYY-MM-DD"
+}
+
+If it IS an Indonesian Passport (Paspor Republik Indonesia), extract all visible fields into this exact JSON structure:
+{
+  "document_type": "passport",
+  "confidence": 0.95,
+  "raw_text": "all raw text recognized on the document",
+  "passport_number": "8-9 character passport number",
+  "full_name": "FULL NAME",
+  "nationality": "IDN",
+  "place_of_birth": "BIRTH PLACE",
+  "date_of_birth": "YYYY-MM-DD",
+  "gender": "LAKI-LAKI or PEREMPUAN",
+  "issue_date": "YYYY-MM-DD",
+  "expiry_date": "YYYY-MM-DD",
+  "issuing_office": "ISSUING OFFICE / KANIM",
+  "mrz_line1": "44 character MRZ line 1",
+  "mrz_line2": "44 character MRZ line 2"
 }`
 
 const geminiKTPPrompt = geminiDocumentPrompt
@@ -311,6 +342,47 @@ func (g *GeminiOCREngine) Extract(ctx context.Context, imageBytes []byte) (*ocr.
 			Confidence:   confidence,
 			RawText:      extracted.RawText,
 			SIMData:      validatedSIM,
+		}, nil
+	}
+
+	if strings.EqualFold(extracted.DocumentType, "passport") {
+		name := extracted.FullName
+		if name == "" {
+			name = extracted.Nama
+		}
+		dob := extracted.DateOfBirth
+		if dob == "" {
+			dob = extracted.TanggalLahir
+		}
+		pob := extracted.PlaceOfBirth
+		if pob == "" {
+			pob = extracted.TempatLahir
+		}
+		gender := extracted.Gender
+		if gender == "" {
+			gender = extracted.JenisKelamin
+		}
+		rawPassport := &ocr.PassportData{
+			PassportNumber: extracted.PassportNumber,
+			FullName:       name,
+			Nationality:    extracted.Nationality,
+			DateOfBirth:    dob,
+			PlaceOfBirth:   pob,
+			Gender:         gender,
+			IssueDate:      extracted.IssueDate,
+			ExpiryDate:     extracted.ExpiryDate,
+			IssuingOffice:  extracted.IssuingOffice,
+			MRZLine1:       extracted.MRZLine1,
+			MRZLine2:       extracted.MRZLine2,
+		}
+
+		validatedPassport, confidence, _ := ocr.ValidatePassport(rawPassport)
+
+		return &ocr.OCRResult{
+			DocumentType: "passport",
+			Confidence:   confidence,
+			RawText:      extracted.RawText,
+			PassportData: validatedPassport,
 		}, nil
 	}
 

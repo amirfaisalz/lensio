@@ -165,6 +165,61 @@ describe("PlaygroundPage", () => {
 		});
 	});
 
+	it("tests synthetic fixture Passport OCR execution when switched to Passport tab", async () => {
+		const mockPassportResult = {
+			id: "ocr_pass_play_1",
+			document_type: "passport",
+			status: "completed",
+			confidence: 0.99,
+			processing: {
+				latency_ms: 135,
+			},
+			data: {
+				passport_number: "X1234567",
+				full_name: "BUDI SANTOSO",
+				nationality: "IDN",
+				date_of_birth: "1990-01-01",
+				gender: "LAKI-LAKI",
+				expiry_date: "2030-01-01",
+				issuing_country: "IDN",
+				issuing_office: "JAKARTA SELATAN",
+				mrz_line1: "P<IDNSANTOSO<<BUDI<<<<<<<<<<<<<<<<<<<<<<<<<<",
+				mrz_line2: "X1234567<7IDN9001011M3001019<<<<<<<<<<<<<<<2",
+			},
+			field_confidence: {
+				passport_number: 1.0,
+				full_name: 0.99,
+			},
+		};
+
+		const passportSpy = vi
+			.spyOn(api, "executePassportOCR")
+			.mockResolvedValue(mockPassportResult as any);
+
+		renderWithAuth(<PlaygroundPage />, {
+			initialOrg: TEST_ORG,
+			initialApiKey: "lensio_live_testkey123",
+		});
+
+		// Switch to Passport tab
+		const passportTabBtn = screen.getByRole("button", { name: /^Passport$/i });
+		fireEvent.click(passportTabBtn);
+
+		// Click "Load Synthetic Fixture"
+		const fixtureBtn = screen.getByRole("button", {
+			name: /Load Synthetic Fixture/i,
+		});
+		fireEvent.click(fixtureBtn);
+
+		await waitFor(() => {
+			expect(passportSpy).toHaveBeenCalledTimes(1);
+			expect(screen.getByText(/Normalized Field Verification/)).toBeDefined();
+			expect(screen.getByText("X1234567")).toBeDefined();
+			expect(screen.getByText("JAKARTA SELATAN")).toBeDefined();
+			expect(screen.getByText(/99% Confidence/)).toBeDefined();
+		});
+	});
+
 	it("shows warning and blocks execution when apiKey is missing", async () => {
 		const ocrSpy = vi.spyOn(api, "executeKTPOCR");
 		const onNavigate = vi.fn();

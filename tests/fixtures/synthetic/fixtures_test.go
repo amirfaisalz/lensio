@@ -50,6 +50,29 @@ func TestSyntheticFixtures(t *testing.T) {
 		t.Fatal("expected non-empty sim low confidence image")
 	}
 
+	passPng := synthetic.GenerateValidPassportImage()
+	if len(passPng) == 0 {
+		t.Fatal("expected non-empty passport png image")
+	}
+	mime, err = ocr.ValidateImage(passPng)
+	if err != nil || mime != ocr.MIMEPNG {
+		t.Fatalf("expected valid passport png, got mime=%s err=%v", mime, err)
+	}
+
+	passJpeg := synthetic.GenerateValidPassportJPEG()
+	if len(passJpeg) == 0 {
+		t.Fatal("expected non-empty passport jpeg image")
+	}
+	mime, err = ocr.ValidateImage(passJpeg)
+	if err != nil || mime != ocr.MIMEJPEG {
+		t.Fatalf("expected valid passport jpeg, got mime=%s err=%v", mime, err)
+	}
+
+	passLowConf := synthetic.GeneratePassportLowConfidenceImage()
+	if len(passLowConf) == 0 {
+		t.Fatal("expected non-empty passport low confidence image")
+	}
+
 	unsupported := synthetic.GenerateUnsupportedDocImage()
 	if len(unsupported) == 0 {
 		t.Fatal("expected non-empty unsupported doc image")

@@ -53,6 +53,33 @@ export interface SIMResponse {
 	warnings?: string[];
 }
 
+export interface PassportData {
+	passport_number: string;
+	full_name: string;
+	nationality: string;
+	place_of_birth: string;
+	date_of_birth: string;
+	gender: string;
+	issue_date: string;
+	expiry_date: string;
+	issuing_office: string;
+	mrz_line1?: string;
+	mrz_line2?: string;
+}
+
+export interface PassportResponse {
+	id: string;
+	document_type: "passport" | string;
+	status?: "completed" | "failed" | "low_confidence" | string;
+	confidence: number;
+	processing: {
+		latency_ms: number;
+	};
+	data: PassportData;
+	field_confidence?: FieldConfidence;
+	warnings?: string[];
+}
+
 export interface APIKeyListItem {
 	id: string;
 	name: string;

@@ -11,11 +11,11 @@ import { useState } from "react";
 import type { NavigationPage } from "../components/layout/Sidebar";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../services/api";
-import type { KTPResponse, SIMResponse } from "../types/api";
+import type { KTPResponse, PassportResponse, SIMResponse } from "../types/api";
 
 // 400x250 valid synthetic KTP JPEG fixture
 const SYNTHETIC_KTP_BASE64 =
-	"/9j/2wCEAAMCAgMCAgMDAwMEAwMEBQgFBQQEBQoHBwYIDAoMDAsKCwsNDhIQDQ4RDgsLEBYQERMUFRUVDA8XGBYUGBIUFRQBAwQEBQQFCQUFCRQNCw0UFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFP/AABEIAPoBkAMBIgACEQEDEQH/xAGiAAABBQEBAQEBAQAAAAAAAAAAAQIDBAUGBwgJCgsQAAIBAwMCBAMFBQQEAAABfQECAwAEEQUSITFBBhNRYQcicRQygZGhCCNCscEVUtHwJDNicoIJChYXGBkaJSYnKCkqNDU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6g4SFhoeIiYqSk5SVlpeYmZqio6Slpqeoqaqys7S1tre4ubrCw8TFxsfIycrS09TV1tfY2drh4uPk5ebn6Onq8fLz9PX29/j5+gEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoLEQACAQIEBAMEBwUEBAABAncAAQIDEQQFITEGEkFRB2FxEyIygQgUQpGhscEJIzNS8BVictEKFiQ04SXxFxgZGiYnKCkqNTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqCg4SFhoeIiYqSk5SVlpeYmZqio6Slpqeoqaqys7S1tre4ubrCw8TFxsfIycrS09TV1tfY2dri4+Tl5ufo6ery8/T19vf4+fr/2gAMAwEAAhEDEQA/AP0Fooor6M+fCiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKAP//Z";
+	"/9j/2wCEAAMCAgMCAgMDAwMEAwMEBQgFBQQEBQoHBwYIDAoMDAsKCwsNDhIQDQ4RDgsLEBYQERMUFRUVDA8XGBYUGBIUFRQBAwQEBQQFCQUFCRQNCw0UFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFP/AABEIAPoBkAMBIgACEQEDEQH/xAGiAAABBQEBAQEBAQAAAAAAAAAAAQIDBAUGBwgJCgsQAAIBAwMCBAMFBQQEAAABfQECAwAEEQUSITFBBhNRYQcicRQygZGhCCNCscEVUtHwJDNicoIJChYXGBkaJSYnKCkqNDU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6g4SFhoeIiYqSk5SVlpeYmZqio6Slpqeoqaqys7S1tre4ubrCw8TFxsfIycrS09TV1tfY2drh4uPk5ebn6Onq8fLz9PX29/j5+gEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoLEQACAQIEBAMEBwUEBAABAncAAQIDEQQFITEGEkFRB2FxEyIygQgUQpGhscEJIzNS8BVictEKFiQ04SXxFxgZGiYnKCkqNDU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6g4SFhoeIiYqSk5SVlpeYmZqio6Slpqeoqaqys7S1tre4ubrCw8TFxsfIycrS09TV1tfY2dri4+Tl5ufo6ery8/T19vf4+fr/2gAMAwEAAhEDEQA/AP0Fooor6M+fCiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAK//Z";
 
 function base64ToUint8Array(base64: string): Uint8Array {
 	const binaryString = atob(base64);
@@ -35,11 +35,11 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({
 }) => {
 	const { currentOrg, apiKey } = useAuth();
 
-	const [docType, setDocType] = useState<"ktp" | "sim">("ktp");
+	const [docType, setDocType] = useState<"ktp" | "sim" | "passport">("ktp");
 	const [ocrLoading, setOcrLoading] = useState(false);
-	const [ocrResult, setOcrResult] = useState<KTPResponse | SIMResponse | null>(
-		null,
-	);
+	const [ocrResult, setOcrResult] = useState<
+		KTPResponse | SIMResponse | PassportResponse | null
+	>(null);
 	const [ocrError, setOcrError] = useState<string | null>(null);
 	const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
 
@@ -54,14 +54,22 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({
 		try {
 			setSelectedFileName(
 				file.name ||
-					(docType === "sim" ? "sim_document.jpg" : "ktp_document.jpg"),
+					(docType === "passport"
+						? "passport_document.jpg"
+						: docType === "sim"
+							? "sim_document.jpg"
+							: "ktp_document.jpg"),
 			);
 			setOcrLoading(true);
 			setOcrError(null);
-			const res =
-				docType === "sim"
-					? await api.executeSIMOCR(file, apiKey)
-					: await api.executeKTPOCR(file, apiKey);
+			let res: KTPResponse | SIMResponse | PassportResponse;
+			if (docType === "passport") {
+				res = await api.executePassportOCR(file, apiKey);
+			} else if (docType === "sim") {
+				res = await api.executeSIMOCR(file, apiKey);
+			} else {
+				res = await api.executeKTPOCR(file, apiKey);
+			}
 			setOcrResult(res);
 		} catch (err) {
 			setOcrError(err instanceof Error ? err.message : "OCR execution failed");
@@ -75,15 +83,23 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({
 	const handleLoadSyntheticSample = async () => {
 		try {
 			const filename =
-				docType === "sim"
-					? "synthetic_sim_fixture.jpg"
-					: "synthetic_ktp_fixture.jpg";
+				docType === "passport"
+					? "synthetic_passport_fixture.jpg"
+					: docType === "sim"
+						? "synthetic_sim_fixture.jpg"
+						: "synthetic_ktp_fixture.jpg";
 			setSelectedFileName(filename);
 			setOcrLoading(true);
 			setOcrError(null);
 
 			let bytes = base64ToUint8Array(SYNTHETIC_KTP_BASE64);
-			if (docType === "sim") {
+			if (docType === "passport") {
+				const marker = new TextEncoder().encode("MOCK_PASSPORT_DOC");
+				const combined = new Uint8Array(bytes.length + marker.length);
+				combined.set(bytes);
+				combined.set(marker, bytes.length);
+				bytes = combined;
+			} else if (docType === "sim") {
 				const marker = new TextEncoder().encode("MOCK_SIM_DOC");
 				const combined = new Uint8Array(bytes.length + marker.length);
 				combined.set(bytes);
@@ -149,8 +165,8 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({
 						Live OCR Playground
 					</h2>
 					<p className="text-xs text-slate-500 dark:text-slate-400">
-						Interactive test harness for Indonesian KTP & SIM document
-						extraction with synthetic fixtures.
+						Interactive test harness for Indonesian identity documents (KTP, SIM & Passport)
+						with synthetic fixtures.
 					</p>
 				</div>
 
@@ -188,6 +204,22 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({
 							}`}
 						>
 							SIM
+						</button>
+						<button
+							type="button"
+							onClick={() => {
+								setDocType("passport");
+								setOcrResult(null);
+								setSelectedFileName(null);
+								setOcrError(null);
+							}}
+							className={`px-3 py-1 rounded-md transition-all cursor-pointer ${
+								docType === "passport"
+									? "bg-white dark:bg-slate-700 text-[#1877F2] dark:text-white"
+									: "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:text-white dark:hover:text-white"
+							}`}
+						>
+							Passport
 						</button>
 					</div>
 					<button
@@ -316,9 +348,109 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({
 					<div className="px-4 sm:px-6 py-4 bg-slate-50/80 dark:bg-white/[0.02] border-t border-slate-100 dark:border-white/10">
 						<h4 className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-3">
 							Normalized Field Verification (
-							{"nomor_sim" in ocrResult.data ? "SIM" : "KTP"})
+							{"passport_number" in ocrResult.data
+								? "Passport"
+								: "nomor_sim" in ocrResult.data
+									? "SIM"
+									: "KTP"}
+							)
 						</h4>
-						{"nomor_sim" in ocrResult.data ? (
+						{"passport_number" in ocrResult.data ? (
+							<div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-3 text-xs">
+								<div className="bg-white dark:bg-slate-800 p-2.5 rounded border border-slate-200 dark:border-white/10">
+									<span className="text-slate-400 dark:text-slate-500 block text-[10px] uppercase font-semibold">
+										Nomor Paspor
+									</span>
+									<span className="font-mono font-bold text-slate-900 dark:text-white">
+										{ocrResult.data.passport_number}
+									</span>
+								</div>
+								<div className="bg-white dark:bg-slate-800 p-2.5 rounded border border-slate-200 dark:border-white/10">
+									<span className="text-slate-400 dark:text-slate-500 block text-[10px] uppercase font-semibold">
+										Nama Lengkap
+									</span>
+									<span className="font-semibold text-slate-900 dark:text-white truncate block">
+										{ocrResult.data.full_name}
+									</span>
+								</div>
+								<div className="bg-white dark:bg-slate-800 p-2.5 rounded border border-slate-200 dark:border-white/10">
+									<span className="text-slate-400 dark:text-slate-500 block text-[10px] uppercase font-semibold">
+										Kewarganegaraan
+									</span>
+									<span className="font-semibold text-slate-900 dark:text-white">
+										{ocrResult.data.nationality}
+									</span>
+								</div>
+								<div className="bg-white dark:bg-slate-800 p-2.5 rounded border border-slate-200 dark:border-white/10">
+									<span className="text-slate-400 dark:text-slate-500 block text-[10px] uppercase font-semibold">
+										Tempat Lahir
+									</span>
+									<span className="text-slate-900 dark:text-white">
+										{ocrResult.data.place_of_birth}
+									</span>
+								</div>
+								<div className="bg-white dark:bg-slate-800 p-2.5 rounded border border-slate-200 dark:border-white/10">
+									<span className="text-slate-400 dark:text-slate-500 block text-[10px] uppercase font-semibold">
+										Tanggal Lahir
+									</span>
+									<span className="font-mono text-slate-900 dark:text-white">
+										{ocrResult.data.date_of_birth}
+									</span>
+								</div>
+								<div className="bg-white dark:bg-slate-800 p-2.5 rounded border border-slate-200 dark:border-white/10">
+									<span className="text-slate-400 dark:text-slate-500 block text-[10px] uppercase font-semibold">
+										Jenis Kelamin
+									</span>
+									<span className="text-slate-900 dark:text-white">
+										{ocrResult.data.gender}
+									</span>
+								</div>
+								<div className="bg-white dark:bg-slate-800 p-2.5 rounded border border-slate-200 dark:border-white/10">
+									<span className="text-slate-400 dark:text-slate-500 block text-[10px] uppercase font-semibold">
+										Tanggal Pengeluaran
+									</span>
+									<span className="font-mono text-slate-900 dark:text-white">
+										{ocrResult.data.issue_date}
+									</span>
+								</div>
+								<div className="bg-white dark:bg-slate-800 p-2.5 rounded border border-slate-200 dark:border-white/10">
+									<span className="text-slate-400 dark:text-slate-500 block text-[10px] uppercase font-semibold">
+										Tanggal Habis Berlaku
+									</span>
+									<span className="font-mono text-emerald-600 font-semibold">
+										{ocrResult.data.expiry_date}
+									</span>
+								</div>
+								<div className="bg-white dark:bg-slate-800 p-2.5 rounded border border-slate-200 dark:border-white/10 sm:col-span-2">
+									<span className="text-slate-400 dark:text-slate-500 block text-[10px] uppercase font-semibold">
+										Kantor yang Mengeluarkan
+									</span>
+									<span className="text-slate-900 dark:text-white">
+										{ocrResult.data.issuing_office}
+									</span>
+								</div>
+								{ocrResult.data.mrz_line1 && (
+									<div className="bg-white dark:bg-slate-800 p-2.5 rounded border border-slate-200 dark:border-white/10 sm:col-span-2">
+										<span className="text-slate-400 dark:text-slate-500 block text-[10px] uppercase font-semibold">
+											MRZ Line 1
+										</span>
+										<span className="font-mono text-[11px] text-slate-900 dark:text-white break-all">
+											{ocrResult.data.mrz_line1}
+										</span>
+									</div>
+								)}
+								{ocrResult.data.mrz_line2 && (
+									<div className="bg-white dark:bg-slate-800 p-2.5 rounded border border-slate-200 dark:border-white/10 sm:col-span-2">
+										<span className="text-slate-400 dark:text-slate-500 block text-[10px] uppercase font-semibold">
+											MRZ Line 2
+										</span>
+										<span className="font-mono text-[11px] text-slate-900 dark:text-white break-all">
+											{ocrResult.data.mrz_line2}
+										</span>
+									</div>
+								)}
+							</div>
+						) : "nomor_sim" in ocrResult.data ? (
 							<div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-3 text-xs">
 								<div className="bg-white dark:bg-slate-800 p-2.5 rounded border border-slate-200 dark:border-white/10">
 									<span className="text-slate-400 dark:text-slate-500 block text-[10px] uppercase font-semibold">

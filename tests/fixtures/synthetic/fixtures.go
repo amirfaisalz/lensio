@@ -45,6 +45,26 @@ func GenerateSIMLowConfidenceImage() []byte {
 	return GenerateCustomImage(300, 200, color.RGBA{R: 230, G: 230, B: 210, A: 255}, providers.MarkerSIMLowConfidence)
 }
 
+// GenerateValidPassportImage returns a valid in-memory PNG image meeting dimensions and embedded with MarkerPassportDoc.
+func GenerateValidPassportImage() []byte {
+	return GenerateCustomImage(400, 280, color.RGBA{R: 210, G: 240, B: 220, A: 255}, providers.MarkerPassportDoc)
+}
+
+// GenerateValidPassportJPEG returns a valid in-memory JPEG image with Passport marker.
+func GenerateValidPassportJPEG() []byte {
+	img := image.NewRGBA(image.Rect(0, 0, 400, 280))
+	draw.Draw(img, img.Bounds(), &image.Uniform{C: color.RGBA{R: 215, G: 245, B: 225, A: 255}}, image.Point{}, draw.Src)
+	var buf bytes.Buffer
+	_ = jpeg.Encode(&buf, img, &jpeg.Options{Quality: 90})
+	buf.Write(providers.MarkerPassportDoc)
+	return buf.Bytes()
+}
+
+// GeneratePassportLowConfidenceImage returns an image containing the passport low confidence test marker.
+func GeneratePassportLowConfidenceImage() []byte {
+	return GenerateCustomImage(300, 200, color.RGBA{R: 220, G: 235, B: 220, A: 255}, providers.MarkerPassportLowConfidence)
+}
+
 // GenerateUnsupportedDocImage returns an image containing the unsupported doc test marker.
 func GenerateUnsupportedDocImage() []byte {
 	return GenerateCustomImage(300, 200, color.RGBA{R: 255, G: 240, B: 240, A: 255}, providers.MarkerUnsupportedDoc)

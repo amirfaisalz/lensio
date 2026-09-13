@@ -31,12 +31,12 @@
 > Phase 12 focuses on expanding document support horizontally according to the product roadmap.
 
 ### Document Expansion Candidates
-- [ ] **Phase 12.1: Indonesian Passport OCR (`POST /api/v1/ocr/passport`)**
-  - [ ] Domain validator: MRZ (Machine Readable Zone) checksum & 9-character passport number validation.
-  - [ ] OCR prompt & structured parsing: Full name, passport number, nationality, date of birth, sex, expiry date, issuing office.
-  - [ ] API endpoint & handler with idempotency, quota check, and usage metering.
-  - [ ] Synthetic fixtures & unit/integration tests with 100% test coverage.
-  - [ ] OpenAPI 3.0 specification update & dashboard playground integration.
+- [x] **Phase 12.1: Indonesian Passport OCR (`POST /api/v1/ocr/passport`)**
+  - [x] Domain validator: MRZ (Machine Readable Zone) checksum & 9-character passport number validation.
+  - [x] OCR prompt & structured parsing: Full name, passport number, nationality, date of birth, sex, expiry date, issuing office.
+  - [x] API endpoint & handler with idempotency, quota check, and usage metering.
+  - [x] Synthetic fixtures & unit/integration tests with 100% test coverage.
+  - [x] OpenAPI 3.0 specification update & dashboard playground integration.
 - [ ] **Phase 12.2: Indonesian NPWP OCR (`POST /api/v1/ocr/npwp`)**
   - [ ] Domain validator: 15-digit / 16-digit NPWP format and Luhn/checksum structure.
   - [ ] OCR extraction: NPWP number, taxpayer name, NIK link, address, tax office (KPP).

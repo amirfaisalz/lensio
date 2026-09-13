@@ -153,6 +153,62 @@ func TestGeminiOCREngine(t *testing.T) {
 		}
 	})
 
+	t.Run("successful Passport extraction", func(t *testing.T) {
+		mockGeminiResponse := map[string]any{
+			"candidates": []map[string]any{
+				{
+					"content": map[string]any{
+						"parts": []map[string]any{
+							{
+								"text": `{
+									"document_type": "passport",
+									"confidence": 0.98,
+									"raw_text": "PASPOR REPUBLIK INDONESIA PASSPORT X1234567 BUDI SANTOSO",
+									"passport_number": "X1234567",
+									"full_name": "BUDI SANTOSO",
+									"nationality": "IDN",
+									"place_of_birth": "JAKARTA",
+									"date_of_birth": "1990-01-01",
+									"gender": "LAKI-LAKI",
+									"issue_date": "2020-01-01",
+									"expiry_date": "2030-01-01",
+									"issuing_office": "KANIM JAKARTA SELATAN",
+									"mrz_line1": "P<IDNSANTOSO<<BUDI<<<<<<<<<<<<<<<<<<<<<<<<<<",
+									"mrz_line2": "X1234567<7IDN9001011M3001019<<<<<<<<<<<<<<<2"
+								}`,
+							},
+						},
+					},
+				},
+			},
+		}
+
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(mockGeminiResponse)
+		}))
+		defer server.Close()
+
+		engine := providers.NewGeminiEngine("test-api-key", "gemini-2.0-flash",
+			providers.WithBaseURL(server.URL),
+			providers.WithHTTPClient(server.Client()),
+		)
+
+		res, err := engine.Extract(ctx, validImg)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if res.DocumentType != "passport" {
+			t.Errorf("expected doc_type passport, got %s", res.DocumentType)
+		}
+		if res.PassportData == nil || res.PassportData.PassportNumber != "X1234567" {
+			t.Errorf("expected PassportNumber X1234567, got %v", res.PassportData)
+		}
+		if res.Confidence < 0.90 {
+			t.Errorf("expected high confidence, got %f", res.Confidence)
+		}
+	})
+
 	t.Run("unsupported document returns ErrUnsupportedDocument", func(t *testing.T) {
 		mockGeminiResponse := map[string]any{
 			"candidates": []map[string]any{

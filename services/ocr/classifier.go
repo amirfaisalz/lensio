@@ -44,13 +44,39 @@ var simKeywords = []string{
 	"POLDA",
 }
 
-// ClassifyDocument analyzes raw text tokens to classify if the document is an Indonesian KTP or SIM.
-// Returns document type string ("ktp", "sim", or "unsupported") and a boolean indicator of recognition.
+// List of distinctive textual markers present on official Indonesian Passports.
+var passportKeywords = []string{
+	"PASPOR",
+	"PASSPORT",
+	"KANTOR IMIGRASI",
+	"KANIM",
+	"KODE NEGARA",
+	"COUNTRY CODE",
+	"NOMOR PASPOR",
+	"PASSPORT NO",
+	"DATE OF BIRTH",
+	"DATE OF EXPIRY",
+	"DATE OF ISSUE",
+	"ISSUING OFFICE",
+	"P<IDN",
+}
+
+// ClassifyDocument analyzes raw text tokens to classify if the document is an Indonesian KTP, SIM, or Passport.
+// Returns document type string ("ktp", "sim", "passport", or "unsupported") and a boolean indicator of recognition.
 // Minimum 2 strong markers required for positive classification (or 1 explicit title marker).
 func ClassifyDocument(rawText string) (string, bool) {
 	upper := strings.ToUpper(rawText)
 
-	// Check SIM first if explicit title marker exists
+	// Check Passport first if explicit title or MRZ prefix exists
+	passportMatches := 0
+	hasExplicitPassportTitle := (strings.Contains(upper, "PASPOR") || strings.Contains(upper, "PASSPORT")) && (strings.Contains(upper, "INDONESIA") || strings.Contains(upper, "IDN"))
+	for _, kw := range passportKeywords {
+		if strings.Contains(upper, kw) {
+			passportMatches++
+		}
+	}
+
+	// Check SIM
 	simMatches := 0
 	hasExplicitSIMTitle := strings.Contains(upper, "SURAT IZIN MENGEMUDI") || strings.Contains(upper, "DRIVING LICENSE")
 	for _, kw := range simKeywords {
@@ -86,6 +112,10 @@ func ClassifyDocument(rawText string) (string, bool) {
 		}
 	}
 
+	if hasExplicitPassportTitle || (passportMatches >= 2 && passportMatches > ktpMatches && passportMatches > simMatches) {
+		return "passport", true
+	}
+
 	if hasExplicitSIMTitle || (simMatches >= 2 && simMatches > ktpMatches) {
 		return "sim", true
 	}
@@ -96,6 +126,10 @@ func ClassifyDocument(rawText string) (string, bool) {
 
 	if simMatches >= 2 {
 		return "sim", true
+	}
+
+	if passportMatches >= 2 {
+		return "passport", true
 	}
 
 	return "unsupported", false

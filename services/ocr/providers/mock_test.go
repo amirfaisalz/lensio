@@ -131,8 +131,34 @@ func TestMockOCREngine(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if res.DocumentType != "sim" {
-			t.Errorf("expected doc_type sim, got %s", res.DocumentType)
+		if res.Confidence >= 0.50 {
+			t.Errorf("expected low confidence < 0.50, got %f", res.Confidence)
+		}
+	})
+
+	t.Run("marker Passport doc extraction", func(t *testing.T) {
+		res, err := engine.Extract(ctx, providers.MarkerPassportDoc)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if res.DocumentType != "passport" {
+			t.Errorf("expected doc_type passport, got %s", res.DocumentType)
+		}
+		if res.Confidence < 0.90 {
+			t.Errorf("expected high confidence, got %f", res.Confidence)
+		}
+		if res.PassportData == nil || res.PassportData.PassportNumber != "X1234567" {
+			t.Errorf("expected PassportData with PassportNumber X1234567, got %v", res.PassportData)
+		}
+	})
+
+	t.Run("marker Passport low confidence", func(t *testing.T) {
+		res, err := engine.Extract(ctx, providers.MarkerPassportLowConfidence)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if res.DocumentType != "passport" {
+			t.Errorf("expected doc_type passport, got %s", res.DocumentType)
 		}
 		if res.Confidence >= 0.50 {
 			t.Errorf("expected low confidence < 0.50, got %f", res.Confidence)
