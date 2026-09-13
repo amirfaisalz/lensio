@@ -12,7 +12,6 @@ import {
 	MailCheck,
 	ShieldCheck,
 	User,
-	Zap,
 } from "lucide-react";
 import type React from "react";
 import { useState } from "react";
@@ -221,9 +220,11 @@ export const LoginPage: React.FC<LoginPageProps> = ({
 				{/* Top Brand */}
 				<div className="relative z-10">
 					<div className="flex items-center gap-3 mb-6">
-						<div className="w-10 h-10 rounded-xl bg-[#1877F2] flex items-center justify-center text-white shadow-lg shadow-[#1877F2]/30">
-							<Zap className="w-5 h-5" />
-						</div>
+						<img
+							src="/lensio-logo.png"
+							alt="Lensio logo"
+							className="w-10 h-10 rounded-xl object-contain shadow-lg shadow-[#1877F2]/30"
+						/>
 						<div>
 							<span className="text-xl font-bold tracking-tight text-white">
 								Lensio
@@ -337,9 +338,11 @@ export const LoginPage: React.FC<LoginPageProps> = ({
 			<div className="flex-1 flex flex-col justify-center items-center p-4 sm:p-8 lg:p-12 overflow-y-auto">
 				{/* Mobile Brand Header */}
 				<div className="w-full max-w-md text-center lg:hidden mb-6">
-					<div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-[#1877F2] text-white shadow-md shadow-[#1877F2]/25 mb-3">
-						<Zap className="w-6 h-6" />
-					</div>
+					<img
+						src="/lensio-logo.png"
+						alt="Lensio logo"
+						className="inline-block w-12 h-12 rounded-xl object-contain shadow-md shadow-[#1877F2]/25 mb-3"
+					/>
 					<h1 className="text-2xl font-bold text-slate-900 tracking-tight">
 						Lensio Developer Portal
 					</h1>

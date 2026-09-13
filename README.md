@@ -1,6 +1,10 @@
 # Lensio
 
 <p align="center">
+  <img src="apps/dashboard/public/lensio-logo.png" alt="Lensio logo" width="120" />
+</p>
+
+<p align="center">
   <img src="https://img.shields.io/badge/build-passing-brightgreen?style=flat-square" alt="Build Status" />
   <img src="https://img.shields.io/badge/go%20report-A%2B-brightgreen?style=flat-square" alt="Go Report Card" />
   <img src="https://img.shields.io/badge/core%20backend%20coverage-93.5%25-brightgreen?style=flat-square" alt="Core Backend Coverage" />
