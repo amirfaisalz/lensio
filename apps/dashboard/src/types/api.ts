@@ -80,6 +80,32 @@ export interface PassportResponse {
 	warnings?: string[];
 }
 
+export interface NPWPData {
+	npwp: string;
+	nama: string;
+	nik?: string;
+	alamat: string;
+	kelurahan?: string;
+	kecamatan?: string;
+	kota_kabupaten?: string;
+	provinsi?: string;
+	kpp: string;
+	tanggal_daftar?: string;
+}
+
+export interface NPWPResponse {
+	id: string;
+	document_type: "npwp" | string;
+	status?: "completed" | "failed" | "low_confidence" | string;
+	confidence: number;
+	processing: {
+		latency_ms: number;
+	};
+	data: NPWPData;
+	field_confidence?: FieldConfidence;
+	warnings?: string[];
+}
+
 export interface APIKeyListItem {
 	id: string;
 	name: string;

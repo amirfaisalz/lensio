@@ -17,6 +17,8 @@ var (
 	MarkerSIMLowConfidence      = []byte("MOCK_SIM_LOW_CONFIDENCE")
 	MarkerPassportDoc           = []byte("MOCK_PASSPORT_DOC")
 	MarkerPassportLowConfidence = []byte("MOCK_PASSPORT_LOW_CONFIDENCE")
+	MarkerNPWPDoc               = []byte("MOCK_NPWP_DOC")
+	MarkerNPWPLowConfidence     = []byte("MOCK_NPWP_LOW_CONFIDENCE")
 )
 
 // MockOCREngine provides deterministic OCR extraction for tests without external network calls.
@@ -150,6 +152,36 @@ func (m *MockOCREngine) Extract(ctx context.Context, image []byte) (*ocr.OCRResu
 			Confidence:   confidence,
 			RawText:      "REPUBLIK INDONESIA PASPOR PASSPORT Jenis/Type: P Kode Negara/Country Code: IDN Nomor Paspor/Passport No: X1234567 Nama Lengkap/Full Name: BUDI SANTOSO Kewarganegaraan/Nationality: INDONESIA Tanggal Lahir/Date of Birth: 01-01-1990 Tempat Lahir/Place of Birth: JAKARTA Jenis Kelamin/Sex: LAKI-LAKI Tanggal Pengeluaran/Date of Issue: 01-01-2020 Tanggal Habis Berlaku/Date of Expiry: 01-01-2030 Kantor yang Mengeluarkan/Issuing Office: KANIM JAKARTA SELATAN P<IDNSANTOSO<<BUDI<<<<<<<<<<<<<<<<<<<<<<<<<< X1234567<7IDN9001011M3001019<<<<<<<<<<<<<<<2",
 			PassportData: passportData,
+		}, nil
+	}
+
+	if bytes.Contains(image, MarkerNPWPDoc) || bytes.Contains(image, MarkerNPWPLowConfidence) {
+		confidence := 0.99
+		var npwpData *ocr.NPWPData
+		if bytes.Contains(image, MarkerNPWPLowConfidence) {
+			confidence = 0.40
+			npwpData = &ocr.NPWPData{
+				NPWP: "092542943407000",
+			}
+		} else {
+			npwpData = &ocr.NPWPData{
+				NPWP:          "092542943407000",
+				Nama:          "BUDI SANTOSO",
+				NIK:           "3171010101900001",
+				Alamat:        "JL. JENDERAL SUDIRMAN KAV. 21",
+				Kelurahan:     "KARET KUNINGAN",
+				Kecamatan:     "SETIABUDI",
+				KotaKabupaten: "JAKARTA SELATAN",
+				Provinsi:      "DKI JAKARTA",
+				KPP:           "KPP PRATAMA JAKARTA SETIABUDI SATU",
+				TanggalDaftar: "2015-08-17",
+			}
+		}
+		return &ocr.OCRResult{
+			DocumentType: "npwp",
+			Confidence:   confidence,
+			RawText:      "KEMENTERIAN KEUANGAN DIREKTORAT JENDERAL PAJAK NOMOR POKOK WAJIB PAJAK NPWP 09.254.294.3-407.000 NAMA BUDI SANTOSO NIK 3171010101900001 ALAMAT JL. JENDERAL SUDIRMAN KAV. 21 KPP PRATAMA JAKARTA SETIABUDI SATU TERDAFTAR 17-08-2015",
+			NPWPData:     npwpData,
 		}, nil
 	}
 

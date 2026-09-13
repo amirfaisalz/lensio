@@ -11,7 +11,7 @@ import { useState } from "react";
 import type { NavigationPage } from "../components/layout/Sidebar";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../services/api";
-import type { KTPResponse, PassportResponse, SIMResponse } from "../types/api";
+import type { KTPResponse, NPWPResponse, PassportResponse, SIMResponse } from "../types/api";
 
 // 400x250 valid synthetic KTP JPEG fixture
 const SYNTHETIC_KTP_BASE64 =
@@ -35,10 +35,10 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({
 }) => {
 	const { currentOrg, apiKey } = useAuth();
 
-	const [docType, setDocType] = useState<"ktp" | "sim" | "passport">("ktp");
+	const [docType, setDocType] = useState<"ktp" | "sim" | "passport" | "npwp">("ktp");
 	const [ocrLoading, setOcrLoading] = useState(false);
 	const [ocrResult, setOcrResult] = useState<
-		KTPResponse | SIMResponse | PassportResponse | null
+		KTPResponse | SIMResponse | PassportResponse | NPWPResponse | null
 	>(null);
 	const [ocrError, setOcrError] = useState<string | null>(null);
 	const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
@@ -54,16 +54,20 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({
 		try {
 			setSelectedFileName(
 				file.name ||
-					(docType === "passport"
-						? "passport_document.jpg"
-						: docType === "sim"
-							? "sim_document.jpg"
-							: "ktp_document.jpg"),
+					(docType === "npwp"
+						? "npwp_document.jpg"
+						: docType === "passport"
+							? "passport_document.jpg"
+							: docType === "sim"
+								? "sim_document.jpg"
+								: "ktp_document.jpg"),
 			);
 			setOcrLoading(true);
 			setOcrError(null);
-			let res: KTPResponse | SIMResponse | PassportResponse;
-			if (docType === "passport") {
+			let res: KTPResponse | SIMResponse | PassportResponse | NPWPResponse;
+			if (docType === "npwp") {
+				res = await api.executeNPWPOCR(file, apiKey);
+			} else if (docType === "passport") {
 				res = await api.executePassportOCR(file, apiKey);
 			} else if (docType === "sim") {
 				res = await api.executeSIMOCR(file, apiKey);
@@ -83,17 +87,25 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({
 	const handleLoadSyntheticSample = async () => {
 		try {
 			const filename =
-				docType === "passport"
-					? "synthetic_passport_fixture.jpg"
-					: docType === "sim"
-						? "synthetic_sim_fixture.jpg"
-						: "synthetic_ktp_fixture.jpg";
+				docType === "npwp"
+					? "synthetic_npwp_fixture.jpg"
+					: docType === "passport"
+						? "synthetic_passport_fixture.jpg"
+						: docType === "sim"
+							? "synthetic_sim_fixture.jpg"
+							: "synthetic_ktp_fixture.jpg";
 			setSelectedFileName(filename);
 			setOcrLoading(true);
 			setOcrError(null);
 
 			let bytes = base64ToUint8Array(SYNTHETIC_KTP_BASE64);
-			if (docType === "passport") {
+			if (docType === "npwp") {
+				const marker = new TextEncoder().encode("MOCK_NPWP_DOC");
+				const combined = new Uint8Array(bytes.length + marker.length);
+				combined.set(bytes);
+				combined.set(marker, bytes.length);
+				bytes = combined;
+			} else if (docType === "passport") {
 				const marker = new TextEncoder().encode("MOCK_PASSPORT_DOC");
 				const combined = new Uint8Array(bytes.length + marker.length);
 				combined.set(bytes);
@@ -165,7 +177,7 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({
 						Live OCR Playground
 					</h2>
 					<p className="text-xs text-slate-500 dark:text-slate-400">
-						Interactive test harness for Indonesian identity documents (KTP, SIM & Passport)
+						Interactive test harness for Indonesian identity documents (KTP, SIM, Passport & NPWP)
 						with synthetic fixtures.
 					</p>
 				</div>
@@ -221,6 +233,22 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({
 						>
 							Passport
 						</button>
+						<button
+							type="button"
+							onClick={() => {
+								setDocType("npwp");
+								setOcrResult(null);
+								setSelectedFileName(null);
+								setOcrError(null);
+							}}
+							className={`px-3 py-1 rounded-md transition-all cursor-pointer ${
+								docType === "npwp"
+									? "bg-white dark:bg-slate-700 text-[#1877F2] dark:text-white"
+									: "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:text-white dark:hover:text-white"
+							}`}
+						>
+							NPWP
+						</button>
 					</div>
 					<button
 						type="button"
@@ -268,7 +296,7 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({
 								Click to upload or drag & drop
 							</p>
 							<p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-								Upload Indonesian {docType === "sim" ? "SIM" : "KTP"} image
+								Upload Indonesian {docType === "passport" ? "Passport" : docType === "npwp" ? "NPWP" : docType === "sim" ? "SIM" : "KTP"} image
 								(JPEG, PNG, max 5MB)
 							</p>
 							<input
@@ -322,7 +350,7 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({
 								<div className="h-full flex items-center justify-center text-slate-500 dark:text-slate-400 py-16">
 									<RefreshCw className="w-5 h-5 animate-spin mr-2 text-[#1877F2]" />
 									<span>
-										Processing {docType === "sim" ? "SIM" : "KTP"} OCR
+										Processing {docType === "passport" ? "Passport" : docType === "npwp" ? "NPWP" : docType === "sim" ? "SIM" : "KTP"} OCR
 										extraction...
 									</span>
 								</div>
@@ -334,7 +362,7 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({
 								<div className="h-full flex flex-col items-center justify-center text-slate-500 dark:text-slate-400 py-16 text-center">
 									<p>No document submitted yet.</p>
 									<p className="text-[11px] text-slate-600 dark:text-slate-400 mt-1">
-										Upload a {docType === "sim" ? "SIM" : "KTP"} image or click
+										Upload a {docType === "passport" ? "Passport" : docType === "npwp" ? "NPWP" : docType === "sim" ? "SIM" : "KTP"} image or click
 										"Load Synthetic Fixture" above.
 									</p>
 								</div>
@@ -352,7 +380,9 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({
 								? "Passport"
 								: "nomor_sim" in ocrResult.data
 									? "SIM"
-									: "KTP"}
+									: "npwp" in ocrResult.data
+										? "NPWP"
+										: "KTP"}
 							)
 						</h4>
 						{"passport_number" in ocrResult.data ? (
@@ -446,6 +476,65 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({
 										</span>
 										<span className="font-mono text-[11px] text-slate-900 dark:text-white break-all">
 											{ocrResult.data.mrz_line2}
+										</span>
+									</div>
+								)}
+							</div>
+						) : "npwp" in ocrResult.data ? (
+							<div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-3 text-xs">
+								<div className="bg-white dark:bg-slate-800 p-2.5 rounded border border-slate-200 dark:border-white/10">
+									<span className="text-slate-400 dark:text-slate-500 block text-[10px] uppercase font-semibold">
+										Nomor NPWP
+									</span>
+									<span className="font-mono font-bold text-slate-900 dark:text-white">
+										{ocrResult.data.npwp}
+									</span>
+								</div>
+								<div className="bg-white dark:bg-slate-800 p-2.5 rounded border border-slate-200 dark:border-white/10">
+									<span className="text-slate-400 dark:text-slate-500 block text-[10px] uppercase font-semibold">
+										Nama Wajib Pajak
+									</span>
+									<span className="font-semibold text-slate-900 dark:text-white truncate block">
+										{ocrResult.data.nama}
+									</span>
+								</div>
+								{ocrResult.data.nik && (
+									<div className="bg-white dark:bg-slate-800 p-2.5 rounded border border-slate-200 dark:border-white/10">
+										<span className="text-slate-400 dark:text-slate-500 block text-[10px] uppercase font-semibold">
+											NIK
+										</span>
+										<span className="font-mono text-slate-900 dark:text-white">
+											{ocrResult.data.nik}
+										</span>
+									</div>
+								)}
+								{ocrResult.data.kpp && (
+									<div className="bg-white dark:bg-slate-800 p-2.5 rounded border border-slate-200 dark:border-white/10">
+										<span className="text-slate-400 dark:text-slate-500 block text-[10px] uppercase font-semibold">
+											Kantor Pelayanan Pajak (KPP)
+										</span>
+										<span className="text-slate-900 dark:text-white truncate block">
+											{ocrResult.data.kpp}
+										</span>
+									</div>
+								)}
+								{ocrResult.data.alamat && (
+									<div className="bg-white p-2.5 rounded border border-slate-200 sm:col-span-2">
+										<span className="text-slate-400 dark:text-slate-500 block text-[10px] uppercase font-semibold">
+											Alamat
+										</span>
+										<span className="text-slate-900 dark:text-white truncate block">
+											{ocrResult.data.alamat}
+										</span>
+									</div>
+								)}
+								{ocrResult.data.tanggal_daftar && (
+									<div className="bg-white dark:bg-slate-800 p-2.5 rounded border border-slate-200 dark:border-white/10">
+										<span className="text-slate-400 dark:text-slate-500 block text-[10px] uppercase font-semibold">
+											Tanggal Terdaftar
+										</span>
+										<span className="font-mono text-emerald-600 font-semibold">
+											{ocrResult.data.tanggal_daftar}
 										</span>
 									</div>
 								)}

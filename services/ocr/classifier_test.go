@@ -73,6 +73,18 @@ func TestClassifyDocument(t *testing.T) {
 			wantDocType: "passport",
 			wantIsKTP:   true,
 		},
+		{
+			name:        "official NPWP header and markers",
+			text:        "KEMENTERIAN KEUANGAN DIREKTORAT JENDERAL PAJAK NOMOR POKOK WAJIB PAJAK NPWP 09.254.294.3-407.000 KPP PRATAMA",
+			wantDocType: "npwp",
+			wantIsKTP:   true,
+		},
+		{
+			name:        "NPWP card markers without full header",
+			text:        "NPWP WAJIB PAJAK TERDAFTAR KPP MADYA",
+			wantDocType: "npwp",
+			wantIsKTP:   true,
+		},
 	}
 
 	for _, tc := range tests {

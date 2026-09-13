@@ -73,6 +73,29 @@ func TestSyntheticFixtures(t *testing.T) {
 		t.Fatal("expected non-empty passport low confidence image")
 	}
 
+	npwpPng := synthetic.GenerateValidNPWPImage()
+	if len(npwpPng) == 0 {
+		t.Fatal("expected non-empty npwp png image")
+	}
+	mime, err = ocr.ValidateImage(npwpPng)
+	if err != nil || mime != ocr.MIMEPNG {
+		t.Fatalf("expected valid npwp png, got mime=%s err=%v", mime, err)
+	}
+
+	npwpJpeg := synthetic.GenerateValidNPWPJPEG()
+	if len(npwpJpeg) == 0 {
+		t.Fatal("expected non-empty npwp jpeg image")
+	}
+	mime, err = ocr.ValidateImage(npwpJpeg)
+	if err != nil || mime != ocr.MIMEJPEG {
+		t.Fatalf("expected valid npwp jpeg, got mime=%s err=%v", mime, err)
+	}
+
+	npwpLowConf := synthetic.GenerateNPWPLowConfidenceImage()
+	if len(npwpLowConf) == 0 {
+		t.Fatal("expected non-empty npwp low confidence image")
+	}
+
 	unsupported := synthetic.GenerateUnsupportedDocImage()
 	if len(unsupported) == 0 {
 		t.Fatal("expected non-empty unsupported doc image")

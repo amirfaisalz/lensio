@@ -219,6 +219,45 @@ describe("ApiClient", () => {
 		expect(result.status).toBe("completed");
 	});
 
+	it("executes NPWP OCR multipart request", async () => {
+		const mockNPWP = {
+			id: "ocr_npwp_123",
+			document_type: "npwp" as const,
+			status: "completed",
+			confidence: 0.99,
+			processing: { latency_ms: 110 },
+			data: {
+				npwp: "092542943407000",
+				nama: "BUDI SANTOSO",
+				nik: "3171010101900001",
+				alamat: "JL. JENDERAL SUDIRMAN KAV. 21",
+				kelurahan: "KARET KUNINGAN",
+				kecamatan: "SETIABUDI",
+				kota_kabupaten: "JAKARTA SELATAN",
+				provinsi: "DKI JAKARTA",
+				kpp: "KPP PRATAMA JAKARTA SETIABUDI SATU",
+				tanggal_daftar: "2015-08-17",
+			},
+			field_confidence: {
+				npwp: 0.99,
+				nama: 0.99,
+			},
+		};
+
+		vi.spyOn(globalThis, "fetch").mockResolvedValueOnce({
+			ok: true,
+			json: async () => mockNPWP,
+		} as Response);
+
+		const dummyBlob = new Blob(["fake image"], { type: "image/jpeg" });
+		const result = await api.executeNPWPOCR(dummyBlob);
+
+		expect(result.data.npwp).toBe("092542943407000");
+		expect(result.data.nama).toBe("BUDI SANTOSO");
+		expect(result.data.kpp).toBe("KPP PRATAMA JAKARTA SETIABUDI SATU");
+		expect(result.status).toBe("completed");
+	});
+
 	it("registers user successfully", async () => {
 		vi.spyOn(globalThis, "fetch").mockResolvedValueOnce({
 			ok: true,

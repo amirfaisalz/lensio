@@ -209,6 +209,64 @@ func TestGeminiOCREngine(t *testing.T) {
 		}
 	})
 
+	t.Run("successful NPWP extraction", func(t *testing.T) {
+		mockGeminiResponse := map[string]any{
+			"candidates": []map[string]any{
+				{
+					"content": map[string]any{
+						"parts": []map[string]any{
+							{
+								"text": `{
+									"document_type": "npwp",
+									"confidence": 0.98,
+									"raw_text": "KEMENTERIAN KEUANGAN DIREKTORAT JENDERAL PAJAK NOMOR POKOK WAJIB PAJAK NPWP 09.254.294.3-407.000 NAMA BUDI SANTOSO NIK 3171010101900001 ALAMAT JL. JENDERAL SUDIRMAN KAV. 21 KPP PRATAMA JAKARTA SETIABUDI SATU TERDAFTAR 17-08-2015",
+									"npwp": "09.254.294.3-407.000",
+									"nama": "BUDI SANTOSO",
+									"nik": "3171010101900001",
+									"alamat": "JL. JENDERAL SUDIRMAN KAV. 21",
+									"kelurahan": "KARET KUNINGAN",
+									"kecamatan": "SETIABUDI",
+									"kota_kabupaten": "JAKARTA SELATAN",
+									"provinsi": "DKI JAKARTA",
+									"kpp": "KPP PRATAMA JAKARTA SETIABUDI SATU",
+									"tanggal_daftar": "2015-08-17"
+								}`,
+							},
+						},
+					},
+				},
+			},
+		}
+
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(mockGeminiResponse)
+		}))
+		defer server.Close()
+
+		engine := providers.NewGeminiEngine("test-api-key", "gemini-2.0-flash",
+			providers.WithBaseURL(server.URL),
+			providers.WithHTTPClient(server.Client()),
+		)
+
+		res, err := engine.Extract(ctx, validImg)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if res.DocumentType != "npwp" {
+			t.Errorf("expected doc_type npwp, got %s", res.DocumentType)
+		}
+		if res.NPWPData == nil || res.NPWPData.NPWP != "092542943407000" {
+			t.Errorf("expected NPWP 092542943407000, got %v", res.NPWPData)
+		}
+		if res.NPWPData.Nama != "BUDI SANTOSO" {
+			t.Errorf("expected Nama BUDI SANTOSO, got %s", res.NPWPData.Nama)
+		}
+		if res.Confidence < 0.90 {
+			t.Errorf("expected high confidence, got %f", res.Confidence)
+		}
+	})
+
 	t.Run("unsupported document returns ErrUnsupportedDocument", func(t *testing.T) {
 		mockGeminiResponse := map[string]any{
 			"candidates": []map[string]any{

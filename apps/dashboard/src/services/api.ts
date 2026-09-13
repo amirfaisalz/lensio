@@ -11,6 +11,7 @@ import type {
 	KTPResponse,
 	LoginRequest,
 	LoginResponse,
+	NPWPResponse,
 	OrganizationDetails,
 	PassportResponse,
 	PlanDetails,
@@ -315,6 +316,27 @@ class ApiClient {
 			headers,
 		});
 		return this.handleResponse<PassportResponse>(res);
+	}
+
+	public async executeNPWPOCR(
+		file: File | Blob,
+		apiKeyOverride?: string,
+	): Promise<NPWPResponse> {
+		const formData = new FormData();
+		formData.append("document", file);
+
+		const headers: Record<string, string> = {};
+		const keyToUse = apiKeyOverride || this.activeApiKey;
+		if (keyToUse) {
+			headers.Authorization = `Bearer ${keyToUse}`;
+		}
+
+		const res = await this.fetchWithAuth(`${API_BASE}/api/v1/ocr/npwp`, {
+			method: "POST",
+			body: formData,
+			headers,
+		});
+		return this.handleResponse<NPWPResponse>(res);
 	}
 
 	public async register(req: RegisterRequest): Promise<RegisterResponse> {

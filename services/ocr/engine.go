@@ -18,6 +18,9 @@ var (
 	// ErrUnsupportedPassportDocument indicates the image is not an Indonesian Passport.
 	ErrUnsupportedPassportDocument = errors.New("uploaded document was not identified as an Indonesian Passport")
 
+	// ErrUnsupportedNPWPDocument indicates the image is not an Indonesian NPWP.
+	ErrUnsupportedNPWPDocument = errors.New("uploaded document was not identified as an Indonesian NPWP")
+
 	// ErrOCRFailed indicates upstream OCR engine processing error or timeout.
 	ErrOCRFailed = errors.New("upstream ocr engine failure")
 
@@ -75,6 +78,20 @@ type PassportData struct {
 	MRZLine2       string `json:"mrz_line2,omitempty"`
 }
 
+// NPWPData represents structured fields extracted from an Indonesian NPWP (Nomor Pokok Wajib Pajak).
+type NPWPData struct {
+	NPWP          string `json:"npwp"`                    // 15-digit or 16-digit normalized numeric string
+	Nama          string `json:"nama"`                    // Taxpayer full name or corporate entity name
+	NIK           string `json:"nik,omitempty"`           // 16-digit NIK (for individual/OP cards)
+	Alamat        string `json:"alamat"`                  // Registered tax address
+	Kelurahan     string `json:"kelurahan,omitempty"`
+	Kecamatan     string `json:"kecamatan,omitempty"`
+	KotaKabupaten string `json:"kota_kabupaten,omitempty"`
+	Provinsi      string `json:"provinsi,omitempty"`
+	KPP           string `json:"kpp"`                     // Registered Tax Office name or code
+	TanggalDaftar string `json:"tanggal_daftar,omitempty"` // YYYY-MM-DD
+}
+
 // OCRResult represents the complete structured result of an OCR extraction.
 //nolint:revive // spec mandates ocr.OCRResult naming
 type OCRResult struct {
@@ -84,6 +101,7 @@ type OCRResult struct {
 	Data         *KTPData      `json:"data,omitempty"`
 	SIMData      *SIMData      `json:"sim_data,omitempty"`
 	PassportData *PassportData `json:"passport_data,omitempty"`
+	NPWPData     *NPWPData     `json:"npwp_data,omitempty"`
 }
 
 // OCREngine defines the pluggable document extraction contract.

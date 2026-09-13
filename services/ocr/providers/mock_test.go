@@ -164,5 +164,37 @@ func TestMockOCREngine(t *testing.T) {
 			t.Errorf("expected low confidence < 0.50, got %f", res.Confidence)
 		}
 	})
+
+	t.Run("marker NPWP doc extraction", func(t *testing.T) {
+		res, err := engine.Extract(ctx, providers.MarkerNPWPDoc)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if res.DocumentType != "npwp" {
+			t.Errorf("expected doc_type npwp, got %s", res.DocumentType)
+		}
+		if res.Confidence < 0.90 {
+			t.Errorf("expected high confidence, got %f", res.Confidence)
+		}
+		if res.NPWPData == nil || res.NPWPData.NPWP != "092542943407000" {
+			t.Errorf("expected NPWPData with NPWP 092542943407000, got %v", res.NPWPData)
+		}
+		if res.NPWPData.Nama != "BUDI SANTOSO" {
+			t.Errorf("expected Nama BUDI SANTOSO, got %s", res.NPWPData.Nama)
+		}
+	})
+
+	t.Run("marker NPWP low confidence", func(t *testing.T) {
+		res, err := engine.Extract(ctx, providers.MarkerNPWPLowConfidence)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if res.DocumentType != "npwp" {
+			t.Errorf("expected doc_type npwp, got %s", res.DocumentType)
+		}
+		if res.Confidence >= 0.50 {
+			t.Errorf("expected low confidence < 0.50, got %f", res.Confidence)
+		}
+	})
 }
 

@@ -1060,3 +1060,288 @@ func BenchmarkPassportOCRHandler(b *testing.B) {
 		}
 	}
 }
+
+func TestNPWPOCRHandler(t *testing.T) {
+	oldLogger := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(io.Discard, nil)))
+	defer slog.SetDefault(oldLogger)
+
+	engine := providers.NewMockEngine()
+	ocrStore := newDummyOCRStore()
+	quotaChecker := &mockQuotaChecker{allowed: true, remaining: 100, limit: 100}
+	handler := handlers.NPWPOCRHandler(engine, ocrStore, quotaChecker)
+
+	validImage := synthetic.GenerateValidNPWPImage()
+
+	t.Run("successful npwp extraction 200 OK", func(t *testing.T) {
+		req := createMultipartRequest(t, "document", "npwp.png", validImage)
+		req = withAuth(req, "org-1", "key-1")
+		rec := httptest.NewRecorder()
+
+		handler.ServeHTTP(rec, req)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+		}
+
+		var resp handlers.NPWPResponse
+		if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+			t.Fatalf("failed unmarshaling response: %v", err)
+		}
+		if resp.DocumentType != "npwp" {
+			t.Errorf("expected doc_type npwp, got %s", resp.DocumentType)
+		}
+		if resp.Data == nil || resp.Data.NPWP != "092542943407000" {
+			t.Errorf("expected NPWP 092542943407000, got %v", resp.Data)
+		}
+		if resp.Data.Nama != "BUDI SANTOSO" {
+			t.Errorf("expected Nama BUDI SANTOSO, got %s", resp.Data.Nama)
+		}
+		if resp.Confidence < 0.90 {
+			t.Errorf("expected confidence >= 0.90, got %f", resp.Confidence)
+		}
+		if resp.ID == "" {
+			t.Error("expected non-empty record ID")
+		}
+
+		// Verify record persisted in store
+		saved, err := ocrStore.GetOCRRequestByID(context.Background(), "org-1", resp.ID)
+		if err != nil || saved.DocType != "npwp" {
+			t.Fatalf("expected saved record with doc_type npwp, got %v, err=%v", saved, err)
+		}
+	})
+
+	t.Run("low confidence extraction", func(t *testing.T) {
+		lowConfImg := synthetic.GenerateNPWPLowConfidenceImage()
+		req := createMultipartRequest(t, "document", "npwp_low.png", lowConfImg)
+		req = withAuth(req, "org-1", "key-1")
+		rec := httptest.NewRecorder()
+
+		handler.ServeHTTP(rec, req)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+		}
+	})
+
+	t.Run("unauthenticated request returns 401", func(t *testing.T) {
+		req := createMultipartRequest(t, "document", "npwp.png", validImage)
+		rec := httptest.NewRecorder()
+
+		handler.ServeHTTP(rec, req)
+		if rec.Code != http.StatusUnauthorized {
+			t.Fatalf("expected 401, got %d", rec.Code)
+		}
+	})
+
+	t.Run("quota checker error returns 500", func(t *testing.T) {
+		errChecker := &mockQuotaChecker{err: errors.New("db failure")}
+		errHandler := handlers.NPWPOCRHandler(engine, ocrStore, errChecker)
+
+		req := createMultipartRequest(t, "document", "npwp.png", validImage)
+		req = withAuth(req, "org-1", "key-1")
+		rec := httptest.NewRecorder()
+
+		errHandler.ServeHTTP(rec, req)
+		if rec.Code != http.StatusInternalServerError {
+			t.Fatalf("expected 500, got %d", rec.Code)
+		}
+	})
+
+	t.Run("quota exceeded returns 429", func(t *testing.T) {
+		exceededChecker := &mockQuotaChecker{allowed: false, remaining: 0, limit: 100}
+		exceededHandler := handlers.NPWPOCRHandler(engine, ocrStore, exceededChecker)
+
+		req := createMultipartRequest(t, "document", "npwp.png", validImage)
+		req = withAuth(req, "org-1", "key-1")
+		rec := httptest.NewRecorder()
+
+		exceededHandler.ServeHTTP(rec, req)
+		if rec.Code != http.StatusTooManyRequests {
+			t.Fatalf("expected 429, got %d", rec.Code)
+		}
+	})
+
+	t.Run("missing document form file returns 400", func(t *testing.T) {
+		req := createMultipartRequest(t, "wrong_field", "npwp.png", validImage)
+		req = withAuth(req, "org-1", "key-1")
+		rec := httptest.NewRecorder()
+
+		handler.ServeHTTP(rec, req)
+		if rec.Code != http.StatusBadRequest {
+			t.Fatalf("expected 400, got %d", rec.Code)
+		}
+	})
+
+	t.Run("corrupt image returns 400", func(t *testing.T) {
+		corruptImg := synthetic.GenerateCorruptedImage()
+		req := createMultipartRequest(t, "document", "corrupt.png", corruptImg)
+		req = withAuth(req, "org-1", "key-1")
+		rec := httptest.NewRecorder()
+
+		handler.ServeHTTP(rec, req)
+		if rec.Code != http.StatusBadRequest {
+			t.Fatalf("expected 400, got %d", rec.Code)
+		}
+	})
+
+	t.Run("nil engine returns 502", func(t *testing.T) {
+		nilHandler := handlers.NPWPOCRHandler(nil, ocrStore, nil)
+
+		req := createMultipartRequest(t, "document", "npwp.png", validImage)
+		req = withAuth(req, "org-1", "key-1")
+		rec := httptest.NewRecorder()
+
+		nilHandler.ServeHTTP(rec, req)
+		if rec.Code != http.StatusBadGateway {
+			t.Fatalf("expected 502, got %d", rec.Code)
+		}
+	})
+
+	t.Run("engine returns ErrUnsupportedDocument 422", func(t *testing.T) {
+		engine.SetCustomError(ocr.ErrUnsupportedDocument)
+		defer engine.Reset()
+
+		req := createMultipartRequest(t, "document", "npwp.png", validImage)
+		req = withAuth(req, "org-1", "key-1")
+		rec := httptest.NewRecorder()
+
+		handler.ServeHTTP(rec, req)
+		if rec.Code != http.StatusUnprocessableEntity {
+			t.Fatalf("expected 422, got %d", rec.Code)
+		}
+	})
+
+	t.Run("engine returns ErrCircuitOpen 504", func(t *testing.T) {
+		engine.SetCustomError(ocr.ErrCircuitOpen)
+		defer engine.Reset()
+
+		req := createMultipartRequest(t, "document", "npwp.png", validImage)
+		req = withAuth(req, "org-1", "key-1")
+		rec := httptest.NewRecorder()
+
+		handler.ServeHTTP(rec, req)
+		if rec.Code != http.StatusGatewayTimeout {
+			t.Fatalf("expected 504, got %d", rec.Code)
+		}
+	})
+
+	t.Run("engine returns timeout 504", func(t *testing.T) {
+		engine.SetCustomError(context.DeadlineExceeded)
+		defer engine.Reset()
+
+		req := createMultipartRequest(t, "document", "npwp.png", validImage)
+		req = withAuth(req, "org-1", "key-1")
+		rec := httptest.NewRecorder()
+
+		handler.ServeHTTP(rec, req)
+		if rec.Code != http.StatusGatewayTimeout {
+			t.Fatalf("expected 504, got %d", rec.Code)
+		}
+	})
+
+	t.Run("engine returns generic error 502", func(t *testing.T) {
+		engine.SetCustomError(errors.New("something crashed upstream"))
+		defer engine.Reset()
+
+		req := createMultipartRequest(t, "document", "npwp.png", validImage)
+		req = withAuth(req, "org-1", "key-1")
+		rec := httptest.NewRecorder()
+
+		handler.ServeHTTP(rec, req)
+		if rec.Code != http.StatusBadGateway {
+			t.Fatalf("expected 502, got %d", rec.Code)
+		}
+	})
+
+	t.Run("engine returns nil data 422", func(t *testing.T) {
+		engine.SetCustomResult(&ocr.OCRResult{
+			DocumentType: "npwp",
+			NPWPData:     nil,
+		})
+		defer engine.Reset()
+
+		req := createMultipartRequest(t, "document", "npwp.png", validImage)
+		req = withAuth(req, "org-1", "key-1")
+		rec := httptest.NewRecorder()
+
+		handler.ServeHTTP(rec, req)
+		if rec.Code != http.StatusUnprocessableEntity {
+			t.Fatalf("expected 422, got %d", rec.Code)
+		}
+	})
+
+	t.Run("engine returns wrong document type 422", func(t *testing.T) {
+		engine.SetCustomResult(&ocr.OCRResult{
+			DocumentType: "ktp",
+		})
+		defer engine.Reset()
+
+		req := createMultipartRequest(t, "document", "npwp.png", validImage)
+		req = withAuth(req, "org-1", "key-1")
+		rec := httptest.NewRecorder()
+
+		handler.ServeHTTP(rec, req)
+		if rec.Code != http.StatusUnprocessableEntity {
+			t.Fatalf("expected 422, got %d", rec.Code)
+		}
+	})
+
+	t.Run("ocrStore error does not fail request", func(t *testing.T) {
+		brokenStore := &dummyOCRStore{err: errors.New("db connection failure")}
+		storeHandler := handlers.NPWPOCRHandler(engine, brokenStore, quotaChecker)
+
+		req := createMultipartRequest(t, "document", "npwp.png", validImage)
+		req = withAuth(req, "org-1", "key-1")
+		rec := httptest.NewRecorder()
+
+		storeHandler.ServeHTTP(rec, req)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("expected 200 even if store failed, got %d", rec.Code)
+		}
+	})
+}
+
+func BenchmarkNPWPOCRHandler(b *testing.B) {
+	oldLogger := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(io.Discard, nil)))
+	defer slog.SetDefault(oldLogger)
+
+	validImage := synthetic.GenerateValidNPWPImage()
+	engine := providers.NewMockEngine()
+	ocrStore := newDummyOCRStore()
+	quotaChecker := &mockQuotaChecker{allowed: true, remaining: 100, limit: 100}
+	handler := handlers.NPWPOCRHandler(engine, ocrStore, quotaChecker)
+
+	var bodyBuf bytes.Buffer
+	writer := multipart.NewWriter(&bodyBuf)
+	part, err := writer.CreateFormFile("document", "npwp.png")
+	if err != nil {
+		b.Fatalf("failed creating form file: %v", err)
+	}
+	if _, err := part.Write(validImage); err != nil {
+		b.Fatalf("failed writing image: %v", err)
+	}
+	writer.Close()
+	rawBody := bodyBuf.Bytes()
+	contentType := writer.FormDataContentType()
+
+	key := &store.APIKey{
+		ID:     "bench-key",
+		OrgID:  "bench-org",
+		Scopes: []string{"ocr:read", "ocr:write"},
+	}
+
+	b.ResetTimer()
+	b.ReportAllocs()
+
+	for i := 0; i < b.N; i++ {
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/ocr/npwp", bytes.NewReader(rawBody))
+		req.Header.Set("Content-Type", contentType)
+		req = req.WithContext(middleware.WithAPIKey(req.Context(), key))
+		rec := httptest.NewRecorder()
+
+		handler.ServeHTTP(rec, req)
+		if rec.Code != http.StatusOK {
+			b.Fatalf("expected 200, got %d", rec.Code)
+		}
+	}
+}

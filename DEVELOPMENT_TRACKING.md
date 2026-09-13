@@ -37,10 +37,11 @@
   - [x] API endpoint & handler with idempotency, quota check, and usage metering.
   - [x] Synthetic fixtures & unit/integration tests with 100% test coverage.
   - [x] OpenAPI 3.0 specification update & dashboard playground integration.
-- [ ] **Phase 12.2: Indonesian NPWP OCR (`POST /api/v1/ocr/npwp`)**
-  - [ ] Domain validator: 15-digit / 16-digit NPWP format and Luhn/checksum structure.
-  - [ ] OCR extraction: NPWP number, taxpayer name, NIK link, address, tax office (KPP).
-  - [ ] Endpoint integration, synthetic fixtures, and automated test suite.
+- [x] **Phase 12.2: Indonesian NPWP OCR (`POST /api/v1/ocr/npwp`)**
+  - [x] Domain validator: 15-digit / 16-digit NPWP format and Luhn/checksum structure.
+  - [x] OCR extraction: NPWP number, taxpayer name, NIK link, address, tax office (KPP).
+  - [x] Endpoint integration, synthetic fixtures, and automated test suite.
+  - [x] OpenAPI 3.0 specification update & dashboard playground integration.
 - [ ] **Phase 12.3: Indonesian KK (Kartu Keluarga) OCR (`POST /api/v1/ocr/kk`)**
   - [ ] Domain validator: 16-digit Nomor KK and family member table extraction.
   - [ ] Multi-record tabular parsing & relationship mapping.

@@ -65,6 +65,26 @@ func GeneratePassportLowConfidenceImage() []byte {
 	return GenerateCustomImage(300, 200, color.RGBA{R: 220, G: 235, B: 220, A: 255}, providers.MarkerPassportLowConfidence)
 }
 
+// GenerateValidNPWPImage returns a valid in-memory PNG image meeting dimensions and embedded with MarkerNPWPDoc.
+func GenerateValidNPWPImage() []byte {
+	return GenerateCustomImage(400, 250, color.RGBA{R: 230, G: 240, B: 210, A: 255}, providers.MarkerNPWPDoc)
+}
+
+// GenerateValidNPWPJPEG returns a valid in-memory JPEG image with NPWP marker.
+func GenerateValidNPWPJPEG() []byte {
+	img := image.NewRGBA(image.Rect(0, 0, 400, 250))
+	draw.Draw(img, img.Bounds(), &image.Uniform{C: color.RGBA{R: 235, G: 245, B: 215, A: 255}}, image.Point{}, draw.Src)
+	var buf bytes.Buffer
+	_ = jpeg.Encode(&buf, img, &jpeg.Options{Quality: 90})
+	buf.Write(providers.MarkerNPWPDoc)
+	return buf.Bytes()
+}
+
+// GenerateNPWPLowConfidenceImage returns an image containing the NPWP low confidence test marker.
+func GenerateNPWPLowConfidenceImage() []byte {
+	return GenerateCustomImage(300, 200, color.RGBA{R: 235, G: 235, B: 210, A: 255}, providers.MarkerNPWPLowConfidence)
+}
+
 // GenerateUnsupportedDocImage returns an image containing the unsupported doc test marker.
 func GenerateUnsupportedDocImage() []byte {
 	return GenerateCustomImage(300, 200, color.RGBA{R: 255, G: 240, B: 240, A: 255}, providers.MarkerUnsupportedDoc)

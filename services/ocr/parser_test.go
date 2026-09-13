@@ -306,3 +306,69 @@ X1234567<7IDN9001011M3001019<<<<<<<<<<<<<<<1
 		_ = ocr.ParsePassportFromRawText(raw)
 	}
 }
+
+func TestParseNPWPFromRawText(t *testing.T) {
+	raw := `
+KEMENTERIAN KEUANGAN REPUBLIK INDONESIA
+DIREKTORAT JENDERAL PAJAK
+NPWP : 09.254.294.3-407.000
+NAMA : BUDI SANTOSO
+NIK  : 3171010101900001
+ALAMAT : JL. JENDERAL SUDIRMAN KAV. 21
+KPP : KPP PRATAMA JAKARTA SETIABUDI SATU
+TERDAFTAR : 17-08-2015
+`
+	data := ocr.ParseNPWPFromRawText(raw)
+	if data.NPWP != "092542943407000" {
+		t.Errorf("expected NPWP 092542943407000, got %s", data.NPWP)
+	}
+	if data.Nama != "BUDI SANTOSO" {
+		t.Errorf("expected Nama BUDI SANTOSO, got %s", data.Nama)
+	}
+	if data.NIK != "3171010101900001" {
+		t.Errorf("expected NIK 3171010101900001, got %s", data.NIK)
+	}
+	if data.Alamat != "JL. JENDERAL SUDIRMAN KAV. 21" {
+		t.Errorf("expected Alamat JL. JENDERAL SUDIRMAN KAV. 21, got %s", data.Alamat)
+	}
+	if data.KPP != "KPP PRATAMA JAKARTA SETIABUDI SATU" {
+		t.Errorf("expected KPP KPP PRATAMA JAKARTA SETIABUDI SATU, got %s", data.KPP)
+	}
+	if data.TanggalDaftar != "2015-08-17" {
+		t.Errorf("expected TanggalDaftar 2015-08-17, got %s", data.TanggalDaftar)
+	}
+
+	t.Run("fallback 15 digit and 16 digit NPWP number detection", func(t *testing.T) {
+		fallback15 := "KEMENTERIAN KEUANGAN 09.254.294.3-407.000 PAJAK"
+		res15 := ocr.ParseNPWPFromRawText(fallback15)
+		if res15.NPWP != "092542943407000" {
+			t.Errorf("expected fallback 15-digit NPWP 092542943407000, got %s", res15.NPWP)
+		}
+
+		fallback16 := "DIREKTORAT JENDERAL PAJAK 0092542943407000 WAJIB PAJAK"
+		res16 := ocr.ParseNPWPFromRawText(fallback16)
+		if res16.NPWP != "0092542943407000" {
+			t.Errorf("expected fallback 16-digit NPWP 0092542943407000, got %s", res16.NPWP)
+		}
+	})
+}
+
+func BenchmarkParseNPWPFromRawText(b *testing.B) {
+	raw := `
+KEMENTERIAN KEUANGAN REPUBLIK INDONESIA
+DIREKTORAT JENDERAL PAJAK
+NPWP : 09.254.294.3-407.000
+NAMA : BUDI SANTOSO
+NIK  : 3171010101900001
+ALAMAT : JL. JENDERAL SUDIRMAN KAV. 21
+KPP : KPP PRATAMA JAKARTA SETIABUDI SATU
+TERDAFTAR : 17-08-2015
+`
+	b.ResetTimer()
+	b.ReportAllocs()
+
+	for i := 0; i < b.N; i++ {
+		_ = ocr.ParseNPWPFromRawText(raw)
+	}
+}
+

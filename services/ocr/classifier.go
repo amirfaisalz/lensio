@@ -61,8 +61,20 @@ var passportKeywords = []string{
 	"P<IDN",
 }
 
-// ClassifyDocument analyzes raw text tokens to classify if the document is an Indonesian KTP, SIM, or Passport.
-// Returns document type string ("ktp", "sim", "passport", or "unsupported") and a boolean indicator of recognition.
+// List of distinctive textual markers present on official Indonesian NPWP cards.
+var npwpKeywords = []string{
+	"NPWP",
+	"NOMOR POKOK WAJIB PAJAK",
+	"KEMENTERIAN KEUANGAN",
+	"DIREKTORAT JENDERAL PAJAK",
+	"KPP PRATAMA",
+	"KPP MADYA",
+	"WAJIB PAJAK",
+	"TERDAFTAR",
+}
+
+// ClassifyDocument analyzes raw text tokens to classify if the document is an Indonesian KTP, SIM, Passport, or NPWP.
+// Returns document type string ("ktp", "sim", "passport", "npwp", or "unsupported") and a boolean indicator of recognition.
 // Minimum 2 strong markers required for positive classification (or 1 explicit title marker).
 func ClassifyDocument(rawText string) (string, bool) {
 	upper := strings.ToUpper(rawText)
@@ -73,6 +85,15 @@ func ClassifyDocument(rawText string) (string, bool) {
 	for _, kw := range passportKeywords {
 		if strings.Contains(upper, kw) {
 			passportMatches++
+		}
+	}
+
+	// Check NPWP
+	npwpMatches := 0
+	hasExplicitNPWPTitle := strings.Contains(upper, "NOMOR POKOK WAJIB PAJAK") || (strings.Contains(upper, "NPWP") && (strings.Contains(upper, "PAJAK") || strings.Contains(upper, "KPP") || strings.Contains(upper, "WAJIB PAJAK") || strings.Contains(upper, "DIREKTORAT JENDERAL PAJAK")))
+	for _, kw := range npwpKeywords {
+		if strings.Contains(upper, kw) {
+			npwpMatches++
 		}
 	}
 
@@ -112,16 +133,24 @@ func ClassifyDocument(rawText string) (string, bool) {
 		}
 	}
 
-	if hasExplicitPassportTitle || (passportMatches >= 2 && passportMatches > ktpMatches && passportMatches > simMatches) {
+	if hasExplicitPassportTitle || (passportMatches >= 2 && passportMatches > ktpMatches && passportMatches > simMatches && passportMatches > npwpMatches) {
 		return "passport", true
 	}
 
-	if hasExplicitSIMTitle || (simMatches >= 2 && simMatches > ktpMatches) {
+	if hasExplicitNPWPTitle || (npwpMatches >= 2 && npwpMatches > ktpMatches && npwpMatches > simMatches && npwpMatches > passportMatches) {
+		return "npwp", true
+	}
+
+	if hasExplicitSIMTitle || (simMatches >= 2 && simMatches > ktpMatches && simMatches > npwpMatches) {
 		return "sim", true
 	}
 
 	if hasExplicitKTPTitle || ktpMatches >= 2 || (ktpMatches >= 1 && has16Digits) {
 		return "ktp", true
+	}
+
+	if npwpMatches >= 2 {
+		return "npwp", true
 	}
 
 	if simMatches >= 2 {

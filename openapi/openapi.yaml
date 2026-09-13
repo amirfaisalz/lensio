@@ -487,6 +487,72 @@ paths:
         '502':
           $ref: '#/components/responses/OCRFailed'
 
+  /api/v1/ocr/npwp:
+    post:
+      summary: Extract Indonesian NPWP OCR Data
+      description: |
+        Processes an uploaded Indonesian NPWP (Nomor Pokok Wajib Pajak) card image,
+        performs classification, extracts taxpayer identity details (NPWP, Name, NIK, Address, KPP),
+        and validates NPWP format (15-digit Luhn Modulo 10 or 16-digit format) deterministically.
+      operationId: extractNPWP
+      tags:
+        - OCR
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: false
+          schema:
+            type: string
+            maxLength: 256
+          description: Unique client token to guarantee safe retries without duplicate processing or billing.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - document
+              properties:
+                document:
+                  type: string
+                  format: binary
+                  description: NPWP card image file (JPEG, PNG, WebP up to 5MB)
+      responses:
+        '200':
+          description: Successfully extracted and validated NPWP data
+          headers:
+            Idempotent-Replayed:
+              schema:
+                type: boolean
+              description: True if the response was served from the idempotency cache without re-processing.
+            X-RateLimit-Limit:
+              $ref: '#/components/headers/X-RateLimit-Limit'
+            X-RateLimit-Remaining:
+              $ref: '#/components/headers/X-RateLimit-Remaining'
+            X-RateLimit-Reset:
+              $ref: '#/components/headers/X-RateLimit-Reset'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NPWPResponse'
+        '400':
+          $ref: '#/components/responses/InvalidDocument'
+        '401':
+          $ref: '#/components/responses/InvalidAPIKey'
+        '403':
+          $ref: '#/components/responses/InsufficientScope'
+        '409':
+          $ref: '#/components/responses/RequestInProgress'
+        '422':
+          $ref: '#/components/responses/UnsupportedDocument'
+        '429':
+          $ref: '#/components/responses/RateLimitExceeded'
+        '502':
+          $ref: '#/components/responses/OCRFailed'
+
   /api/v1/ocr/{id}:
     get:
       summary: Get OCR Request Status / Metadata
@@ -1060,6 +1126,59 @@ components:
             latency_ms:
               type: integer
               example: 1250
+
+    NPWPResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        document_type:
+          type: string
+          example: npwp
+        confidence:
+          type: number
+          format: float
+          example: 0.98
+        data:
+          type: object
+          properties:
+            npwp:
+              type: string
+              example: "092542943407000"
+            nama:
+              type: string
+              example: "BUDI SANTOSO"
+            nik:
+              type: string
+              example: "3171010101900001"
+            alamat:
+              type: string
+              example: "JL. JENDERAL SUDIRMAN KAV. 21"
+            kelurahan:
+              type: string
+              example: "KARET KUNINGAN"
+            kecamatan:
+              type: string
+              example: "SETIABUDI"
+            kota_kabupaten:
+              type: string
+              example: "JAKARTA SELATAN"
+            provinsi:
+              type: string
+              example: "DKI JAKARTA"
+            kpp:
+              type: string
+              example: "KPP PRATAMA JAKARTA SETIABUDI SATU"
+            tanggal_daftar:
+              type: string
+              example: "2015-08-17"
+        processing:
+          type: object
+          properties:
+            latency_ms:
+              type: integer
+              example: 120
 
     OCRRequestMetadata:
       type: object

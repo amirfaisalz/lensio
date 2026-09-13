@@ -153,11 +153,18 @@ type geminiExtractedJSON struct {
 	IssuingOffice  string `json:"issuing_office"`
 	MRZLine1       string `json:"mrz_line1"`
 	MRZLine2       string `json:"mrz_line2"`
+
+	// NPWP fields
+	NPWP          string `json:"npwp"`
+	KotaKabupaten string `json:"kota_kabupaten"`
+	Provinsi      string `json:"provinsi"`
+	KPP           string `json:"kpp"`
+	TanggalDaftar string `json:"tanggal_daftar"`
 }
 
 const geminiDocumentPrompt = `You are a strict, high-accuracy Indonesian identity document OCR extraction engine.
 Analyze the provided image.
-First determine if the image is an Indonesian Kartu Tanda Penduduk (KTP), Surat Izin Mengemudi (SIM), or Paspor Republik Indonesia (Passport).
+First determine if the image is an Indonesian Kartu Tanda Penduduk (KTP), Surat Izin Mengemudi (SIM), Paspor Republik Indonesia (Passport), or Nomor Pokok Wajib Pajak (NPWP).
 If it is neither, output JSON with "document_type": "unsupported".
 
 If it IS an Indonesian KTP, extract all visible fields into this exact JSON structure:
@@ -214,6 +221,23 @@ If it IS an Indonesian Passport (Paspor Republik Indonesia), extract all visible
   "issuing_office": "ISSUING OFFICE / KANIM",
   "mrz_line1": "44 character MRZ line 1",
   "mrz_line2": "44 character MRZ line 2"
+}
+
+If it IS an Indonesian NPWP (Nomor Pokok Wajib Pajak), extract all visible fields into this exact JSON structure:
+{
+  "document_type": "npwp",
+  "confidence": 0.95,
+  "raw_text": "all raw text recognized on the card",
+  "npwp": "15 or 16 digit NPWP",
+  "nama": "TAXPAYER NAME",
+  "nik": "16 digit NIK (if present)",
+  "alamat": "STREET ADDRESS",
+  "kelurahan": "KELURAHAN",
+  "kecamatan": "KECAMATAN",
+  "kota_kabupaten": "CITY OR REGENCY",
+  "provinsi": "PROVINCE",
+  "kpp": "KANTOR PELAYANAN PAJAK",
+  "tanggal_daftar": "YYYY-MM-DD"
 }`
 
 const geminiKTPPrompt = geminiDocumentPrompt
@@ -383,6 +407,31 @@ func (g *GeminiOCREngine) Extract(ctx context.Context, imageBytes []byte) (*ocr.
 			Confidence:   confidence,
 			RawText:      extracted.RawText,
 			PassportData: validatedPassport,
+		}, nil
+	}
+
+	if strings.EqualFold(extracted.DocumentType, "npwp") {
+		rawNPWP := &ocr.NPWPData{
+			NPWP:          ocr.CleanNPWP(extracted.NPWP),
+			Nama:          extracted.Nama,
+			NIK:           ocr.CleanNPWP(extracted.NIK),
+			Alamat:        extracted.Alamat,
+			Kelurahan:     extracted.Kelurahan,
+			Kecamatan:     extracted.Kecamatan,
+			KotaKabupaten: extracted.KotaKabupaten,
+			Provinsi:      extracted.Provinsi,
+			KPP:           extracted.KPP,
+			TanggalDaftar: extracted.TanggalDaftar,
+		}
+		confidence := extracted.Confidence
+		if confidence <= 0 {
+			confidence = 0.95
+		}
+		return &ocr.OCRResult{
+			DocumentType: "npwp",
+			Confidence:   confidence,
+			RawText:      extracted.RawText,
+			NPWPData:     rawNPWP,
 		}, nil
 	}
 

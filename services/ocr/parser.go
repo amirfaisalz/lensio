@@ -48,6 +48,16 @@ var (
 	passportOfficeRegex   = regexp.MustCompile(`(?i)(?:Kantor\s*yang\s*Mengeluarkan(?:\s*/\s*Issuing\s*Office)?|Issuing\s*Office)[\s:;.-]+([^\r\n]+)`)
 	passportMRZ1Regex     = regexp.MustCompile(`(P[<A-Z0-9]{43})`)
 	passportMRZ2Regex     = regexp.MustCompile(`([A-Z0-9][<A-Z0-9]{43})`)
+
+	// NPWP specific regex patterns
+	npwpNomorRegex      = regexp.MustCompile(`(?i)(?:NPWP|Nomor\s*Pokok\s*Wajib\s*Pajak)[\s:;.-]*([0-9OlI\s.-]{15,24})`)
+	npwpNomorFallback   = regexp.MustCompile(`\b([0-9]{2}[.-]?[0-9]{3}[.-]?[0-9]{3}[.-]?[0-9][.-]?[0-9]{3}[.-]?[0-9]{3})\b`)
+	npwpNomor16Fallback = regexp.MustCompile(`\b([0-9]{16})\b`)
+	npwpNamaRegex       = regexp.MustCompile(`(?i)(?:Nama(?:\s*WP)?|Nama\s*Wajib\s*Pajak)[\s:;.-]+([^\r\n]+)`)
+	npwpNIKRegex        = regexp.MustCompile(`(?i)(?:NIK|N1K)[\s:;.-]*([0-9OlI]{16})`)
+	npwpAlamatRegex     = regexp.MustCompile(`(?i)(?:Alamat)[\s:;.-]+([^\r\n]+)`)
+	npwpKPPRegex        = regexp.MustCompile(`(?i)(?:KPP|Kantor\s*Pelayanan\s*Pajak)[\s:;.-]+([^\r\n]+)`)
+	npwpDaftarRegex     = regexp.MustCompile(`(?i)(?:Terdaftar|Tgl\s*Daftar|Tanggal\s*Daftar)[\s:;.-]*(\d{1,2}[-\s/.]\d{1,2}[-\s/.]\d{4})`)
 )
 
 // cleanDigits fixes common OCR confusion in numeric fields (O->0, I/l->1).
@@ -341,4 +351,55 @@ func ParsePassportFromRawText(rawText string) *PassportData {
 
 	return data
 }
+
+// ParseNPWPFromRawText extracts structured NPWP fields from raw OCR text using regex and heuristics.
+func ParseNPWPFromRawText(rawText string) *NPWPData {
+	data := &NPWPData{}
+
+	// 1. NPWP Number
+	if m := npwpNomorRegex.FindStringSubmatch(rawText); len(m) > 1 {
+		cleaned := CleanNPWP(cleanDigits(m[1]))
+		if len(cleaned) == 15 || len(cleaned) == 16 {
+			data.NPWP = cleaned
+		}
+	}
+	if data.NPWP == "" {
+		if m := npwpNomorFallback.FindStringSubmatch(rawText); len(m) > 1 {
+			data.NPWP = CleanNPWP(m[1])
+		} else if m := npwpNomor16Fallback.FindStringSubmatch(rawText); len(m) > 1 {
+			data.NPWP = m[1]
+		}
+	}
+
+	// 2. Taxpayer Name
+	if m := npwpNamaRegex.FindStringSubmatch(rawText); len(m) > 1 {
+		data.Nama = cleanField(m[1])
+	}
+
+	// 3. NIK (if on card)
+	if m := npwpNIKRegex.FindStringSubmatch(rawText); len(m) > 1 {
+		cleaned := cleanDigits(m[1])
+		if len(cleaned) == 16 {
+			data.NIK = cleaned
+		}
+	}
+
+	// 4. Address
+	if m := npwpAlamatRegex.FindStringSubmatch(rawText); len(m) > 1 {
+		data.Alamat = cleanField(m[1])
+	}
+
+	// 5. KPP
+	if m := npwpKPPRegex.FindStringSubmatch(rawText); len(m) > 1 {
+		data.KPP = cleanField(m[1])
+	}
+
+	// 6. Tanggal Daftar
+	if m := npwpDaftarRegex.FindStringSubmatch(rawText); len(m) > 1 {
+		data.TanggalDaftar = normalizeDate(m[1])
+	}
+
+	return data
+}
+
 

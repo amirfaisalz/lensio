@@ -220,6 +220,61 @@ describe("PlaygroundPage", () => {
 		});
 	});
 
+	it("tests synthetic fixture NPWP OCR execution when switched to NPWP tab", async () => {
+		const mockNpwpResult = {
+			id: "ocr_npwp_play_1",
+			document_type: "npwp",
+			status: "completed",
+			confidence: 0.99,
+			processing: {
+				latency_ms: 120,
+			},
+			data: {
+				npwp: "09.254.294.3-407.000",
+				nama: "PT LIMA SEKAWAN SYNTHETIC",
+				nik: "3171010101900001",
+				alamat: "JL. JEND. SUDIRMAN KAV. 52-53",
+				kelurahan: "SENAYAN",
+				kecamatan: "KEBAYORAN BARU",
+				kota_kabupaten: "JAKARTA SELATAN",
+				provinsi: "DKI JAKARTA",
+				kpp: "KPP PRATAMA JAKARTA KEBAYORAN BARU DUA",
+				tanggal_daftar: "2015-08-17",
+			},
+			field_confidence: {
+				npwp: 1.0,
+				nama: 0.99,
+			},
+		};
+
+		const npwpSpy = vi
+			.spyOn(api, "executeNPWPOCR")
+			.mockResolvedValue(mockNpwpResult as any);
+
+		renderWithAuth(<PlaygroundPage />, {
+			initialOrg: TEST_ORG,
+			initialApiKey: "lensio_live_testkey123",
+		});
+
+		// Switch to NPWP tab
+		const npwpTabBtn = screen.getByRole("button", { name: /^NPWP$/i });
+		fireEvent.click(npwpTabBtn);
+
+		// Click "Load Synthetic Fixture"
+		const fixtureBtn = screen.getByRole("button", {
+			name: /Load Synthetic Fixture/i,
+		});
+		fireEvent.click(fixtureBtn);
+
+		await waitFor(() => {
+			expect(npwpSpy).toHaveBeenCalledTimes(1);
+			expect(screen.getByText(/Normalized Field Verification/)).toBeDefined();
+			expect(screen.getByText("09.254.294.3-407.000")).toBeDefined();
+			expect(screen.getByText("PT LIMA SEKAWAN SYNTHETIC")).toBeDefined();
+			expect(screen.getByText(/99% Confidence/)).toBeDefined();
+		});
+	});
+
 	it("shows warning and blocks execution when apiKey is missing", async () => {
 		const ocrSpy = vi.spyOn(api, "executeKTPOCR");
 		const onNavigate = vi.fn();
