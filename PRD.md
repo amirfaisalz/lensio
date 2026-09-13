@@ -1,10 +1,10 @@
-# Lensio KTP OCR API
+# Lensio Identity Document OCR API
 
-> Affordable Indonesian KTP OCR API for developers and businesses.
+> Affordable Indonesian identity document OCR API (KTP & SIM) for developers and businesses.
 
-Lensio is a production-oriented API platform that provides Indonesian KTP OCR as a service.
+Lensio is a production-oriented API platform that provides Indonesian identity document OCR (KTP & SIM) as a service.
 
-Developers can integrate KTP document extraction into their applications through a simple REST API without having to build, operate, secure, monitor, and scale their own OCR infrastructure.
+Developers can integrate KTP/SIM document extraction into their applications through a simple REST API without having to build, operate, secure, monitor, and scale their own OCR infrastructure.
 
 The project is intentionally designed as both:
 
@@ -210,6 +210,7 @@ GET /api/v1/auth/verify
 
 ```http
 POST /api/v1/ocr/ktp
+POST /api/v1/ocr/sim
 GET /api/v1/ocr/:id
 ```
 
@@ -472,8 +473,8 @@ The OCR system should use an abstraction layer.
                          │
             ┌────────────┼────────────┐
             ▼            ▼            ▼
-       Mock Engine   Gemini Flash   Cloud / Local
-      (Test Fixture)  (Default AI)   (Extensible)
+       Mock Engine   Gemini Flash   Open-Weight Vision
+      (Test Fixture)  (Default AI)   (Self-Hosted, Extensible)
 ```
 
 Go interface:
@@ -485,6 +486,15 @@ type OCREngine interface {
 ```
 
 This allows OCR providers to be replaced without changing the public API.
+
+### Open-weight self-hosted alternative
+
+Gemini Flash is the default provider, but operators may replace it with a **self-hosted open-weight light vision model** (e.g. Qwen2-VL / InternVL / Moondream-class models in the 2B–7B range) deployed on their own servers:
+
+- The model is served behind an OpenAI-compatible HTTP endpoint (e.g. vLLM, llama.cpp server, Ollama) inside the operator's own network/VPC.
+- A new provider implements `OCREngine` and is selected via `OCR_PROVIDER` (same mechanism as `gemini_flash` / `mock` today); handlers, auth, rate limiting, and validation stay untouched.
+- Drivers: **data sovereignty** (KTP/SIM images never leave the operator's infrastructure — no cross-border transfer under UU PDP Pasal 56), predictable cost at volume, and offline/air-gapped operation.
+- Trade-off: the operator owns GPU sizing, model upgrades, and accuracy evaluation against the deterministic KTP/SIM validators; light models must meet the same confidence threshold (`>= 0.7`) before their output is accepted.
 
 ---
 
@@ -503,7 +513,7 @@ OCR
      ↓
 Text Extraction
      ↓
-KTP Field Extraction
+KTP / SIM Field Extraction
      ↓
 Normalization
      ↓
@@ -526,7 +536,7 @@ The system should distinguish between:
 
 # 14. AI Usage
 
-AI may be used as an extraction or normalization component.
+AI may be used as an extraction or normalization component — either the default Gemini Flash provider or a self-hosted open-weight light vision model (see §12). The choice of provider never changes the API contract.
 
 Example:
 
@@ -1402,6 +1412,7 @@ The minimum viable product must demonstrate:
 ## Product
 
 - KTP OCR
+- SIM OCR
 - structured JSON response
 - API documentation
 - API key authentication
@@ -1823,14 +1834,14 @@ That is what turns Lensio from a portfolio CRUD project into a credible producti
 
 # 42. Future Product Expansion Roadmap
 
-While the MVP strictly focuses on **Indonesian KTP OCR** and establishing the core API product infrastructure, the platform is architected to expand into a comprehensive identity and document processing suite:
+While the MVP strictly focuses on **Indonesian identity document OCR (KTP & SIM)** and establishing the core API product infrastructure, the platform is architected to expand into a comprehensive identity and document processing suite:
 
 ```text
 Lensio Product Ecosystem
 │
 ├── Document OCR Expansion
-│   ├── KTP OCR (Current MVP Focus)
-│   ├── SIM OCR (Surat Izin Mengemudi)
+│   ├── KTP OCR (Done)
+│   ├── SIM OCR (Surat Izin Mengemudi — Done)
 │   ├── Passport OCR (Indonesian & International Passports)
 │   ├── NPWP OCR (Nomor Pokok Wajib Pajak)
 │   ├── KK OCR (Kartu Keluarga)
