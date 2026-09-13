@@ -6,6 +6,7 @@ import { api } from "../services/api";
 import type {
 	InvoiceResponse,
 	KKResponse,
+	KTPResponse,
 	NPWPResponse,
 	PassportResponse,
 } from "../types/api";
@@ -420,8 +421,24 @@ describe("PlaygroundPage", () => {
 		});
 	});
 
-	it("shows warning and blocks execution when apiKey is missing", async () => {
-		const ocrSpy = vi.spyOn(api, "executeKTPOCR");
+	it("runs via session cookie when apiKey is missing", async () => {
+		const mockOcrResult = {
+			id: "ocr_play_cookie",
+			status: "completed",
+			confidence: 0.99,
+			latency_ms: 115,
+			data: {
+				nik: "3273012345670001",
+				nama: "COOKIE SESSION",
+				kewarganegaraan: "WNI",
+			},
+			field_confidence: {
+				nik: 1.0,
+			},
+		};
+		const ocrSpy = vi
+			.spyOn(api, "executeKTPOCR")
+			.mockResolvedValue(mockOcrResult as unknown as KTPResponse);
 		const onNavigate = vi.fn();
 
 		renderWithAuth(<PlaygroundPage onNavigate={onNavigate} />, {
@@ -429,27 +446,133 @@ describe("PlaygroundPage", () => {
 		});
 
 		expect(
-			screen.getByText(
-				/API Key diperlukan untuk menguji OCR di playground ini/,
-			),
+			screen.getByText(/API Key hanya dibutuhkan untuk pemanggilan/),
 		).toBeDefined();
 
 		// Click "Kelola API Key"
 		fireEvent.click(screen.getByText("Kelola API Key"));
 		expect(onNavigate).toHaveBeenCalledWith("keys");
 
-		// Click "Load Synthetic Fixture"
+		// Click "Load Synthetic Fixture" — proceeds without a key (cookie auth)
 		const fixtureBtn = screen.getByRole("button", {
 			name: /Load Synthetic Fixture/i,
 		});
 		fireEvent.click(fixtureBtn);
 
 		await waitFor(() => {
-			expect(ocrSpy).not.toHaveBeenCalled();
-			expect(
-				screen.getByText(/API Key aktif diperlukan untuk menjalankan OCR/),
-			).toBeDefined();
+			expect(ocrSpy).toHaveBeenCalledTimes(1);
+			expect(ocrSpy).toHaveBeenCalledWith(expect.anything(), undefined);
+			expect(screen.getByText("3273012345670001")).toBeDefined();
+			expect(screen.getByText("COOKIE SESSION")).toBeDefined();
 		});
+	});
+
+	it("keeps the previous result visible while the next scan runs", async () => {
+		const firstResult = {
+			id: "ocr_play_first",
+			status: "completed",
+			confidence: 0.99,
+			latency_ms: 115,
+			data: {
+				nik: "3273012345670001",
+				nama: "HASIL PERTAMA",
+				kewarganegaraan: "WNI",
+			},
+			field_confidence: {
+				nik: 1.0,
+			},
+		};
+		const secondResult = {
+			id: "ocr_play_second",
+			status: "completed",
+			confidence: 0.97,
+			latency_ms: 130,
+			data: {
+				nik: "3273012345670002",
+				nama: "HASIL KEDUA",
+				kewarganegaraan: "WNI",
+			},
+			field_confidence: {
+				nik: 1.0,
+			},
+		};
+
+		let resolveSecond!: (value: KTPResponse) => void;
+		const ocrSpy = vi
+			.spyOn(api, "executeKTPOCR")
+			.mockResolvedValueOnce(firstResult as unknown as KTPResponse)
+			.mockImplementationOnce(
+				() =>
+					new Promise<KTPResponse>((resolve) => {
+						resolveSecond = resolve;
+					}),
+			);
+
+		renderWithAuth(<PlaygroundPage />, {
+			initialOrg: TEST_ORG,
+			initialApiKey: "lensio_live_testkey123",
+		});
+
+		const fixtureBtn = screen.getByRole("button", {
+			name: /Load Synthetic Fixture/i,
+		});
+		fireEvent.click(fixtureBtn);
+		await waitFor(() => {
+			expect(screen.getByText("3273012345670001")).toBeDefined();
+		});
+
+		fireEvent.click(fixtureBtn);
+		await waitFor(() => {
+			expect(screen.getByText("Memperbarui…")).toBeDefined();
+		});
+		expect(ocrSpy).toHaveBeenCalledTimes(2);
+		expect(screen.getByText("3273012345670001")).toBeDefined();
+		expect(screen.queryByText("3273012345670002")).toBeNull();
+
+		resolveSecond(secondResult as unknown as KTPResponse);
+		await waitFor(() => {
+			expect(screen.getByText("3273012345670002")).toBeDefined();
+		});
+	});
+
+	it("keeps the previous result when the next scan fails", async () => {
+		const firstResult = {
+			id: "ocr_play_first",
+			status: "completed",
+			confidence: 0.99,
+			latency_ms: 115,
+			data: {
+				nik: "3273012345670001",
+				nama: "HASIL PERTAMA",
+				kewarganegaraan: "WNI",
+			},
+			field_confidence: {
+				nik: 1.0,
+			},
+		};
+
+		vi.spyOn(api, "executeKTPOCR")
+			.mockResolvedValueOnce(firstResult as unknown as KTPResponse)
+			.mockRejectedValueOnce(new Error("Upstream Gemini timeout"));
+
+		renderWithAuth(<PlaygroundPage />, {
+			initialOrg: TEST_ORG,
+			initialApiKey: "lensio_live_testkey123",
+		});
+
+		const fixtureBtn = screen.getByRole("button", {
+			name: /Load Synthetic Fixture/i,
+		});
+		fireEvent.click(fixtureBtn);
+		await waitFor(() => {
+			expect(screen.getByText("3273012345670001")).toBeDefined();
+		});
+
+		fireEvent.click(fixtureBtn);
+		await waitFor(() => {
+			expect(screen.getByText("Upstream Gemini timeout")).toBeDefined();
+		});
+		expect(screen.getByText("3273012345670001")).toBeDefined();
 	});
 
 	it("handles file upload error in playground", async () => {

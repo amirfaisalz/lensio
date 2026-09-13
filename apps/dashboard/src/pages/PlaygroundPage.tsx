@@ -193,7 +193,7 @@ export interface PlaygroundPageProps {
 export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({
 	onNavigate,
 }) => {
-	const { currentOrg, apiKey } = useAuth();
+	const { currentOrg, apiKey, oidcUser } = useAuth();
 
 	const [docType, setDocType] = useState<
 		"ktp" | "sim" | "passport" | "npwp" | "kk" | "invoice"
@@ -240,12 +240,9 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({
 	}, []);
 
 	const handleFileUpload = async (file: File) => {
-		if (!apiKey) {
-			setOcrError(
-				"API Key aktif diperlukan untuk menjalankan OCR. Silakan buat atau aktifkan API Key di menu API Keys.",
-			);
-			return;
-		}
+		// Cookie-first like the OpenAI playground: the session cookie
+		// authenticates, an explicit API key is only an optional override.
+		const keyOverride = apiKey ?? undefined;
 
 		try {
 			setSelectedFileName(
@@ -272,22 +269,21 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({
 				| KKResponse
 				| InvoiceResponse;
 			if (docType === "invoice") {
-				res = await api.executeInvoiceOCR(file, apiKey);
+				res = await api.executeInvoiceOCR(file, keyOverride);
 			} else if (docType === "kk") {
-				res = await api.executeKKOCR(file, apiKey);
+				res = await api.executeKKOCR(file, keyOverride);
 			} else if (docType === "npwp") {
-				res = await api.executeNPWPOCR(file, apiKey);
+				res = await api.executeNPWPOCR(file, keyOverride);
 			} else if (docType === "passport") {
-				res = await api.executePassportOCR(file, apiKey);
+				res = await api.executePassportOCR(file, keyOverride);
 			} else if (docType === "sim") {
-				res = await api.executeSIMOCR(file, apiKey);
+				res = await api.executeSIMOCR(file, keyOverride);
 			} else {
-				res = await api.executeKTPOCR(file, apiKey);
+				res = await api.executeKTPOCR(file, keyOverride);
 			}
 			setOcrResult(res);
 		} catch (err) {
 			setOcrError(err instanceof Error ? err.message : "OCR execution failed");
-			setOcrResult(null);
 		} finally {
 			setOcrLoading(false);
 		}
@@ -579,14 +575,13 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({
 				</div>
 			</div>
 
-			{/* Missing API Key Warning */}
-			{!apiKey && (
+			{!apiKey && !oidcUser && (
 				<div className="p-4 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 rounded-xl text-xs text-amber-800 dark:text-amber-300 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
 					<div className="flex items-center gap-2.5">
 						<KeyRound className="w-4 h-4 text-amber-600 shrink-0" />
 						<span>
-							API Key diperlukan untuk menguji OCR di playground ini. Silakan
-							buat atau aktifkan API Key organisasi Anda.
+							Masuk untuk menguji OCR di playground ini. API Key hanya
+							dibutuhkan untuk pemanggilan server-to-server.
 						</span>
 					</div>
 					<button
@@ -663,6 +658,11 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({
 					<div className="bg-slate-900 text-slate-100 rounded-xl p-4 flex flex-col font-mono text-[11px] sm:text-xs overflow-hidden min-h-[260px] max-h-[420px]">
 						<div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-800 text-slate-400 dark:text-slate-500 text-[11px]">
 							<span>RESPONSE PAYLOAD</span>
+							{ocrLoading && ocrResult && (
+								<span className="text-amber-400 animate-pulse">
+									Memperbarui…
+								</span>
+							)}
 							{ocrResult && (
 								<span className="text-emerald-400">
 									{"processing" in ocrResult
@@ -674,7 +674,7 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({
 						</div>
 
 						<div className="flex-1 overflow-y-auto">
-							{ocrLoading ? (
+							{ocrLoading && !ocrResult ? (
 								<div className="h-full flex items-center justify-center text-slate-500 dark:text-slate-400 py-16">
 									<RefreshCw className="w-5 h-5 animate-spin mr-2 text-[#1877F2]" />
 									<span>

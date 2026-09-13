@@ -137,24 +137,25 @@ func NewRouterWithDeps(deps RouterDeps) http.Handler {
 			deps.IdempotencyStore = idempotency.NewMemoryStore(24 * time.Hour)
 		}
 		idempotencyMiddleware := middleware.Idempotency(deps.IdempotencyStore)
+		sessionOrgMiddleware := middleware.SessionOrg(deps.AccountStore)
 
 		ktpHandler := handlers.KTPOCRHandler(deps.OCREngine, deps.OCRStore, quotaChecker)
-		mux.Handle("POST /api/v1/ocr/ktp", authMiddleware(scopeWriteMiddleware(idempotencyMiddleware(ktpHandler))))
+		mux.Handle("POST /api/v1/ocr/ktp", authMiddleware(sessionOrgMiddleware(scopeWriteMiddleware(idempotencyMiddleware(ktpHandler)))))
 
 		simHandler := handlers.SIMOCRHandler(deps.OCREngine, deps.OCRStore, quotaChecker)
-		mux.Handle("POST /api/v1/ocr/sim", authMiddleware(scopeWriteMiddleware(idempotencyMiddleware(simHandler))))
+		mux.Handle("POST /api/v1/ocr/sim", authMiddleware(sessionOrgMiddleware(scopeWriteMiddleware(idempotencyMiddleware(simHandler)))))
 
 		passportHandler := handlers.PassportOCRHandler(deps.OCREngine, deps.OCRStore, quotaChecker)
-		mux.Handle("POST /api/v1/ocr/passport", authMiddleware(scopeWriteMiddleware(idempotencyMiddleware(passportHandler))))
+		mux.Handle("POST /api/v1/ocr/passport", authMiddleware(sessionOrgMiddleware(scopeWriteMiddleware(idempotencyMiddleware(passportHandler)))))
 
 		npwpHandler := handlers.NPWPOCRHandler(deps.OCREngine, deps.OCRStore, quotaChecker)
-		mux.Handle("POST /api/v1/ocr/npwp", authMiddleware(scopeWriteMiddleware(idempotencyMiddleware(npwpHandler))))
+		mux.Handle("POST /api/v1/ocr/npwp", authMiddleware(sessionOrgMiddleware(scopeWriteMiddleware(idempotencyMiddleware(npwpHandler)))))
 
 		kkHandler := handlers.KKOCRHandler(deps.OCREngine, deps.OCRStore, quotaChecker)
-		mux.Handle("POST /api/v1/ocr/kk", authMiddleware(scopeWriteMiddleware(idempotencyMiddleware(kkHandler))))
+		mux.Handle("POST /api/v1/ocr/kk", authMiddleware(sessionOrgMiddleware(scopeWriteMiddleware(idempotencyMiddleware(kkHandler)))))
 
 		invoiceHandler := handlers.InvoiceOCRHandler(deps.OCREngine, deps.OCRStore, quotaChecker)
-		mux.Handle("POST /api/v1/ocr/invoice", authMiddleware(scopeWriteMiddleware(idempotencyMiddleware(invoiceHandler))))
+		mux.Handle("POST /api/v1/ocr/invoice", authMiddleware(sessionOrgMiddleware(scopeWriteMiddleware(idempotencyMiddleware(invoiceHandler)))))
 
 		if deps.OCRStore != nil {
 			getOcrHandler := handlers.GetOCRRequestHandler(deps.OCRStore)
