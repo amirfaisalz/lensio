@@ -9,6 +9,7 @@ import {
 	KeyRound,
 	RefreshCw,
 	Sparkles,
+	Timer,
 	Zap,
 } from "lucide-react";
 import type React from "react";
@@ -27,6 +28,7 @@ export interface OverviewPageProps {
 export const OverviewPage: React.FC<OverviewPageProps> = ({ onNavigate }) => {
 	const { currentOrg, apiKey } = useAuth();
 	const [summary, setSummary] = useState<UsageSummary | null>(null);
+	const [hasKeys, setHasKeys] = useState<boolean | null>(null);
 	const [isLoading, setIsLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 
@@ -42,6 +44,16 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({ onNavigate }) => {
 			);
 		} finally {
 			setIsLoading(false);
+		}
+		if (!currentOrg?.id) {
+			setHasKeys(null);
+			return;
+		}
+		try {
+			const keys = await api.fetchAPIKeys(currentOrg.id);
+			setHasKeys(keys.length > 0);
+		} catch {
+			setHasKeys(null);
 		}
 	}, [currentOrg]);
 
@@ -135,7 +147,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({ onNavigate }) => {
 						Buat Organisasi
 					</button>
 				</div>
-			) : !apiKey ? (
+			) : !apiKey && hasKeys === false ? (
 				<div className="p-4 bg-[#E7F3FF]/60 dark:bg-[#1877F2]/10 border border-[#1877F2]/25 dark:border-[#1877F2]/30 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
 					<div className="flex items-center gap-3">
 						<div className="w-9 h-9 rounded-lg bg-[#1877F2] text-white flex items-center justify-center shrink-0">
@@ -256,21 +268,14 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({ onNavigate }) => {
 								: "180ms"}
 						</div>
 					)}
-						<p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1">
-							SLA Target &lt; 2000ms
-						</p>
-						<p className="text-[11px] text-slate-400 dark:text-slate-500 tabular-nums">
-							P95 OCR (AI):{" "}
-							{summary?.p95_ocr_latency_ms
-								? `${summary.p95_ocr_latency_ms}ms`
-								: "—"}{" "}
-							· vendor-dependent
-						</p>
+					<p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1">
+						SLA Target &lt; 2000ms
+					</p>
 				</div>
 			</div>
 
-			{/* Quota & Violations Section */}
-			<div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+			{/* Quota, Violations & Upstream AI Section */}
+			<div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
 				{/* Quota Progress */}
 				<div className="lg:col-span-2 bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-white/10 flex flex-col justify-between">
 					<div>
@@ -363,6 +368,34 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({ onNavigate }) => {
 							Retry-After
 						</code>{" "}
 						header on 429 errors.
+					</div>
+				</div>
+
+				{/* Upstream AI Latency */}
+				<div className="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-white/10 flex flex-col justify-between">
+					<div>
+						<div className="flex items-center gap-2 text-slate-900 dark:text-white mb-1">
+							<Timer className="w-4 h-4 text-violet-500" />
+							<h3 className="text-sm font-semibold">Upstream AI Latency</h3>
+						</div>
+						<p className="text-xs text-slate-500 dark:text-slate-400">
+							P95 Vision AI time across OCR endpoints in this cycle.
+						</p>
+					</div>
+
+					<div className="my-4">
+						<div className="text-3xl font-bold text-slate-900 dark:text-white tabular-nums">
+							{summary?.p95_ocr_latency_ms
+								? `${summary.p95_ocr_latency_ms.toLocaleString()}ms`
+								: "—"}
+						</div>
+						<p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+							No SLA · vendor-dependent
+						</p>
+					</div>
+
+					<div className="text-[11px] text-slate-400 dark:text-slate-500 border-t border-slate-100 pt-3">
+						Excluded from the platform P95 SLA above.
 					</div>
 				</div>
 			</div>

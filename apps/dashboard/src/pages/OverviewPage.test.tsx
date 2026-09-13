@@ -105,7 +105,8 @@ describe("OverviewPage", () => {
 			expect(screen.getAllByText("1,250").length).toBe(2);
 			expect(screen.getByText("96.0%")).toBeDefined();
 			expect(screen.getByText("210ms")).toBeDefined();
-			expect(screen.getByText(/12540ms/)).toBeDefined();
+			expect(screen.getByText("Upstream AI Latency")).toBeDefined();
+			expect(screen.getByText("12,540ms")).toBeDefined();
 			expect(screen.getByText("25% Used")).toBeDefined();
 			expect(screen.getByText(/of 5,000 requests used/)).toBeDefined();
 			expect(screen.getByText("4")).toBeDefined();
@@ -169,7 +170,7 @@ describe("OverviewPage", () => {
 		});
 	});
 
-	it("renders first API key banner when organization exists but apiKey is missing", async () => {
+	it("renders first API key banner when the organization has no keys yet", async () => {
 		const mockSummary = {
 			total_requests: 0,
 			success_count: 0,
@@ -207,5 +208,60 @@ describe("OverviewPage", () => {
 		});
 		fireEvent.click(createKeyBtn);
 		expect(onNavigate).toHaveBeenCalledWith("keys");
+	});
+
+	it("hides the first API key banner once the organization has keys", async () => {
+		const mockSummary = {
+			total_requests: 10,
+			success_count: 10,
+			error_count: 0,
+			quota_limit: 100,
+			quota_remaining: 90,
+			p95_latency_ms: 100,
+			p95_ocr_latency_ms: 0,
+			rate_limit_violations: 0,
+			billing_cycle_reset: "2026-10-01T00:00:00Z",
+		};
+		let keys: unknown[] = [];
+
+		vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+			const url = String(input);
+			if (url.includes("/api/v1/auth/api-keys")) {
+				return { ok: true, json: async () => ({ data: keys }) } as Response;
+			}
+			if (url.includes("/api/v1/usage")) {
+				return { ok: true, json: async () => mockSummary } as Response;
+			}
+			return { ok: true, json: async () => ({}) } as Response;
+		});
+
+		renderWithAuth(<OverviewPage />, {
+			initialOrg: TEST_ORG,
+		});
+
+		await waitFor(() => {
+			expect(screen.getByText(/Create your first API Key/)).toBeDefined();
+		});
+
+		keys = [
+			{
+				id: "key-1",
+				name: "Existing Key",
+				prefix: "lensio_live_abcd",
+				masked_key: "lensio_live_abcd••••••••",
+				scopes: ["ocr:write"],
+				environment: "live",
+				last_used_at: null,
+				expires_at: null,
+				revoked_at: null,
+				created_at: "2026-09-13T00:00:00Z",
+			},
+		];
+		api.clearCache();
+		fireEvent.click(screen.getByRole("button", { name: /^Refresh$/i }));
+
+		await waitFor(() => {
+			expect(screen.queryByText(/Create your first API Key/)).toBeNull();
+		});
 	});
 });
