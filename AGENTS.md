@@ -74,6 +74,7 @@ All AI agents must strictly follow these five non-negotiable rules on every task
   - **Layer 3**: Strict Tests & Coverage with Race Detector (`go test -race -cover ./...`)
   - **Layer 4**: Big O, Security Guardrails & PII leak prevention
 - Never bypass pre-commit hooks with `--no-verify`.
+- **Push Policy**: **NEVER automatically run `git push`**. Always stop at `git commit` to conserve GitHub Actions workflow quota. Only run `git push` when explicitly requested by the user.
 
 ---
 
