@@ -1,4 +1,7 @@
 services:
+  # WARNING (dev-only): credentials below are public example values for local
+  # development. NEVER use them in staging/production. Prod secrets must be
+  # injected via environment / Azure Key Vault (see docs/security.md, PRIVACY.md).
   postgres:
     image: postgres:16-alpine
     container_name: lensio-postgres

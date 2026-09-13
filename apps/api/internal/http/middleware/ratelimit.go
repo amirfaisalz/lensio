@@ -53,32 +53,35 @@ func (m *RateLimitMiddleware) Handler(next http.Handler) http.Handler {
 			return
 		}
 
-		// Bypass rate limiting for dashboard sessions authenticated via OIDC / JWT
-		if GetOIDCUser(r.Context()) != nil {
-			next.ServeHTTP(w, r)
-			return
-		}
-
-		orgID := m.defaultOrgID
+		// Rate-limit key: prefer API-key org, then OIDC subject, then configured default org, then client IP.
+		// Never bypass: every caller gets a bucket.
+		rateKey := ""
 		if key := GetAPIKey(r.Context()); key != nil && key.OrgID != "" {
-			orgID = key.OrgID
+			rateKey = key.OrgID
+		} else if user := GetOIDCUser(r.Context()); user != nil && (user.Subject != "" || user.Email != "") {
+			sub := user.Subject
+			if sub == "" {
+				sub = user.Email
+			}
+			rateKey = "oidc:" + sub
+		} else if m.defaultOrgID != "" {
+			rateKey = m.defaultOrgID
+		} else if ip := clientIPFromRequest(r); ip != "" {
+			rateKey = "ip:" + ip
+		}
+		if rateKey == "" {
+			rateKey = "anonymous"
 		}
 
-		// If no organization is resolved, bypass rate limiting (e.g. unauthenticated or non-tenant calls)
-		if orgID == "" {
-			next.ServeHTTP(w, r)
-			return
-		}
-
-		limit, planCode := m.getOrgRateLimit(r.Context(), orgID)
-		res := m.limiter.Allow(orgID, limit)
+		limit, planCode := m.getOrgRateLimit(r.Context(), rateKey)
+		res := m.limiter.Allow(rateKey, limit)
 
 		w.Header().Set("X-RateLimit-Limit", strconv.Itoa(res.Limit))
 		w.Header().Set("X-RateLimit-Remaining", strconv.Itoa(res.Remaining))
 		w.Header().Set("X-RateLimit-Reset", strconv.FormatInt(res.ResetTime, 10))
 
 		if !res.Allowed {
-			telemetry.RecordRateLimitExceeded(r.Context(), orgID, planCode)
+			telemetry.RecordRateLimitExceeded(r.Context(), rateKey, planCode)
 			w.Header().Set("Retry-After", strconv.Itoa(res.RetryAfter))
 			response.ErrorWithRequest(
 				w,
@@ -97,6 +100,9 @@ func (m *RateLimitMiddleware) Handler(next http.Handler) http.Handler {
 // getOrgRateLimit looks up organization rate limit with a 1-minute in-memory cache to guarantee O(1) hot paths.
 func (m *RateLimitMiddleware) getOrgRateLimit(ctx context.Context, orgID string) (int, string) {
 	if orgID == "" || orgID == "00000000-0000-0000-0000-000000000001" {
+		return 10, "free"
+	}
+	if strings.HasPrefix(orgID, "oidc:") || strings.HasPrefix(orgID, "ip:") || orgID == "anonymous" {
 		return 10, "free"
 	}
 
@@ -133,4 +139,20 @@ func (m *RateLimitMiddleware) getOrgRateLimit(ctx context.Context, orgID string)
 	m.mu.Unlock()
 
 	return limit, planCode
+}
+
+func clientIPFromRequest(r *http.Request) string {
+	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+		if idx := strings.Index(xff, ","); idx >= 0 {
+			return strings.TrimSpace(xff[:idx])
+		}
+		return strings.TrimSpace(xff)
+	}
+	if host := strings.TrimSpace(r.RemoteAddr); host != "" {
+		if idx := strings.LastIndex(host, ":"); idx >= 0 {
+			return host[:idx]
+		}
+		return host
+	}
+	return ""
 }

@@ -57,12 +57,12 @@
       "environment": "production"
     }' | jq .
   ```
-- **Expected Output**:
-  ```json
-  {
-    "id": "key_01JABC12345",
-    "name": "VeriForm Production Client",
-    "token": "lensio_live_9f8a3c2e1b4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d",
+- **Expected Output** (SYNTHETIC EXAMPLE — not a real key):
+```json
+{
+  "id": "key_01JABC12345",
+  "name": "VeriForm Production Client",
+  "token": "lensio_live_9f8a3c2e1b4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d",
     "prefix": "lensio_live_9f8a",
     "scopes": ["ocr:write", "ocr:read", "usage:read"]
   }

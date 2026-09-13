@@ -103,7 +103,7 @@ Lensio combines a high-performance Go backend, a reactive TypeScript developer p
 
 ### 1. Backend Core & API Runtime
 
-- **Go (Golang 1.22+)**:
+- **Go (Golang 1.26, minimum 1.22)**:
   - Powers the core REST API (`apps/api`).
   - Built with clean, hexagonal architecture using native `net/http.ServeMux` (zero heavy web frameworks) for minimal binary size and sub-80ms startup.
   - Implements concurrent request handling, SHA-256 cryptographic API key hashing, $O(1)$ token-bucket rate limiting, and buffered Go channels for non-blocking asynchronous metering.
@@ -287,7 +287,7 @@ Content-Type: image/jpeg
 ------WebKitFormBoundary--
 ```
 
-#### Successful Response (`200 OK`)
+#### Successful Response (`200 OK`) — SYNTHETIC EXAMPLE DATA
 
 ```json
 {
@@ -454,9 +454,12 @@ Rather than relying on theoretical claims, Lensio's production platform was subj
 
 ### Prerequisites
 
-- Go 1.22+
+- Go 1.26 (minimum 1.22)
 - Docker & Docker Compose
 - Git
+
+> Coveragenote: badges mencerminkan pengukuran terakhir (core ~93.5%, repo ~88%). Target 100% belum tercapai — lihat `coverage.out` lokal setelah `go test -race -cover ./...`.
+> Semua contoh identitas di README ini adalah **SYNTHETIC** (bukan data penduduk asli). Lihat `PRIVACY.md` dan `USE_POLICY.md` sebelum memproses KTP asli.
 
 ### 1. Clone & Configure Mandatory Git Hooks
 

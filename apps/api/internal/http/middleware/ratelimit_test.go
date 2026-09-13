@@ -139,7 +139,7 @@ func TestRateLimitMiddleware_WithAPIKeyContext(t *testing.T) {
 	}
 }
 
-func TestRateLimitMiddleware_OIDCUserBypass(t *testing.T) {
+func TestRateLimitMiddleware_OIDCUserRateLimited(t *testing.T) {
 	limiter := ratelimit.NewLimiter()
 	mw := middleware.NewRateLimitMiddleware(limiter, nil, "org-test-1")
 
@@ -151,12 +151,12 @@ func TestRateLimitMiddleware_OIDCUserBypass(t *testing.T) {
 
 	handler := mw.Handler(next)
 
-	// Exhaust limiter for this org
+	// Exhaust limiter for this OIDC identity (default free-tier bucket is small in tests via direct Allow).
 	for i := 0; i < 15; i++ {
-		limiter.Allow("org-test-1", 1)
+		limiter.Allow("oidc:sub-operator-1", 1)
 	}
 
-	// Request with OIDCUser should bypass rate limit even when exhausted
+	// Request with OIDCUser must be rate-limited under its own identity key, never bypass.
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	user := &middleware.OIDCUser{Subject: "sub-operator-1", Email: "operator@lensio.dev"}
 	req = req.WithContext(middleware.WithOIDCUser(req.Context(), user))
@@ -164,11 +164,11 @@ func TestRateLimitMiddleware_OIDCUserBypass(t *testing.T) {
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 
-	if rec.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d", rec.Code)
+	if rec.Code != http.StatusTooManyRequests {
+		t.Fatalf("expected 429 for exhausted OIDC identity, got %d", rec.Code)
 	}
-	if nextCalled != 1 {
-		t.Errorf("expected next called 1, got %d", nextCalled)
+	if nextCalled != 0 {
+		t.Errorf("expected next not called on 429, got %d", nextCalled)
 	}
 }
 

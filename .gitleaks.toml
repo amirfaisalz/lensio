@@ -7,7 +7,7 @@ title = "Lensio Gitleaks Secret Detection Policy"
 useDefault = true
 
 [allowlist]
-description = "Global allowlist for synthetic test data, fixtures, documentation, and mock keys"
+description = "Path-scoped allowlist for synthetic fixtures, tests, and examples only. No global regex allowlist: real lensio_live_*, AIzaSy, and password patterns must ALWAYS be flagged outside these paths."
 paths = [
   '''tests/fixtures/synthetic/.*''',
   '''tests/fixtures/.*''',
@@ -18,12 +18,7 @@ paths = [
   '''docker-compose\.yml''',
   '''DEVELOPMENT_TRACKING\.md''',
   '''PRD\.md''',
-  '''AGENTS\.md'''
-]
-regexes = [
-  '''lensio_(live|test)_[a-zA-Z0-9]{32,}''',
-  '''lensio_dev_password''',
-  '''lensio_test_password''',
-  '''req_[0-9A-Z]{10,}''',
-  '''AIzaSy[A-Za-z0-9_-]{33}'''
+  '''AGENTS\.md''',
+  '''docs/demo-walkthrough\.md''',
+  '''docs/decisions/ADR-002.*'''
 ]

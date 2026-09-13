@@ -72,8 +72,8 @@ func TestPIISanitizer_MessageNIKMasking(t *testing.T) {
 	if strings.Contains(msg, "3171012345670001") {
 		t.Errorf("raw NIK leaked in message: %s", msg)
 	}
-	if !strings.Contains(msg, "3171************") {
-		t.Errorf("expected masked NIK in message, got: %s", msg)
+	if !strings.Contains(msg, "[REDACTED]") {
+		t.Errorf("expected fully redacted NIK in message, got: %s", msg)
 	}
 }
 
@@ -95,8 +95,8 @@ func TestPIISanitizer_ValueNIKMasking(t *testing.T) {
 	if strings.Contains(summary, "3171098765432109") {
 		t.Errorf("raw NIK leaked in attribute value: %s", summary)
 	}
-	if !strings.Contains(summary, "3171************") {
-		t.Errorf("expected masked NIK in attribute value, got: %s", summary)
+	if !strings.Contains(summary, "[REDACTED]") {
+		t.Errorf("expected fully redacted NIK in attribute value, got: %s", summary)
 	}
 }
 

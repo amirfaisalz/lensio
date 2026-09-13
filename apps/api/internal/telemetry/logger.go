@@ -165,15 +165,12 @@ func sanitizeAttr(a slog.Attr) slog.Attr {
 	}
 }
 
-// sanitizeString masks 16-digit NIK sequences within arbitrary text.
+// sanitizeString replaces any 16-digit NIK sequence with a full redaction marker.
 func sanitizeString(s string) string {
 	if len(s) < 16 {
 		return s
 	}
-	// Replace any 16-digit sequence: keep first 4 digits, mask remaining 12 with asterisks
-	return nikRegex.ReplaceAllStringFunc(s, func(nik string) string {
-		return nik[:4] + "************"
-	})
+	return nikRegex.ReplaceAllString(s, RedactedValue)
 }
 
 // containsSensitivePatterns quickly checks if a string might contain an Indonesian NIK.
