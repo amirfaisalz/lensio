@@ -3,6 +3,12 @@ import type React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthProvider } from "../context/AuthContext";
 import { api } from "../services/api";
+import type {
+	InvoiceResponse,
+	KKResponse,
+	NPWPResponse,
+	PassportResponse,
+} from "../types/api";
 import { PlaygroundPage } from "./PlaygroundPage";
 
 const TEST_ORG = {
@@ -194,7 +200,7 @@ describe("PlaygroundPage", () => {
 
 		const passportSpy = vi
 			.spyOn(api, "executePassportOCR")
-			.mockResolvedValue(mockPassportResult as any);
+			.mockResolvedValue(mockPassportResult as unknown as PassportResponse);
 
 		renderWithAuth(<PlaygroundPage />, {
 			initialOrg: TEST_ORG,
@@ -249,7 +255,7 @@ describe("PlaygroundPage", () => {
 
 		const npwpSpy = vi
 			.spyOn(api, "executeNPWPOCR")
-			.mockResolvedValue(mockNpwpResult as any);
+			.mockResolvedValue(mockNpwpResult as unknown as NPWPResponse);
 
 		renderWithAuth(<PlaygroundPage />, {
 			initialOrg: TEST_ORG,
@@ -318,7 +324,7 @@ describe("PlaygroundPage", () => {
 
 		const kkSpy = vi
 			.spyOn(api, "executeKKOCR")
-			.mockResolvedValue(mockKKResult as any);
+			.mockResolvedValue(mockKKResult as unknown as KKResponse);
 
 		renderWithAuth(<PlaygroundPage />, {
 			initialOrg: TEST_ORG,
@@ -387,7 +393,7 @@ describe("PlaygroundPage", () => {
 
 		const invoiceSpy = vi
 			.spyOn(api, "executeInvoiceOCR")
-			.mockResolvedValue(mockInvoiceResult as any);
+			.mockResolvedValue(mockInvoiceResult as unknown as InvoiceResponse);
 
 		renderWithAuth(<PlaygroundPage />, {
 			initialOrg: TEST_ORG,

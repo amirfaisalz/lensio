@@ -1,17 +1,32 @@
 import {
 	AlertTriangle,
 	Building2,
-	FileCheck,
+	Check,
+	ChevronDown,
+	CreditCard,
+	Globe,
 	KeyRound,
+	Landmark,
+	Receipt,
 	RefreshCw,
+	ShieldCheck,
+	Sparkles,
 	Upload,
+	Users,
 } from "lucide-react";
 import type React from "react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { NavigationPage } from "../components/layout/Sidebar";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../services/api";
-import type { InvoiceResponse, KKResponse, KTPResponse, NPWPResponse, PassportResponse, SIMResponse } from "../types/api";
+import type {
+	InvoiceResponse,
+	KKResponse,
+	KTPResponse,
+	NPWPResponse,
+	PassportResponse,
+	SIMResponse,
+} from "../types/api";
 
 // 400x250 valid synthetic KTP JPEG fixture
 const SYNTHETIC_KTP_BASE64 =
@@ -26,6 +41,151 @@ function base64ToUint8Array(base64: string): Uint8Array {
 	return bytes;
 }
 
+export interface OCRServiceItem {
+	id: "ktp" | "sim" | "passport" | "npwp" | "kk" | "invoice";
+	shortName: string;
+	fullName: string;
+	category: string;
+	endpoint: string;
+	tagline: string;
+	icon: React.ComponentType<{ className?: string }>;
+	accentBg: string;
+	accentText: string;
+	extractableFields: string[];
+}
+
+export const OCR_SERVICES: OCRServiceItem[] = [
+	{
+		id: "ktp",
+		shortName: "KTP",
+		fullName: "Kartu Tanda Penduduk",
+		category: "Identitas Kependudukan",
+		endpoint: "/api/v1/ocr/ktp",
+		tagline: "Ekstraksi 16-digit NIK, nama lengkap, dan data demografis",
+		icon: CreditCard,
+		accentBg: "bg-blue-50 dark:bg-blue-950/40",
+		accentText: "text-[#1877F2] dark:text-[#7aa9f5]",
+		extractableFields: [
+			"NIK (16 Digit)",
+			"Nama Lengkap",
+			"Tempat & Tanggal Lahir",
+			"Jenis Kelamin",
+			"Alamat & RT/RW",
+			"Kelurahan & Kecamatan",
+			"Agama",
+			"Status Perkawinan",
+			"Pekerjaan",
+			"Kewarganegaraan",
+		],
+	},
+	{
+		id: "sim",
+		shortName: "SIM",
+		fullName: "Surat Izin Mengemudi",
+		category: "Lisensi Mengemudi",
+		endpoint: "/api/v1/ocr/sim",
+		tagline: "Golongan SIM, masa berlaku, dan validasi Polda penerbit",
+		icon: ShieldCheck,
+		accentBg: "bg-amber-50 dark:bg-amber-950/40",
+		accentText: "text-amber-600 dark:text-amber-400",
+		extractableFields: [
+			"Nomor SIM",
+			"Golongan (A/B/C)",
+			"Nama Pemegang",
+			"Tanggal Lahir",
+			"Golongan Darah",
+			"Alamat",
+			"Pekerjaan",
+			"Polda Penerbit",
+			"Masa Berlaku",
+		],
+	},
+	{
+		id: "passport",
+		shortName: "Passport",
+		fullName: "Paspor Republik Indonesia",
+		category: "Dokumen Perjalanan Internasional",
+		endpoint: "/api/v1/ocr/passport",
+		tagline: "Parsing otomatis MRZ Line 1 & 2, nomor paspor, dan masa berlaku",
+		icon: Globe,
+		accentBg: "bg-emerald-50 dark:bg-emerald-950/40",
+		accentText: "text-emerald-600 dark:text-emerald-400",
+		extractableFields: [
+			"Nomor Paspor",
+			"Nama Lengkap",
+			"Kewarganegaraan (IDN)",
+			"Tanggal Lahir",
+			"Jenis Kelamin",
+			"Tanggal Kadaluarsa",
+			"Kantor Penerbit",
+			"MRZ Line 1 & Line 2",
+		],
+	},
+	{
+		id: "npwp",
+		shortName: "NPWP",
+		fullName: "Nomor Pokok Wajib Pajak",
+		category: "Identitas Perpajakan",
+		endpoint: "/api/v1/ocr/npwp",
+		tagline: "Format standar 15-digit NPWP, identitas WP, dan KPP terdaftar",
+		icon: Landmark,
+		accentBg: "bg-purple-50 dark:bg-purple-950/40",
+		accentText: "text-purple-600 dark:text-purple-400",
+		extractableFields: [
+			"Nomor NPWP",
+			"Nama Wajib Pajak",
+			"NIK Terintegrasi",
+			"Alamat Wajib Pajak",
+			"Kelurahan & Kecamatan",
+			"Kota/Kabupaten & Provinsi",
+			"KPP Terdaftar",
+			"Tanggal Terdaftar",
+		],
+	},
+	{
+		id: "kk",
+		shortName: "KK",
+		fullName: "Kartu Keluarga",
+		category: "Kependudukan & Keluarga",
+		endpoint: "/api/v1/ocr/kk",
+		tagline: "Nomor KK, kepala keluarga, dan tabel relasi anggota keluarga",
+		icon: Users,
+		accentBg: "bg-indigo-50 dark:bg-indigo-950/40",
+		accentText: "text-indigo-600 dark:text-indigo-400",
+		extractableFields: [
+			"Nomor KK",
+			"Nama Kepala Keluarga",
+			"Alamat Domisili & RT/RW",
+			"Daftar Anggota Keluarga",
+			"NIK Anggota Keluarga",
+			"Status Hubungan",
+			"Tanggal Dikeluarkan",
+		],
+	},
+	{
+		id: "invoice",
+		shortName: "Invoice",
+		fullName: "Commercial Invoice / E-Faktur",
+		category: "Dokumen Finansial & Transaksi",
+		endpoint: "/api/v1/ocr/invoice",
+		tagline:
+			"Nomor invoice, entitas penjual/pembeli, subtotal, PPN, dan grand total",
+		icon: Receipt,
+		accentBg: "bg-rose-50 dark:bg-rose-950/40",
+		accentText: "text-rose-600 dark:text-rose-400",
+		extractableFields: [
+			"Nomor Invoice & Tanggal",
+			"Tanggal Jatuh Tempo",
+			"Data Penjual & NPWP",
+			"Data Pembeli & NPWP",
+			"Subtotal & Diskon",
+			"DPP & PPN (11%)",
+			"Grand Total",
+			"Rincian Line Items",
+		],
+	},
+];
+
 export interface PlaygroundPageProps {
 	onNavigate?: (page: NavigationPage) => void;
 }
@@ -35,13 +195,49 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({
 }) => {
 	const { currentOrg, apiKey } = useAuth();
 
-	const [docType, setDocType] = useState<"ktp" | "sim" | "passport" | "npwp" | "kk" | "invoice">("ktp");
+	const [docType, setDocType] = useState<
+		"ktp" | "sim" | "passport" | "npwp" | "kk" | "invoice"
+	>("ktp");
+	const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+	const dropdownRef = useRef<HTMLDivElement>(null);
 	const [ocrLoading, setOcrLoading] = useState(false);
 	const [ocrResult, setOcrResult] = useState<
-		KTPResponse | SIMResponse | PassportResponse | NPWPResponse | KKResponse | InvoiceResponse | null
+		| KTPResponse
+		| SIMResponse
+		| PassportResponse
+		| NPWPResponse
+		| KKResponse
+		| InvoiceResponse
+		| null
 	>(null);
 	const [ocrError, setOcrError] = useState<string | null>(null);
 	const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
+
+	const activeService =
+		OCR_SERVICES.find((s) => s.id === docType) || OCR_SERVICES[0];
+	const ActiveIcon = activeService.icon;
+
+	useEffect(() => {
+		const handleClickOutside = (event: MouseEvent) => {
+			if (
+				dropdownRef.current &&
+				!dropdownRef.current.contains(event.target as Node)
+			) {
+				setIsDropdownOpen(false);
+			}
+		};
+		const handleKeyDown = (event: KeyboardEvent) => {
+			if (event.key === "Escape") {
+				setIsDropdownOpen(false);
+			}
+		};
+		document.addEventListener("mousedown", handleClickOutside);
+		document.addEventListener("keydown", handleKeyDown);
+		return () => {
+			document.removeEventListener("mousedown", handleClickOutside);
+			document.removeEventListener("keydown", handleKeyDown);
+		};
+	}, []);
 
 	const handleFileUpload = async (file: File) => {
 		if (!apiKey) {
@@ -57,18 +253,24 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({
 					(docType === "invoice"
 						? "invoice_document.jpg"
 						: docType === "kk"
-						? "kartu_keluarga_document.jpg"
-						: docType === "npwp"
-						? "npwp_document.jpg"
-						: docType === "passport"
-							? "passport_document.jpg"
-							: docType === "sim"
-								? "sim_document.jpg"
-								: "ktp_document.jpg"),
+							? "kartu_keluarga_document.jpg"
+							: docType === "npwp"
+								? "npwp_document.jpg"
+								: docType === "passport"
+									? "passport_document.jpg"
+									: docType === "sim"
+										? "sim_document.jpg"
+										: "ktp_document.jpg"),
 			);
 			setOcrLoading(true);
 			setOcrError(null);
-			let res: KTPResponse | SIMResponse | PassportResponse | NPWPResponse | KKResponse | InvoiceResponse;
+			let res:
+				| KTPResponse
+				| SIMResponse
+				| PassportResponse
+				| NPWPResponse
+				| KKResponse
+				| InvoiceResponse;
 			if (docType === "invoice") {
 				res = await api.executeInvoiceOCR(file, apiKey);
 			} else if (docType === "kk") {
@@ -98,14 +300,14 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({
 				docType === "invoice"
 					? "synthetic_invoice_fixture.jpg"
 					: docType === "kk"
-					? "synthetic_kk_fixture.jpg"
-					: docType === "npwp"
-					? "synthetic_npwp_fixture.jpg"
-					: docType === "passport"
-						? "synthetic_passport_fixture.jpg"
-						: docType === "sim"
-							? "synthetic_sim_fixture.jpg"
-							: "synthetic_ktp_fixture.jpg";
+						? "synthetic_kk_fixture.jpg"
+						: docType === "npwp"
+							? "synthetic_npwp_fixture.jpg"
+							: docType === "passport"
+								? "synthetic_passport_fixture.jpg"
+								: docType === "sim"
+									? "synthetic_sim_fixture.jpg"
+									: "synthetic_ktp_fixture.jpg";
 			setSelectedFileName(filename);
 			setOcrLoading(true);
 			setOcrError(null);
@@ -195,126 +397,185 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({
 	return (
 		<div className="space-y-6">
 			{/* Page Header */}
-			<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+			<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
 				<div>
-					<h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">
-						Live OCR Playground
-					</h2>
+					<div className="flex items-center gap-2 mb-1">
+						<h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">
+							Live OCR Playground
+						</h2>
+						<span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300">
+							v1.0 Ready
+						</span>
+					</div>
 					<p className="text-xs text-slate-500 dark:text-slate-400">
-						Interactive test harness for Indonesian identity documents (KTP, SIM, Passport, NPWP, KK & Invoice)
-						with synthetic fixtures.
+						Interactive test harness for Indonesian identity documents (KTP,
+						SIM, Passport, NPWP, KK & Invoice) with synthetic fixtures.
 					</p>
 				</div>
 
-				{/* Document Switcher & Fixture Button */}
-				<div className="flex items-center gap-2.5">
-					<div className="flex items-center bg-slate-200/70 dark:bg-white/10 p-0.5 rounded-lg text-xs font-semibold">
-						<button
-							type="button"
-							onClick={() => {
-								setDocType("ktp");
-								setOcrResult(null);
-								setSelectedFileName(null);
-								setOcrError(null);
-							}}
-							className={`px-3 py-1 rounded-md transition-all cursor-pointer ${
-								docType === "ktp"
-									? "bg-white dark:bg-slate-700 text-[#1877F2] dark:text-white"
-									: "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:text-white dark:hover:text-white"
-							}`}
-						>
-							KTP
-						</button>
-						<button
-							type="button"
-							onClick={() => {
-								setDocType("sim");
-								setOcrResult(null);
-								setSelectedFileName(null);
-								setOcrError(null);
-							}}
-							className={`px-3 py-1 rounded-md transition-all cursor-pointer ${
-								docType === "sim"
-									? "bg-white dark:bg-slate-700 text-[#1877F2] dark:text-white"
-									: "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:text-white dark:hover:text-white"
-							}`}
-						>
-							SIM
-						</button>
-						<button
-							type="button"
-							onClick={() => {
-								setDocType("passport");
-								setOcrResult(null);
-								setSelectedFileName(null);
-								setOcrError(null);
-							}}
-							className={`px-3 py-1 rounded-md transition-all cursor-pointer ${
-								docType === "passport"
-									? "bg-white dark:bg-slate-700 text-[#1877F2] dark:text-white"
-									: "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:text-white dark:hover:text-white"
-							}`}
-						>
-							Passport
-						</button>
-						<button
-							type="button"
-							onClick={() => {
-								setDocType("npwp");
-								setOcrResult(null);
-								setSelectedFileName(null);
-								setOcrError(null);
-							}}
-							className={`px-3 py-1 rounded-md transition-all cursor-pointer ${
-								docType === "npwp"
-									? "bg-white dark:bg-slate-700 text-[#1877F2] dark:text-white"
-									: "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:text-white dark:hover:text-white"
-							}`}
-						>
-							NPWP
-						</button>
-						<button
-							type="button"
-							onClick={() => {
-								setDocType("kk");
-								setOcrResult(null);
-								setSelectedFileName(null);
-								setOcrError(null);
-							}}
-							className={`px-3 py-1 rounded-md transition-all cursor-pointer ${
-								docType === "kk"
-									? "bg-white dark:bg-slate-700 text-[#1877F2] dark:text-white"
-									: "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:text-white dark:hover:text-white"
-							}`}
-						>
-							KK
-						</button>
-						<button
-							type="button"
-							onClick={() => {
-								setDocType("invoice");
-								setOcrResult(null);
-								setSelectedFileName(null);
-								setOcrError(null);
-							}}
-							className={`px-3 py-1 rounded-md transition-all cursor-pointer ${
-								docType === "invoice"
-									? "bg-white dark:bg-slate-700 text-[#1877F2] dark:text-white"
-									: "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:text-white dark:hover:text-white"
-							}`}
-						>
-							Invoice
-						</button>
-					</div>
+				<div className="flex items-center gap-2 shrink-0">
 					<button
 						type="button"
 						onClick={handleLoadSyntheticSample}
 						disabled={ocrLoading}
-						className="inline-flex items-center justify-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-[#1877F2] dark:text-[#7aa9f5] bg-[#E7F3FF] dark:bg-[#1877F2]/20 hover:bg-[#d5eaff] dark:hover:bg-[#1877F2]/30 rounded-lg transition-colors cursor-pointer"
+						className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-[#1877F2] dark:text-[#7aa9f5] bg-[#E7F3FF] dark:bg-[#1877F2]/20 hover:bg-[#d5eaff] dark:hover:bg-[#1877F2]/30 border border-[#1877F2]/20 rounded-lg transition-all cursor-pointer shadow-xs disabled:opacity-50"
 					>
-						<FileCheck className="w-3.5 h-3.5" />
+						<Sparkles className="w-3.5 h-3.5" />
 						<span>Load Synthetic Fixture</span>
 					</button>
+				</div>
+			</div>
+
+			{/* Responsive OCR Service Selector (Dropdown) */}
+			<div className="space-y-3">
+				<div className="relative" ref={dropdownRef}>
+					<div className="flex items-center justify-between mb-1.5">
+						<span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
+							Pilih Layanan OCR Dokumen
+						</span>
+						<span className="text-[11px] text-slate-400 dark:text-slate-500">
+							6 Layanan Ekstraksi Aktif
+						</span>
+					</div>
+
+					{/* Dropdown Trigger Button */}
+					<button
+						type="button"
+						aria-label="Pilih Jenis Dokumen OCR"
+						aria-haspopup="listbox"
+						aria-expanded={isDropdownOpen}
+						onClick={() => setIsDropdownOpen((prev) => !prev)}
+						className="w-full flex items-center justify-between p-3 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 hover:border-slate-300 dark:hover:border-white/20 transition-all text-left shadow-xs cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#1877F2]/20"
+					>
+						<div className="flex items-center gap-3 min-w-0">
+							<div
+								className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${activeService.accentBg} ${activeService.accentText}`}
+							>
+								<ActiveIcon className="w-5 h-5" />
+							</div>
+							<div className="min-w-0">
+								<div className="flex items-center gap-2 flex-wrap">
+									<span className="font-bold text-slate-900 dark:text-white text-sm">
+										{activeService.shortName}
+									</span>
+									<span className="text-slate-400 dark:text-slate-500 text-xs hidden sm:inline">
+										•
+									</span>
+									<span className="text-xs text-slate-600 dark:text-slate-400 truncate">
+										{activeService.fullName}
+									</span>
+									<span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hidden sm:inline">
+										{activeService.category}
+									</span>
+								</div>
+								<p className="text-[11px] text-slate-500 dark:text-slate-400 truncate mt-0.5">
+									{activeService.tagline}
+								</p>
+							</div>
+						</div>
+						<div className="flex items-center gap-2 shrink-0 ml-2">
+							<span className="hidden md:inline-block font-mono text-[10px] px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-700/60 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
+								POST {activeService.endpoint}
+							</span>
+							<div className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-700/60 flex items-center justify-center text-slate-500 dark:text-slate-400">
+								<ChevronDown
+									className={`w-4 h-4 transition-transform duration-200 ${
+										isDropdownOpen ? "rotate-180" : ""
+									}`}
+								/>
+							</div>
+						</div>
+					</button>
+
+					{/* Dropdown Menu */}
+					<div
+						className={`absolute z-30 left-0 right-0 mt-2 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-xl overflow-hidden transition-all duration-150 ${
+							isDropdownOpen
+								? "opacity-100 visible translate-y-0"
+								: "opacity-0 invisible -translate-y-1 pointer-events-none"
+						}`}
+					>
+						<div className="p-1.5 space-y-1 max-h-[360px] overflow-y-auto">
+							{OCR_SERVICES.map((service) => {
+								const isSelected = docType === service.id;
+								const ServiceIcon = service.icon;
+								return (
+									<button
+										key={service.id}
+										type="button"
+										aria-label={service.shortName}
+										onClick={() => {
+											setDocType(service.id);
+											setOcrResult(null);
+											setSelectedFileName(null);
+											setOcrError(null);
+											setIsDropdownOpen(false);
+										}}
+										className={`w-full flex items-center justify-between p-2.5 rounded-lg text-left transition-colors cursor-pointer ${
+											isSelected
+												? "bg-[#1877F2]/10 dark:bg-[#1877F2]/20 text-[#1877F2] dark:text-[#7aa9f5]"
+												: "hover:bg-slate-50 dark:hover:bg-white/5 text-slate-700 dark:text-slate-300"
+										}`}
+									>
+										<div className="flex items-center gap-3 min-w-0">
+											<div
+												className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${service.accentBg} ${service.accentText}`}
+											>
+												<ServiceIcon className="w-4 h-4" />
+											</div>
+											<div className="min-w-0">
+												<div className="flex items-center gap-2">
+													<span className="font-bold text-xs">
+														{service.shortName}
+													</span>
+													<span className="text-slate-400 text-xs hidden sm:inline">
+														•
+													</span>
+													<span className="text-xs text-slate-600 dark:text-slate-400 truncate">
+														{service.fullName}
+													</span>
+												</div>
+												<span className="text-[11px] text-slate-400 block truncate">
+													{service.category} — {service.tagline}
+												</span>
+											</div>
+										</div>
+										<div className="flex items-center gap-2 shrink-0 ml-2">
+											<span className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 hidden sm:inline">
+												{service.endpoint}
+											</span>
+											{isSelected && (
+												<Check className="w-4 h-4 text-[#1877F2] dark:text-[#7aa9f5]" />
+											)}
+										</div>
+									</button>
+								);
+							})}
+						</div>
+					</div>
+				</div>
+
+				{/* Active Service Status Ribbon */}
+				<div className="flex flex-wrap items-center justify-between gap-2 px-3.5 py-2.5 bg-slate-50 dark:bg-white/[0.02] rounded-xl border border-slate-200/80 dark:border-white/5 text-xs">
+					<div className="flex items-center gap-2 flex-wrap">
+						<span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+							Target Endpoint:
+						</span>
+						<code className="px-2 py-0.5 rounded bg-white dark:bg-slate-800 text-[11px] font-mono text-[#1877F2] dark:text-[#7aa9f5] border border-slate-200 dark:border-slate-700">
+							POST {activeService.endpoint}
+						</code>
+						<span className="text-slate-300 dark:text-slate-700 hidden sm:inline">
+							|
+						</span>
+						<span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">
+							Zero-PII Storage (In-Memory Processing)
+						</span>
+					</div>
+					<div className="flex items-center gap-1.5 text-[11px] text-slate-400 dark:text-slate-500">
+						<span>Max file: 5MB</span>
+						<span>•</span>
+						<span>JPEG, PNG, WEBP</span>
+					</div>
 				</div>
 			</div>
 
@@ -352,8 +613,19 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({
 								Click to upload or drag & drop
 							</p>
 							<p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-								Upload Indonesian {docType === "invoice" ? "Invoice / E-Faktur" : docType === "passport" ? "Passport" : docType === "npwp" ? "NPWP" : docType === "kk" ? "Kartu Keluarga" : docType === "sim" ? "SIM" : "KTP"} image
-								(JPEG, PNG, max 5MB)
+								Upload Indonesian{" "}
+								{docType === "invoice"
+									? "Invoice / E-Faktur"
+									: docType === "passport"
+										? "Passport"
+										: docType === "npwp"
+											? "NPWP"
+											: docType === "kk"
+												? "Kartu Keluarga"
+												: docType === "sim"
+													? "SIM"
+													: "KTP"}{" "}
+								image (JPEG, PNG, max 5MB)
 							</p>
 							<input
 								id="ktp-file-input"
@@ -406,8 +678,19 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({
 								<div className="h-full flex items-center justify-center text-slate-500 dark:text-slate-400 py-16">
 									<RefreshCw className="w-5 h-5 animate-spin mr-2 text-[#1877F2]" />
 									<span>
-										Processing {docType === "invoice" ? "Invoice" : docType === "passport" ? "Passport" : docType === "npwp" ? "NPWP" : docType === "kk" ? "Kartu Keluarga" : docType === "sim" ? "SIM" : "KTP"} OCR
-										extraction...
+										Processing{" "}
+										{docType === "invoice"
+											? "Invoice"
+											: docType === "passport"
+												? "Passport"
+												: docType === "npwp"
+													? "NPWP"
+													: docType === "kk"
+														? "Kartu Keluarga"
+														: docType === "sim"
+															? "SIM"
+															: "KTP"}{" "}
+										OCR extraction...
 									</span>
 								</div>
 							) : ocrResult ? (
@@ -418,8 +701,19 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({
 								<div className="h-full flex flex-col items-center justify-center text-slate-500 dark:text-slate-400 py-16 text-center">
 									<p>No document submitted yet.</p>
 									<p className="text-[11px] text-slate-600 dark:text-slate-400 mt-1">
-										Upload a {docType === "invoice" ? "Invoice" : docType === "passport" ? "Passport" : docType === "npwp" ? "NPWP" : docType === "kk" ? "Kartu Keluarga" : docType === "sim" ? "SIM" : "KTP"} image or click
-										"Load Synthetic Fixture" above.
+										Upload a{" "}
+										{docType === "invoice"
+											? "Invoice"
+											: docType === "passport"
+												? "Passport"
+												: docType === "npwp"
+													? "NPWP"
+													: docType === "kk"
+														? "Kartu Keluarga"
+														: docType === "sim"
+															? "SIM"
+															: "KTP"}{" "}
+										image or click "Load Synthetic Fixture" above.
 									</p>
 								</div>
 							)}
@@ -559,30 +853,42 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({
 								</div>
 
 								{/* Line Items Table */}
-								{ocrResult.data.line_items && ocrResult.data.line_items.length > 0 && (
-									<div className="mt-4 border border-slate-200 dark:border-white/10 rounded-lg overflow-x-auto">
-										<table className="w-full text-left text-xs">
-											<thead className="bg-slate-100 dark:bg-white/5 text-[10px] uppercase font-semibold text-slate-500 dark:text-slate-400">
-												<tr>
-													<th className="p-2.5">Deskripsi Barang / Jasa</th>
-													<th className="p-2.5 text-right">Kuantitas</th>
-													<th className="p-2.5 text-right">Harga Satuan</th>
-													<th className="p-2.5 text-right">Total Harga</th>
-												</tr>
-											</thead>
-											<tbody className="divide-y divide-slate-200 dark:divide-white/10 text-slate-800 dark:text-slate-200">
-												{ocrResult.data.line_items.map((item, idx) => (
-													<tr key={idx} className="hover:bg-slate-50 dark:hover:bg-white/5">
-														<td className="p-2.5 font-medium">{item.description}</td>
-														<td className="p-2.5 font-mono text-right">{item.quantity}</td>
-														<td className="p-2.5 font-mono text-right">{item.unit_price.toLocaleString("id-ID")}</td>
-														<td className="p-2.5 font-mono text-right font-semibold">{item.total_price.toLocaleString("id-ID")}</td>
+								{ocrResult.data.line_items &&
+									ocrResult.data.line_items.length > 0 && (
+										<div className="mt-4 border border-slate-200 dark:border-white/10 rounded-lg overflow-x-auto">
+											<table className="w-full text-left text-xs">
+												<thead className="bg-slate-100 dark:bg-white/5 text-[10px] uppercase font-semibold text-slate-500 dark:text-slate-400">
+													<tr>
+														<th className="p-2.5">Deskripsi Barang / Jasa</th>
+														<th className="p-2.5 text-right">Kuantitas</th>
+														<th className="p-2.5 text-right">Harga Satuan</th>
+														<th className="p-2.5 text-right">Total Harga</th>
 													</tr>
-												))}
-											</tbody>
-										</table>
-									</div>
-								)}
+												</thead>
+												<tbody className="divide-y divide-slate-200 dark:divide-white/10 text-slate-800 dark:text-slate-200">
+													{ocrResult.data.line_items.map((item) => (
+														<tr
+															key={`${item.description}-${item.unit_price}-${item.quantity}`}
+															className="hover:bg-slate-50 dark:hover:bg-white/5"
+														>
+															<td className="p-2.5 font-medium">
+																{item.description}
+															</td>
+															<td className="p-2.5 font-mono text-right">
+																{item.quantity}
+															</td>
+															<td className="p-2.5 font-mono text-right">
+																{item.unit_price.toLocaleString("id-ID")}
+															</td>
+															<td className="p-2.5 font-mono text-right font-semibold">
+																{item.total_price.toLocaleString("id-ID")}
+															</td>
+														</tr>
+													))}
+												</tbody>
+											</table>
+										</div>
+									)}
 							</div>
 						) : "passport_number" in ocrResult.data ? (
 							<div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-3 text-xs">
@@ -768,38 +1074,54 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({
 									)}
 								</div>
 
-								{ocrResult.data.anggota_keluarga && ocrResult.data.anggota_keluarga.length > 0 && (
-									<div className="mt-4 border border-slate-200 dark:border-white/10 rounded-lg overflow-x-auto">
-										<table className="w-full text-left text-xs">
-											<thead className="bg-slate-100 dark:bg-white/5 text-[10px] uppercase font-semibold text-slate-500 dark:text-slate-400">
-												<tr>
-													<th className="p-2.5">Nama Lengkap</th>
-													<th className="p-2.5">NIK</th>
-													<th className="p-2.5">Hubungan</th>
-													<th className="p-2.5">Jenis Kelamin</th>
-													<th className="p-2.5">Tanggal Lahir</th>
-													<th className="p-2.5">Pekerjaan</th>
-												</tr>
-											</thead>
-											<tbody className="divide-y divide-slate-200 dark:divide-white/10 text-slate-800 dark:text-slate-200">
-												{ocrResult.data.anggota_keluarga.map((member, idx) => (
-													<tr key={member.nik || idx} className="hover:bg-slate-50 dark:hover:bg-white/5">
-														<td className="p-2.5 font-medium">{member.nama}</td>
-														<td className="p-2.5 font-mono">{member.nik}</td>
-														<td className="p-2.5">
-															<span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-50 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300">
-																{member.status_hubungan}
-															</span>
-														</td>
-														<td className="p-2.5">{member.jenis_kelamin}</td>
-														<td className="p-2.5 font-mono">{member.tanggal_lahir}</td>
-														<td className="p-2.5">{member.jenis_pekerjaan}</td>
+								{ocrResult.data.anggota_keluarga &&
+									ocrResult.data.anggota_keluarga.length > 0 && (
+										<div className="mt-4 border border-slate-200 dark:border-white/10 rounded-lg overflow-x-auto">
+											<table className="w-full text-left text-xs">
+												<thead className="bg-slate-100 dark:bg-white/5 text-[10px] uppercase font-semibold text-slate-500 dark:text-slate-400">
+													<tr>
+														<th className="p-2.5">Nama Lengkap</th>
+														<th className="p-2.5">NIK</th>
+														<th className="p-2.5">Hubungan</th>
+														<th className="p-2.5">Jenis Kelamin</th>
+														<th className="p-2.5">Tanggal Lahir</th>
+														<th className="p-2.5">Pekerjaan</th>
 													</tr>
-												))}
-											</tbody>
-										</table>
-									</div>
-								)}
+												</thead>
+												<tbody className="divide-y divide-slate-200 dark:divide-white/10 text-slate-800 dark:text-slate-200">
+													{ocrResult.data.anggota_keluarga.map(
+														(member, idx) => (
+															<tr
+																key={member.nik || idx}
+																className="hover:bg-slate-50 dark:hover:bg-white/5"
+															>
+																<td className="p-2.5 font-medium">
+																	{member.nama}
+																</td>
+																<td className="p-2.5 font-mono">
+																	{member.nik}
+																</td>
+																<td className="p-2.5">
+																	<span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-50 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300">
+																		{member.status_hubungan}
+																	</span>
+																</td>
+																<td className="p-2.5">
+																	{member.jenis_kelamin}
+																</td>
+																<td className="p-2.5 font-mono">
+																	{member.tanggal_lahir}
+																</td>
+																<td className="p-2.5">
+																	{member.jenis_pekerjaan}
+																</td>
+															</tr>
+														),
+													)}
+												</tbody>
+											</table>
+										</div>
+									)}
 							</div>
 						) : "npwp" in ocrResult.data ? (
 							<div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-3 text-xs">
