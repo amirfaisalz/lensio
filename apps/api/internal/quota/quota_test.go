@@ -133,11 +133,11 @@ func TestEnforcer_CheckQuota(t *testing.T) {
 		}
 	})
 
-	t.Run("nil stores fallback to allowed", func(t *testing.T) {
+	t.Run("nil stores deny with error", func(t *testing.T) {
 		e := quota.NewEnforcer(nil, nil)
-		allowed, remaining, limit, err := e.CheckQuota(ctx, "org-1")
-		if err != nil || !allowed || remaining != 100 || limit != 100 {
-			t.Fatalf("unexpected fallback result: allowed=%v, remaining=%d, limit=%d, err=%v", allowed, remaining, limit, err)
+		allowed, _, _, err := e.CheckQuota(ctx, "org-1")
+		if err == nil || allowed {
+			t.Fatalf("expected denied with error for unconfigured stores, got allowed=%v err=%v", allowed, err)
 		}
 	})
 

@@ -177,3 +177,74 @@ func TestUsageStore_LiveDB(t *testing.T) {
 	}
 }
 
+func TestMonthlyOCRCount_MultiDocTypes(t *testing.T) {
+	dbURL := os.Getenv("DATABASE_URL")
+	if dbURL == "" {
+		dbURL = "postgres://lensio:lensio_dev_password@localhost:5432/lensio?sslmode=disable"
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	db, err := store.New(ctx, dbURL)
+	if err != nil {
+		t.Skipf("skipping live database tests: %v", err)
+	}
+	defer db.Close()
+
+	if err := store.RunMigrationsUp(db.DB); err != nil {
+		t.Fatalf("failed running migrations: %v", err)
+	}
+
+	testOrg := createTestOrg(t, db)
+	since := time.Now().Add(-1 * time.Hour)
+
+	// Successful OCR across document types must ALL count towards quota.
+	for i, endpoint := range []string{
+		"/api/v1/ocr/ktp",
+		"/api/v1/ocr/sim",
+		"/api/v1/ocr/passport",
+		"/api/v1/ocr/npwp",
+		"/api/v1/ocr/kk",
+		"/api/v1/ocr/invoice",
+	} {
+		rec := &store.UsageRecord{
+			OrgID:      testOrg.ID,
+			RequestID:  fmt.Sprintf("req_multidoc_%d_%d", time.Now().UnixNano(), i),
+			Endpoint:   endpoint,
+			StatusCode: 200,
+			LatencyMS:  100,
+			Timestamp:  time.Now(),
+		}
+		if err := db.CreateUsageRecord(ctx, rec); err != nil {
+			t.Fatalf("failed creating usage record for %s: %v", endpoint, err)
+		}
+	}
+
+	// Failed requests and non-OCR endpoints must NOT count.
+	for _, rec := range []*store.UsageRecord{
+		{OrgID: testOrg.ID, RequestID: fmt.Sprintf("req_multidoc_fail_%d", time.Now().UnixNano()), Endpoint: "/api/v1/ocr/sim", StatusCode: 429, LatencyMS: 5, Timestamp: time.Now()},
+		{OrgID: testOrg.ID, RequestID: fmt.Sprintf("req_multidoc_acct_%d", time.Now().UnixNano()), Endpoint: "/api/v1/account", StatusCode: 200, LatencyMS: 5, Timestamp: time.Now()},
+	} {
+		if err := db.CreateUsageRecord(ctx, rec); err != nil {
+			t.Fatalf("failed creating exclusion record: %v", err)
+		}
+	}
+
+	count, err := db.GetMonthlyOCRCount(ctx, testOrg.ID, since)
+	if err != nil {
+		t.Fatalf("failed querying monthly ocr count: %v", err)
+	}
+	if count != 6 {
+		t.Errorf("expected 6 successful OCR requests across doc types, got %d", count)
+	}
+
+	summary, err := db.GetUsageSummary(ctx, testOrg.ID, since, 100, time.Now().Add(24*time.Hour))
+	if err != nil {
+		t.Fatalf("failed querying usage summary: %v", err)
+	}
+	if summary.QuotaRemaining != 94 {
+		t.Errorf("expected quota remaining 94, got %d", summary.QuotaRemaining)
+	}
+}
+

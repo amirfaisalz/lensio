@@ -233,3 +233,33 @@ func TestRateLimitMiddleware_AccountEndpointsBypass(t *testing.T) {
 		t.Errorf("expected next called 3 times, got %d", nextCalled)
 	}
 }
+
+func TestRateLimitMiddleware_LoginEnforcedAndOIDCIgnoresOrgQuery(t *testing.T) {
+	limiter := ratelimit.NewLimiter()
+	mw := middleware.NewRateLimitMiddleware(limiter, nil, "")
+	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+	handler := mw.Handler(next)
+
+	for i := 0; i < 15; i++ {
+		limiter.Allow("ip:192.0.2.1", 1)
+	}
+	loginReq := httptest.NewRequest(http.MethodPost, "/api/v1/auth/login", nil)
+	loginRec := httptest.NewRecorder()
+	handler.ServeHTTP(loginRec, loginReq)
+	if loginRec.Code != http.StatusTooManyRequests {
+		t.Fatalf("expected 429 for exhausted login bucket, got %d", loginRec.Code)
+	}
+
+	for i := 0; i < 15; i++ {
+		limiter.Allow("oidc:sub-query-1", 1)
+	}
+	oidcReq := httptest.NewRequest(http.MethodGet, "/test?org_id=some-other-org", nil)
+	oidcReq = oidcReq.WithContext(middleware.WithOIDCUser(oidcReq.Context(), &middleware.OIDCUser{Subject: "sub-query-1"}))
+	oidcRec := httptest.NewRecorder()
+	handler.ServeHTTP(oidcRec, oidcReq)
+	if oidcRec.Code != http.StatusTooManyRequests {
+		t.Fatalf("expected 429 under identity key despite org_id query, got %d", oidcRec.Code)
+	}
+}

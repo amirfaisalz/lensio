@@ -345,3 +345,38 @@ func TestIdempotencyMiddleware_WithAuthContext(t *testing.T) {
 		t.Fatalf("expected record stored under org-auth-test: isNew=%v, err=%v", isNew, err)
 	}
 }
+
+func TestIdempotencyMiddleware_RateLimitNotCached(t *testing.T) {
+	memStore := idempotency.NewMemoryStore(time.Hour)
+	calls := 0
+	limitedHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		w.WriteHeader(http.StatusTooManyRequests)
+		_, _ = w.Write([]byte("quota exceeded"))
+	})
+	mw := middleware.Idempotency(memStore)(limitedHandler)
+
+	newReq := func() *http.Request {
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/ocr/sim", bytes.NewReader([]byte("same-payload")))
+		req.Header.Set("Idempotency-Key", "quota-key-1")
+		return req
+	}
+
+	first := httptest.NewRecorder()
+	mw.ServeHTTP(first, newReq())
+	second := httptest.NewRecorder()
+	mw.ServeHTTP(second, newReq())
+
+	if first.Code != http.StatusTooManyRequests || second.Code != http.StatusTooManyRequests {
+		t.Fatalf("expected 429 twice, got %d then %d", first.Code, second.Code)
+	}
+	if calls != 2 {
+		t.Fatalf("expected handler executed twice (429 must release, never replay), got %d", calls)
+	}
+	if second.Header().Get("Idempotent-Replayed") == "true" {
+		t.Fatal("429 response must not be replayed from cache")
+	}
+	if memStore.Count() != 0 {
+		t.Fatalf("expected store count 0 after 429 release, got %d", memStore.Count())
+	}
+}

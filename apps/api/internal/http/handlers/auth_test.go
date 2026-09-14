@@ -431,6 +431,36 @@ func TestLogoutHandler(t *testing.T) {
 	}
 }
 
+func TestSessionCookieSecureInProduction(t *testing.T) {
+	t.Setenv("ENV", "production")
+
+	mockStore := newMockAccountStore()
+	passHash, _ := auth.HashPassword("validpassword123")
+	_, _ = mockStore.CreateUser(context.Background(), "Cara", "cara@example.com", passHash, "token")
+	_ = mockStore.VerifyUserEmail(context.Background(), "cara@example.com", "token")
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/login", bytes.NewBufferString(`{"email":"cara@example.com","password":"validpassword123"}`))
+	rec := httptest.NewRecorder()
+	handlers.LoginHandler(mockStore)(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d. Body: %s", rec.Code, rec.Body.String())
+	}
+	for _, c := range rec.Result().Cookies() {
+		if c.Name == "lensio_session" && !c.Secure {
+			t.Error("expected Secure session cookie in production even over plain HTTP")
+		}
+	}
+
+	outReq := httptest.NewRequest(http.MethodPost, "/api/v1/auth/logout", nil)
+	outRec := httptest.NewRecorder()
+	handlers.LogoutHandler()(outRec, outReq)
+	for _, c := range outRec.Result().Cookies() {
+		if c.Name == "lensio_session" && !c.Secure {
+			t.Error("expected Secure logout cookie in production even over plain HTTP")
+		}
+	}
+}
+
 func TestMeHandler(t *testing.T) {
 	mockStore := newMockAccountStore()
 	h := handlers.MeHandler(mockStore)

@@ -18,13 +18,14 @@ import (
 	"github.com/amirfaisalz/lensio/services/ocr"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // GenerateUUIDv4 generates an RFC 4122 compliant UUID v4 string using crypto/rand.
 func GenerateUUIDv4() string {
 	b := make([]byte, 16)
 	if _, err := rand.Read(b); err != nil {
-		return "00000000-0000-4000-8000-000000000000"
+		return fmt.Sprintf("00000000-0000-4000-8000-%012x", uint64(time.Now().UnixNano())&0xffffffffffff)
 	}
 	b[6] = (b[6] & 0x0f) | 0x40 // Version 4
 	b[8] = (b[8] & 0x3f) | 0x80 // Variant RFC 4122
@@ -105,59 +106,60 @@ type QuotaChecker interface {
 	CheckQuota(ctx context.Context, orgID string) (allowed bool, remaining int, limit int, err error)
 }
 
-// KTPOCRHandler processes an uploaded Indonesian KTP image, performs classification,
-// deterministic field normalization/validation, and returns structured data.
-// Uploaded image buffers are strictly processed in memory and discarded immediately.
-func KTPOCRHandler(engine ocr.OCREngine, ocrStore store.OCRRequestStore, quotaChecker QuotaChecker) http.HandlerFunc {
+type ocrDocConfig struct {
+	docType                string
+	docLabel               string
+	engineErrorLog         string
+	unsupportedErrs        []error
+	authMessage            string
+	missingFileMessage     string
+	readFailMessage        string
+	validSpanStatus        string
+	handlerSpanName        string
+	skipQuotaWhenOrgEmpty  bool
+	formFieldFallback      string
+	clearOnValidationError bool
+	ocrFailedBranch        bool
+	genericFailureStatus   int
+	genericFailureCode     string
+	genericFailureMessage  string
+	classifyStage          string
+	classify               func(*ocr.OCRResult) bool
+	normalize              func(*ocr.OCRResult) (any, float64)
+	respond                func(recordID string, confidence float64, latencyMS int, data any) any
+}
+
+func ocrPipeline(cfg ocrDocConfig, engine ocr.OCREngine, ocrStore store.OCRRequestStore, quotaChecker QuotaChecker) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		startTime := time.Now()
+		ctx := r.Context()
+		if cfg.handlerSpanName != "" {
+			var handlerSpan trace.Span
+			ctx, handlerSpan = telemetry.Tracer().Start(ctx, cfg.handlerSpanName)
+			defer handlerSpan.End()
+		}
 
-		key := middleware.GetAPIKey(r.Context())
+		key := middleware.GetAPIKey(ctx)
 		if key == nil {
-			response.ErrorWithRequest(
-				w,
-				r,
-				http.StatusUnauthorized,
-				response.CodeInvalidAPIKey,
-				"Unauthenticated request",
-			)
+			response.ErrorWithRequest(w, r, http.StatusUnauthorized, response.CodeInvalidAPIKey, cfg.authMessage)
 			return
 		}
 
-		if quotaChecker != nil {
+		if quotaChecker != nil && !(cfg.skipQuotaWhenOrgEmpty && key.OrgID == "") {
 			allowed, _, _, err := quotaChecker.CheckQuota(r.Context(), key.OrgID)
 			if err != nil {
-				response.ErrorWithRequest(
-					w,
-					r,
-					http.StatusInternalServerError,
-					response.CodeInternalError,
-					"Failed checking quota availability",
-				)
+				response.ErrorWithRequest(w, r, http.StatusInternalServerError, response.CodeInternalError, "Failed checking quota availability")
 				return
 			}
 			if !allowed {
-				response.ErrorWithRequest(
-					w,
-					r,
-					http.StatusTooManyRequests,
-					response.CodeQuotaExceeded,
-					"Monthly API quota exceeded. Please upgrade your plan.",
-				)
+				response.ErrorWithRequest(w, r, http.StatusTooManyRequests, response.CodeQuotaExceeded, "Monthly API quota exceeded. Please upgrade your plan.")
 				return
 			}
 		}
 
-		// Enforce maximum upload body size (5MB + 1KB buffer for multipart headers)
 		r.Body = http.MaxBytesReader(w, r.Body, ocr.MaxImageSizeBytes+1024)
 		if err := r.ParseMultipartForm(ocr.MaxImageSizeBytes); err != nil {
-			response.ErrorWithRequest(
-				w,
-				r,
-				http.StatusBadRequest,
-				response.CodeInvalidDocument,
-				"File exceeds 5MB or invalid multipart form",
-			)
+			response.ErrorWithRequest(w, r, http.StatusBadRequest, response.CodeInvalidDocument, "File exceeds 5MB or invalid multipart form")
 			return
 		}
 		defer func() {
@@ -167,33 +169,23 @@ func KTPOCRHandler(engine ocr.OCREngine, ocrStore store.OCRRequestStore, quotaCh
 		}()
 
 		file, _, err := r.FormFile("document")
+		if err != nil && cfg.formFieldFallback != "" {
+			file, _, err = r.FormFile(cfg.formFieldFallback)
+		}
 		if err != nil {
-			response.ErrorWithRequest(
-				w,
-				r,
-				http.StatusBadRequest,
-				response.CodeInvalidDocument,
-				"Missing 'document' image file in multipart form",
-			)
+			response.ErrorWithRequest(w, r, http.StatusBadRequest, response.CodeInvalidDocument, cfg.missingFileMessage)
 			return
 		}
 		defer file.Close()
 
 		imgBytes, err := io.ReadAll(file)
 		if err != nil {
-			response.ErrorWithRequest(
-				w,
-				r,
-				http.StatusBadRequest,
-				response.CodeInvalidDocument,
-				"Failed reading uploaded document bytes",
-			)
+			response.ErrorWithRequest(w, r, http.StatusBadRequest, response.CodeInvalidDocument, cfg.readFailMessage)
 			return
 		}
 
 		tracer := telemetry.Tracer()
 
-		// Stage 1: Validate Image
 		valStart := time.Now()
 		_, valSpan := tracer.Start(r.Context(), "ocr.validate_image")
 		if _, err := ocr.ValidateImage(imgBytes); err != nil {
@@ -204,35 +196,25 @@ func KTPOCRHandler(engine ocr.OCREngine, ocrStore store.OCRRequestStore, quotaCh
 			valDuration := time.Since(valStart).Seconds()
 			telemetry.RecordOCRStageDuration(r.Context(), "validation", "error", valDuration)
 			telemetry.RecordOCRError(r.Context(), "validation", response.CodeInvalidDocument)
-			telemetry.RecordOCRRequest(r.Context(), "ktp", "failure", 0, time.Since(startTime).Seconds())
+			telemetry.RecordOCRRequest(r.Context(), cfg.docType, "failure", 0, time.Since(startTime).Seconds())
 
-			response.ErrorWithRequest(
-				w,
-				r,
-				http.StatusBadRequest,
-				response.CodeInvalidDocument,
-				err.Error(),
-			)
+			if cfg.clearOnValidationError {
+				clear(imgBytes)
+			}
+			response.ErrorWithRequest(w, r, http.StatusBadRequest, response.CodeInvalidDocument, err.Error())
 			return
 		}
-		valSpan.SetStatus(codes.Ok, "valid")
+		valSpan.SetStatus(codes.Ok, cfg.validSpanStatus)
 		valSpan.End()
 		telemetry.RecordOCRStageDuration(r.Context(), "validation", "success", time.Since(valStart).Seconds())
 
 		if engine == nil {
 			telemetry.RecordOCRError(r.Context(), "ocr_engine", response.CodeOCRFailed)
-			telemetry.RecordOCRRequest(r.Context(), "ktp", "failure", 0, time.Since(startTime).Seconds())
-			response.ErrorWithRequest(
-				w,
-				r,
-				http.StatusBadGateway,
-				response.CodeOCRFailed,
-				"OCR engine not available",
-			)
+			telemetry.RecordOCRRequest(r.Context(), cfg.docType, "failure", 0, time.Since(startTime).Seconds())
+			response.ErrorWithRequest(w, r, http.StatusBadGateway, response.CodeOCRFailed, "OCR engine not available")
 			return
 		}
 
-		// Stage 2: OCR Engine Extraction
 		engStart := time.Now()
 		engCtx, engSpan := tracer.Start(r.Context(), "ocr.engine_extract")
 		ocrResult, err := engine.Extract(engCtx, imgBytes)
@@ -240,97 +222,71 @@ func KTPOCRHandler(engine ocr.OCREngine, ocrStore store.OCRRequestStore, quotaCh
 		engDuration := time.Since(engStart).Seconds()
 
 		if err != nil {
-			slog.ErrorContext(r.Context(), "ocr engine extraction failed", slog.String("error", err.Error()))
+			slog.ErrorContext(r.Context(), cfg.engineErrorLog, slog.String("error", err.Error()))
 			engSpan.RecordError(err)
 			engSpan.SetStatus(codes.Error, err.Error())
 			engSpan.End()
 			telemetry.RecordOCRStageDuration(r.Context(), "ocr_engine", "error", engDuration)
 
-			if errors.Is(err, ocr.ErrUnsupportedDocument) {
+			unsupported := errors.Is(err, ocr.ErrUnsupportedDocument)
+			for _, sentinel := range cfg.unsupportedErrs {
+				if errors.Is(err, sentinel) {
+					unsupported = true
+					break
+				}
+			}
+			if unsupported {
 				telemetry.RecordOCRError(r.Context(), "ocr_engine", response.CodeUnsupportedDocument)
-				telemetry.RecordOCRRequest(r.Context(), "ktp", "failure", 0, time.Since(startTime).Seconds())
-				response.ErrorWithRequest(
-					w,
-					r,
-					http.StatusUnprocessableEntity,
-					response.CodeUnsupportedDocument,
-					"Uploaded image was not identified as an Indonesian KTP",
-				)
+				telemetry.RecordOCRRequest(r.Context(), cfg.docType, "failure", 0, time.Since(startTime).Seconds())
+				response.ErrorWithRequest(w, r, http.StatusUnprocessableEntity, response.CodeUnsupportedDocument, "Uploaded image was not identified as an "+cfg.docLabel)
 				return
 			}
 			if errors.Is(err, ocr.ErrCircuitOpen) {
 				telemetry.RecordOCRError(r.Context(), "circuit_breaker", response.CodeOCRFailed)
-				telemetry.RecordOCRRequest(r.Context(), "ktp", "failure", 0, time.Since(startTime).Seconds())
-				response.ErrorWithRequest(
-					w,
-					r,
-					http.StatusGatewayTimeout,
-					response.CodeOCRFailed,
-					"OCR circuit breaker is open: upstream service temporarily unavailable",
-				)
+				telemetry.RecordOCRRequest(r.Context(), cfg.docType, "failure", 0, time.Since(startTime).Seconds())
+				response.ErrorWithRequest(w, r, http.StatusGatewayTimeout, response.CodeOCRFailed, "OCR circuit breaker is open: upstream service temporarily unavailable")
 				return
 			}
 			if errors.Is(err, context.DeadlineExceeded) || strings.Contains(err.Error(), "context deadline exceeded") {
 				telemetry.RecordOCRError(r.Context(), "ocr_engine", response.CodeOCRFailed)
-				telemetry.RecordOCRRequest(r.Context(), "ktp", "failure", 0, time.Since(startTime).Seconds())
-				response.ErrorWithRequest(
-					w,
-					r,
-					http.StatusGatewayTimeout,
-					response.CodeOCRFailed,
-					"OCR engine processing timeout",
-				)
+				telemetry.RecordOCRRequest(r.Context(), cfg.docType, "failure", 0, time.Since(startTime).Seconds())
+				response.ErrorWithRequest(w, r, http.StatusGatewayTimeout, response.CodeOCRFailed, "OCR engine processing timeout")
 				return
 			}
-			if errors.Is(err, ocr.ErrOCRFailed) {
+			if cfg.ocrFailedBranch && errors.Is(err, ocr.ErrOCRFailed) {
 				telemetry.RecordOCRError(r.Context(), "ocr_engine", response.CodeOCRFailed)
-				telemetry.RecordOCRRequest(r.Context(), "ktp", "failure", 0, time.Since(startTime).Seconds())
-				response.ErrorWithRequest(
-					w,
-					r,
-					http.StatusBadGateway,
-					response.CodeOCRFailed,
-					"OCR engine processing timeout or failure",
-				)
+				telemetry.RecordOCRRequest(r.Context(), cfg.docType, "failure", 0, time.Since(startTime).Seconds())
+				response.ErrorWithRequest(w, r, http.StatusBadGateway, response.CodeOCRFailed, "OCR engine processing timeout or failure")
 				return
 			}
 
-			telemetry.RecordOCRError(r.Context(), "ocr_engine", response.CodeInternalError)
-			telemetry.RecordOCRRequest(r.Context(), "ktp", "failure", 0, time.Since(startTime).Seconds())
-			response.ErrorWithRequest(
-				w,
-				r,
-				http.StatusInternalServerError,
-				response.CodeInternalError,
-				"Internal error during document processing",
-			)
+			telemetry.RecordOCRError(r.Context(), "ocr_engine", cfg.genericFailureCode)
+			telemetry.RecordOCRRequest(r.Context(), cfg.docType, "failure", 0, time.Since(startTime).Seconds())
+			response.ErrorWithRequest(w, r, cfg.genericFailureStatus, cfg.genericFailureCode, cfg.genericFailureMessage)
 			return
 		}
 		engSpan.SetStatus(codes.Ok, "extracted")
 		engSpan.End()
 		telemetry.RecordOCRStageDuration(r.Context(), "ocr_engine", "success", engDuration)
 
-		if ocrResult == nil || ocrResult.DocumentType != "ktp" {
-			telemetry.RecordOCRError(r.Context(), "classification", response.CodeUnsupportedDocument)
-			telemetry.RecordOCRRequest(r.Context(), "ktp", "failure", 0, time.Since(startTime).Seconds())
-			response.ErrorWithRequest(
-				w,
-				r,
-				http.StatusUnprocessableEntity,
-				response.CodeUnsupportedDocument,
-				"Uploaded image was not identified as an Indonesian KTP",
-			)
+		accepted := ocrResult != nil && ocrResult.DocumentType == cfg.docType
+		if accepted && cfg.classify != nil {
+			accepted = cfg.classify(ocrResult)
+		}
+		if !accepted {
+			telemetry.RecordOCRError(r.Context(), cfg.classifyStage, response.CodeUnsupportedDocument)
+			telemetry.RecordOCRRequest(r.Context(), cfg.docType, "failure", 0, time.Since(startTime).Seconds())
+			response.ErrorWithRequest(w, r, http.StatusUnprocessableEntity, response.CodeUnsupportedDocument, "Uploaded image was not identified as an "+cfg.docLabel)
 			return
 		}
 
-		// Stage 3: Field Extraction & Normalization
 		normStart := time.Now()
 		_, normSpan := tracer.Start(r.Context(), "ocr.normalize_and_validate")
-		normalizedKTP, confidence, _ := ocr.ValidateKTP(ocrResult.Data)
+		data, confidence := cfg.normalize(ocrResult)
 		normDuration := time.Since(normStart).Seconds()
 		normSpan.SetAttributes(
 			attribute.Float64("ocr.confidence", confidence),
-			attribute.String("ocr.doc_type", "ktp"),
+			attribute.String("ocr.doc_type", cfg.docType),
 		)
 		normSpan.SetStatus(codes.Ok, "normalized")
 		normSpan.End()
@@ -340,7 +296,6 @@ func KTPOCRHandler(engine ocr.OCREngine, ocrStore store.OCRRequestStore, quotaCh
 		totalDurationSec := float64(latencyMS) / 1000.0
 		recordID := GenerateUUIDv4()
 
-		// Stage 4: Persist non-PII execution metadata in PostgreSQL
 		if ocrStore != nil {
 			_, storeSpan := tracer.Start(r.Context(), "ocr.store_metadata")
 			var apiKeyID *string
@@ -355,7 +310,7 @@ func KTPOCRHandler(engine ocr.OCREngine, ocrStore store.OCRRequestStore, quotaCh
 				Status:     "completed",
 				Confidence: confidence,
 				LatencyMS:  latencyMS,
-				DocType:    "ktp",
+				DocType:    cfg.docType,
 			}
 
 			if err := ocrStore.CreateOCRRequest(r.Context(), ocrReq); err != nil {
@@ -371,1501 +326,242 @@ func KTPOCRHandler(engine ocr.OCREngine, ocrStore store.OCRRequestStore, quotaCh
 			storeSpan.End()
 		}
 
-		// Record overall business metric
 		ocrStatus := "completed"
 		if confidence < 0.7 {
 			ocrStatus = "low_confidence"
 		}
-		telemetry.RecordOCRRequest(r.Context(), "ktp", ocrStatus, confidence, totalDurationSec)
+		telemetry.RecordOCRRequest(r.Context(), cfg.docType, ocrStatus, confidence, totalDurationSec)
 
-		// Zero PII structured log
-		slog.InfoContext(r.Context(), "ktp ocr request completed",
+		slog.InfoContext(r.Context(), cfg.docType+" ocr request completed",
 			slog.String("request_id", response.GetRequestID(r.Context())),
 			slog.String("record_id", recordID),
 			slog.String("org_id", key.OrgID),
 			slog.Int("latency_ms", latencyMS),
 			slog.Float64("confidence", confidence),
-			slog.String("doc_type", "ktp"),
+			slog.String("doc_type", cfg.docType),
 		)
 
-		response.JSON(w, http.StatusOK, KTPResponse{
-			ID:           recordID,
-			DocumentType: "ktp",
-			Confidence:   confidence,
-			Data:         normalizedKTP,
-			Processing: ProcessingDetail{
-				LatencyMS: latencyMS,
-			},
-		})
+		response.JSON(w, http.StatusOK, cfg.respond(recordID, confidence, latencyMS, data))
 	}
+}
+
+func ktpDocConfig() ocrDocConfig {
+	return ocrDocConfig{
+		docType:               "ktp",
+		docLabel:              "Indonesian KTP",
+		engineErrorLog:        "ocr engine extraction failed",
+		authMessage:           "Unauthenticated request",
+		missingFileMessage:    "Missing 'document' image file in multipart form",
+		readFailMessage:       "Failed reading uploaded document bytes",
+		validSpanStatus:       "valid",
+		ocrFailedBranch:       true,
+		genericFailureStatus:  http.StatusInternalServerError,
+		genericFailureCode:    response.CodeInternalError,
+		genericFailureMessage: "Internal error during document processing",
+		classifyStage:         "classification",
+		normalize: func(res *ocr.OCRResult) (any, float64) {
+			normalized, confidence, _ := ocr.ValidateKTP(res.Data)
+			return normalized, confidence
+		},
+		respond: func(recordID string, confidence float64, latencyMS int, data any) any {
+			return KTPResponse{
+				ID:           recordID,
+				DocumentType: "ktp",
+				Confidence:   confidence,
+				Data:         data.(*ocr.KTPData),
+				Processing:   ProcessingDetail{LatencyMS: latencyMS},
+			}
+		},
+	}
+}
+
+func simDocConfig() ocrDocConfig {
+	cfg := ktpDocConfig()
+	cfg.docType = "sim"
+	cfg.docLabel = "Indonesian SIM"
+	cfg.engineErrorLog = "sim ocr engine extraction failed"
+	cfg.unsupportedErrs = []error{ocr.ErrUnsupportedSIMDocument}
+	cfg.normalize = func(res *ocr.OCRResult) (any, float64) {
+		normalized, confidence, _ := ocr.ValidateSIM(res.SIMData)
+		return normalized, confidence
+	}
+	cfg.respond = func(recordID string, confidence float64, latencyMS int, data any) any {
+		return SIMResponse{
+			ID:           recordID,
+			DocumentType: "sim",
+			Confidence:   confidence,
+			Data:         data.(*ocr.SIMData),
+			Processing:   ProcessingDetail{LatencyMS: latencyMS},
+		}
+	}
+	return cfg
+}
+
+func passportDocConfig() ocrDocConfig {
+	cfg := ktpDocConfig()
+	cfg.docType = "passport"
+	cfg.docLabel = "Indonesian Passport"
+	cfg.engineErrorLog = "passport ocr engine extraction failed"
+	cfg.unsupportedErrs = []error{ocr.ErrUnsupportedPassportDocument}
+	cfg.normalize = func(res *ocr.OCRResult) (any, float64) {
+		normalized, confidence, _ := ocr.ValidatePassport(res.PassportData)
+		return normalized, confidence
+	}
+	cfg.respond = func(recordID string, confidence float64, latencyMS int, data any) any {
+		return PassportResponse{
+			ID:           recordID,
+			DocumentType: "passport",
+			Confidence:   confidence,
+			Data:         data.(*ocr.PassportData),
+			Processing:   ProcessingDetail{LatencyMS: latencyMS},
+		}
+	}
+	return cfg
+}
+
+func npwpDocConfig() ocrDocConfig {
+	cfg := ktpDocConfig()
+	cfg.docType = "npwp"
+	cfg.docLabel = "Indonesian NPWP"
+	cfg.missingFileMessage = "Missing 'document' multipart field"
+	cfg.readFailMessage = "Failed reading image payload"
+	cfg.validSpanStatus = "validated"
+	cfg.clearOnValidationError = true
+	cfg.unsupportedErrs = []error{ocr.ErrUnsupportedNPWPDocument}
+	cfg.ocrFailedBranch = false
+	cfg.genericFailureStatus = http.StatusBadGateway
+	cfg.genericFailureCode = response.CodeOCRFailed
+	cfg.genericFailureMessage = "Upstream OCR engine error"
+	cfg.classifyStage = "validation"
+	cfg.classify = func(res *ocr.OCRResult) bool {
+		return res != nil && res.DocumentType == "npwp" && res.NPWPData != nil
+	}
+	cfg.normalize = func(res *ocr.OCRResult) (any, float64) {
+		npwpData := res.NPWPData
+		npwpData.NPWP = ocr.CleanNPWP(npwpData.NPWP)
+		valid, _ := ocr.ValidateNPWPData(npwpData)
+		confidence := res.Confidence
+		if !valid && confidence > 0.5 {
+			confidence = 0.5
+		}
+		return npwpData, confidence
+	}
+	cfg.respond = func(recordID string, confidence float64, latencyMS int, data any) any {
+		return NPWPResponse{
+			ID:           recordID,
+			DocumentType: "npwp",
+			Confidence:   confidence,
+			Data:         data.(*ocr.NPWPData),
+			Processing:   ProcessingDetail{LatencyMS: latencyMS},
+		}
+	}
+	return cfg
+}
+
+func kkDocConfig() ocrDocConfig {
+	cfg := npwpDocConfig()
+	cfg.docType = "kk"
+	cfg.docLabel = "Indonesian Kartu Keluarga"
+	cfg.engineErrorLog = "ocr engine extraction failed"
+	cfg.authMessage = "Unauthenticated request: missing or invalid API key"
+	cfg.handlerSpanName = "ocr.kk_handler"
+	cfg.skipQuotaWhenOrgEmpty = true
+	cfg.unsupportedErrs = []error{ocr.ErrUnsupportedKKDocument}
+	cfg.classify = func(res *ocr.OCRResult) bool {
+		return res != nil && res.DocumentType == "kk" && res.KKData != nil
+	}
+	cfg.normalize = func(res *ocr.OCRResult) (any, float64) {
+		kkData := res.KKData
+		kkData.NomorKK = ocr.CleanNomorKK(kkData.NomorKK)
+		valRes := ocr.ValidateKK(kkData)
+		confidence := res.Confidence
+		if !valRes.IsValid && confidence > 0.5 {
+			confidence = 0.5
+		}
+		return kkData, confidence
+	}
+	cfg.respond = func(recordID string, confidence float64, latencyMS int, data any) any {
+		return KKResponse{
+			ID:           recordID,
+			DocumentType: "kk",
+			Confidence:   confidence,
+			Data:         data.(*ocr.KKData),
+			Processing:   ProcessingDetail{LatencyMS: latencyMS},
+		}
+	}
+	return cfg
+}
+
+func invoiceDocConfig() ocrDocConfig {
+	cfg := npwpDocConfig()
+	cfg.docType = "invoice"
+	cfg.docLabel = "Indonesian commercial invoice or e-faktur"
+	cfg.engineErrorLog = "invoice ocr engine extraction failed"
+	cfg.authMessage = "Unauthenticated request: missing or invalid API key"
+	cfg.skipQuotaWhenOrgEmpty = true
+	cfg.formFieldFallback = "image"
+	cfg.unsupportedErrs = []error{ocr.ErrUnsupportedInvoiceDocument}
+	cfg.classify = func(res *ocr.OCRResult) bool {
+		return res != nil && res.DocumentType == "invoice" && res.InvoiceData != nil
+	}
+	cfg.normalize = func(res *ocr.OCRResult) (any, float64) {
+		invoiceData := res.InvoiceData
+		valErr := ocr.ValidateInvoice(invoiceData)
+		confidence := res.Confidence
+		if valErr != nil && confidence > 0.5 {
+			confidence = 0.5
+		}
+		return invoiceData, confidence
+	}
+	cfg.respond = func(recordID string, confidence float64, latencyMS int, data any) any {
+		return InvoiceResponse{
+			ID:           recordID,
+			DocumentType: "invoice",
+			Confidence:   confidence,
+			Data:         data.(*ocr.InvoiceData),
+			Processing:   ProcessingDetail{LatencyMS: latencyMS},
+		}
+	}
+	return cfg
+}
+
+// KTPOCRHandler processes an uploaded Indonesian KTP image, performs classification,
+// deterministic field normalization/validation, and returns structured data.
+// Uploaded image buffers are strictly processed in memory and discarded immediately.
+func KTPOCRHandler(engine ocr.OCREngine, ocrStore store.OCRRequestStore, quotaChecker QuotaChecker) http.HandlerFunc {
+	return ocrPipeline(ktpDocConfig(), engine, ocrStore, quotaChecker)
 }
 
 // SIMOCRHandler processes an uploaded Indonesian SIM image, performs classification,
 // deterministic field normalization/validation, and returns structured data.
 // Uploaded image buffers are strictly processed in memory and discarded immediately.
 func SIMOCRHandler(engine ocr.OCREngine, ocrStore store.OCRRequestStore, quotaChecker QuotaChecker) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		startTime := time.Now()
-
-		key := middleware.GetAPIKey(r.Context())
-		if key == nil {
-			response.ErrorWithRequest(
-				w,
-				r,
-				http.StatusUnauthorized,
-				response.CodeInvalidAPIKey,
-				"Unauthenticated request",
-			)
-			return
-		}
-
-		if quotaChecker != nil {
-			allowed, _, _, err := quotaChecker.CheckQuota(r.Context(), key.OrgID)
-			if err != nil {
-				response.ErrorWithRequest(
-					w,
-					r,
-					http.StatusInternalServerError,
-					response.CodeInternalError,
-					"Failed checking quota availability",
-				)
-				return
-			}
-			if !allowed {
-				response.ErrorWithRequest(
-					w,
-					r,
-					http.StatusTooManyRequests,
-					response.CodeQuotaExceeded,
-					"Monthly API quota exceeded. Please upgrade your plan.",
-				)
-				return
-			}
-		}
-
-		// Enforce maximum upload body size (5MB + 1KB buffer for multipart headers)
-		r.Body = http.MaxBytesReader(w, r.Body, ocr.MaxImageSizeBytes+1024)
-		if err := r.ParseMultipartForm(ocr.MaxImageSizeBytes); err != nil {
-			response.ErrorWithRequest(
-				w,
-				r,
-				http.StatusBadRequest,
-				response.CodeInvalidDocument,
-				"File exceeds 5MB or invalid multipart form",
-			)
-			return
-		}
-		defer func() {
-			if r.MultipartForm != nil {
-				_ = r.MultipartForm.RemoveAll()
-			}
-		}()
-
-		file, _, err := r.FormFile("document")
-		if err != nil {
-			response.ErrorWithRequest(
-				w,
-				r,
-				http.StatusBadRequest,
-				response.CodeInvalidDocument,
-				"Missing 'document' image file in multipart form",
-			)
-			return
-		}
-		defer file.Close()
-
-		imgBytes, err := io.ReadAll(file)
-		if err != nil {
-			response.ErrorWithRequest(
-				w,
-				r,
-				http.StatusBadRequest,
-				response.CodeInvalidDocument,
-				"Failed reading uploaded document bytes",
-			)
-			return
-		}
-
-		tracer := telemetry.Tracer()
-
-		// Stage 1: Validate Image
-		valStart := time.Now()
-		_, valSpan := tracer.Start(r.Context(), "ocr.validate_image")
-		if _, err := ocr.ValidateImage(imgBytes); err != nil {
-			valSpan.RecordError(err)
-			valSpan.SetStatus(codes.Error, err.Error())
-			valSpan.End()
-
-			valDuration := time.Since(valStart).Seconds()
-			telemetry.RecordOCRStageDuration(r.Context(), "validation", "error", valDuration)
-			telemetry.RecordOCRError(r.Context(), "validation", response.CodeInvalidDocument)
-			telemetry.RecordOCRRequest(r.Context(), "sim", "failure", 0, time.Since(startTime).Seconds())
-
-			response.ErrorWithRequest(
-				w,
-				r,
-				http.StatusBadRequest,
-				response.CodeInvalidDocument,
-				err.Error(),
-			)
-			return
-		}
-		valSpan.SetStatus(codes.Ok, "valid")
-		valSpan.End()
-		telemetry.RecordOCRStageDuration(r.Context(), "validation", "success", time.Since(valStart).Seconds())
-
-		if engine == nil {
-			telemetry.RecordOCRError(r.Context(), "ocr_engine", response.CodeOCRFailed)
-			telemetry.RecordOCRRequest(r.Context(), "sim", "failure", 0, time.Since(startTime).Seconds())
-			response.ErrorWithRequest(
-				w,
-				r,
-				http.StatusBadGateway,
-				response.CodeOCRFailed,
-				"OCR engine not available",
-			)
-			return
-		}
-
-		// Stage 2: OCR Engine Extraction
-		engStart := time.Now()
-		engCtx, engSpan := tracer.Start(r.Context(), "ocr.engine_extract")
-		ocrResult, err := engine.Extract(engCtx, imgBytes)
-		clear(imgBytes)
-		engDuration := time.Since(engStart).Seconds()
-
-		if err != nil {
-			slog.ErrorContext(r.Context(), "sim ocr engine extraction failed", slog.String("error", err.Error()))
-			engSpan.RecordError(err)
-			engSpan.SetStatus(codes.Error, err.Error())
-			engSpan.End()
-			telemetry.RecordOCRStageDuration(r.Context(), "ocr_engine", "error", engDuration)
-
-			if errors.Is(err, ocr.ErrUnsupportedDocument) || errors.Is(err, ocr.ErrUnsupportedSIMDocument) {
-				telemetry.RecordOCRError(r.Context(), "ocr_engine", response.CodeUnsupportedDocument)
-				telemetry.RecordOCRRequest(r.Context(), "sim", "failure", 0, time.Since(startTime).Seconds())
-				response.ErrorWithRequest(
-					w,
-					r,
-					http.StatusUnprocessableEntity,
-					response.CodeUnsupportedDocument,
-					"Uploaded image was not identified as an Indonesian SIM",
-				)
-				return
-			}
-			if errors.Is(err, ocr.ErrCircuitOpen) {
-				telemetry.RecordOCRError(r.Context(), "circuit_breaker", response.CodeOCRFailed)
-				telemetry.RecordOCRRequest(r.Context(), "sim", "failure", 0, time.Since(startTime).Seconds())
-				response.ErrorWithRequest(
-					w,
-					r,
-					http.StatusGatewayTimeout,
-					response.CodeOCRFailed,
-					"OCR circuit breaker is open: upstream service temporarily unavailable",
-				)
-				return
-			}
-			if errors.Is(err, context.DeadlineExceeded) || strings.Contains(err.Error(), "context deadline exceeded") {
-				telemetry.RecordOCRError(r.Context(), "ocr_engine", response.CodeOCRFailed)
-				telemetry.RecordOCRRequest(r.Context(), "sim", "failure", 0, time.Since(startTime).Seconds())
-				response.ErrorWithRequest(
-					w,
-					r,
-					http.StatusGatewayTimeout,
-					response.CodeOCRFailed,
-					"OCR engine processing timeout",
-				)
-				return
-			}
-			if errors.Is(err, ocr.ErrOCRFailed) {
-				telemetry.RecordOCRError(r.Context(), "ocr_engine", response.CodeOCRFailed)
-				telemetry.RecordOCRRequest(r.Context(), "sim", "failure", 0, time.Since(startTime).Seconds())
-				response.ErrorWithRequest(
-					w,
-					r,
-					http.StatusBadGateway,
-					response.CodeOCRFailed,
-					"OCR engine processing timeout or failure",
-				)
-				return
-			}
-
-			telemetry.RecordOCRError(r.Context(), "ocr_engine", response.CodeInternalError)
-			telemetry.RecordOCRRequest(r.Context(), "sim", "failure", 0, time.Since(startTime).Seconds())
-			response.ErrorWithRequest(
-				w,
-				r,
-				http.StatusInternalServerError,
-				response.CodeInternalError,
-				"Internal error during document processing",
-			)
-			return
-		}
-		engSpan.SetStatus(codes.Ok, "extracted")
-		engSpan.End()
-		telemetry.RecordOCRStageDuration(r.Context(), "ocr_engine", "success", engDuration)
-
-		if ocrResult == nil || ocrResult.DocumentType != "sim" {
-			telemetry.RecordOCRError(r.Context(), "classification", response.CodeUnsupportedDocument)
-			telemetry.RecordOCRRequest(r.Context(), "sim", "failure", 0, time.Since(startTime).Seconds())
-			response.ErrorWithRequest(
-				w,
-				r,
-				http.StatusUnprocessableEntity,
-				response.CodeUnsupportedDocument,
-				"Uploaded image was not identified as an Indonesian SIM",
-			)
-			return
-		}
-
-		// Stage 3: Field Extraction & Normalization
-		normStart := time.Now()
-		_, normSpan := tracer.Start(r.Context(), "ocr.normalize_and_validate")
-		normalizedSIM, confidence, _ := ocr.ValidateSIM(ocrResult.SIMData)
-		normDuration := time.Since(normStart).Seconds()
-		normSpan.SetAttributes(
-			attribute.Float64("ocr.confidence", confidence),
-			attribute.String("ocr.doc_type", "sim"),
-		)
-		normSpan.SetStatus(codes.Ok, "normalized")
-		normSpan.End()
-		telemetry.RecordOCRStageDuration(r.Context(), "field_extraction", "success", normDuration)
-
-		latencyMS := int(time.Since(startTime).Milliseconds())
-		totalDurationSec := float64(latencyMS) / 1000.0
-		recordID := GenerateUUIDv4()
-
-		// Stage 4: Persist non-PII execution metadata in PostgreSQL
-		if ocrStore != nil {
-			_, storeSpan := tracer.Start(r.Context(), "ocr.store_metadata")
-			var apiKeyID *string
-			if key.ID != "" {
-				apiKeyID = &key.ID
-			}
-
-			ocrReq := &store.OCRRequest{
-				ID:         recordID,
-				OrgID:      key.OrgID,
-				APIKeyID:   apiKeyID,
-				Status:     "completed",
-				Confidence: confidence,
-				LatencyMS:  latencyMS,
-				DocType:    "sim",
-			}
-
-			if err := ocrStore.CreateOCRRequest(r.Context(), ocrReq); err != nil {
-				storeSpan.RecordError(err)
-				storeSpan.SetStatus(codes.Error, err.Error())
-				slog.ErrorContext(r.Context(), "failed saving ocr request metadata",
-					slog.String("error", err.Error()),
-					slog.String("record_id", recordID),
-				)
-			} else {
-				storeSpan.SetStatus(codes.Ok, "saved")
-			}
-			storeSpan.End()
-		}
-
-		// Record overall business metric
-		ocrStatus := "completed"
-		if confidence < 0.7 {
-			ocrStatus = "low_confidence"
-		}
-		telemetry.RecordOCRRequest(r.Context(), "sim", ocrStatus, confidence, totalDurationSec)
-
-		// Zero PII structured log
-		slog.InfoContext(r.Context(), "sim ocr request completed",
-			slog.String("request_id", response.GetRequestID(r.Context())),
-			slog.String("record_id", recordID),
-			slog.String("org_id", key.OrgID),
-			slog.Int("latency_ms", latencyMS),
-			slog.Float64("confidence", confidence),
-			slog.String("doc_type", "sim"),
-		)
-
-		response.JSON(w, http.StatusOK, SIMResponse{
-			ID:           recordID,
-			DocumentType: "sim",
-			Confidence:   confidence,
-			Data:         normalizedSIM,
-			Processing: ProcessingDetail{
-				LatencyMS: latencyMS,
-			},
-		})
-	}
+	return ocrPipeline(simDocConfig(), engine, ocrStore, quotaChecker)
 }
 
 // PassportOCRHandler processes an uploaded Indonesian Passport image, performs classification,
 // deterministic field normalization/validation, and returns structured data.
 // Uploaded image buffers are strictly processed in memory and discarded immediately.
 func PassportOCRHandler(engine ocr.OCREngine, ocrStore store.OCRRequestStore, quotaChecker QuotaChecker) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		startTime := time.Now()
-
-		key := middleware.GetAPIKey(r.Context())
-		if key == nil {
-			response.ErrorWithRequest(
-				w,
-				r,
-				http.StatusUnauthorized,
-				response.CodeInvalidAPIKey,
-				"Unauthenticated request",
-			)
-			return
-		}
-
-		if quotaChecker != nil {
-			allowed, _, _, err := quotaChecker.CheckQuota(r.Context(), key.OrgID)
-			if err != nil {
-				response.ErrorWithRequest(
-					w,
-					r,
-					http.StatusInternalServerError,
-					response.CodeInternalError,
-					"Failed checking quota availability",
-				)
-				return
-			}
-			if !allowed {
-				response.ErrorWithRequest(
-					w,
-					r,
-					http.StatusTooManyRequests,
-					response.CodeQuotaExceeded,
-					"Monthly API quota exceeded. Please upgrade your plan.",
-				)
-				return
-			}
-		}
-
-		// Enforce maximum upload body size (5MB + 1KB buffer for multipart headers)
-		r.Body = http.MaxBytesReader(w, r.Body, ocr.MaxImageSizeBytes+1024)
-		if err := r.ParseMultipartForm(ocr.MaxImageSizeBytes); err != nil {
-			response.ErrorWithRequest(
-				w,
-				r,
-				http.StatusBadRequest,
-				response.CodeInvalidDocument,
-				"File exceeds 5MB or invalid multipart form",
-			)
-			return
-		}
-		defer func() {
-			if r.MultipartForm != nil {
-				_ = r.MultipartForm.RemoveAll()
-			}
-		}()
-
-		file, _, err := r.FormFile("document")
-		if err != nil {
-			response.ErrorWithRequest(
-				w,
-				r,
-				http.StatusBadRequest,
-				response.CodeInvalidDocument,
-				"Missing 'document' image file in multipart form",
-			)
-			return
-		}
-		defer file.Close()
-
-		imgBytes, err := io.ReadAll(file)
-		if err != nil {
-			response.ErrorWithRequest(
-				w,
-				r,
-				http.StatusBadRequest,
-				response.CodeInvalidDocument,
-				"Failed reading uploaded document bytes",
-			)
-			return
-		}
-
-		tracer := telemetry.Tracer()
-
-		// Stage 1: Validate Image
-		valStart := time.Now()
-		_, valSpan := tracer.Start(r.Context(), "ocr.validate_image")
-		if _, err := ocr.ValidateImage(imgBytes); err != nil {
-			valSpan.RecordError(err)
-			valSpan.SetStatus(codes.Error, err.Error())
-			valSpan.End()
-
-			valDuration := time.Since(valStart).Seconds()
-			telemetry.RecordOCRStageDuration(r.Context(), "validation", "error", valDuration)
-			telemetry.RecordOCRError(r.Context(), "validation", response.CodeInvalidDocument)
-			telemetry.RecordOCRRequest(r.Context(), "passport", "failure", 0, time.Since(startTime).Seconds())
-
-			response.ErrorWithRequest(
-				w,
-				r,
-				http.StatusBadRequest,
-				response.CodeInvalidDocument,
-				err.Error(),
-			)
-			return
-		}
-		valSpan.SetStatus(codes.Ok, "valid")
-		valSpan.End()
-		telemetry.RecordOCRStageDuration(r.Context(), "validation", "success", time.Since(valStart).Seconds())
-
-		if engine == nil {
-			telemetry.RecordOCRError(r.Context(), "ocr_engine", response.CodeOCRFailed)
-			telemetry.RecordOCRRequest(r.Context(), "passport", "failure", 0, time.Since(startTime).Seconds())
-			response.ErrorWithRequest(
-				w,
-				r,
-				http.StatusBadGateway,
-				response.CodeOCRFailed,
-				"OCR engine not available",
-			)
-			return
-		}
-
-		// Stage 2: OCR Engine Extraction
-		engStart := time.Now()
-		engCtx, engSpan := tracer.Start(r.Context(), "ocr.engine_extract")
-		ocrResult, err := engine.Extract(engCtx, imgBytes)
-		clear(imgBytes)
-		engDuration := time.Since(engStart).Seconds()
-
-		if err != nil {
-			slog.ErrorContext(r.Context(), "passport ocr engine extraction failed", slog.String("error", err.Error()))
-			engSpan.RecordError(err)
-			engSpan.SetStatus(codes.Error, err.Error())
-			engSpan.End()
-			telemetry.RecordOCRStageDuration(r.Context(), "ocr_engine", "error", engDuration)
-
-			if errors.Is(err, ocr.ErrUnsupportedDocument) || errors.Is(err, ocr.ErrUnsupportedPassportDocument) {
-				telemetry.RecordOCRError(r.Context(), "ocr_engine", response.CodeUnsupportedDocument)
-				telemetry.RecordOCRRequest(r.Context(), "passport", "failure", 0, time.Since(startTime).Seconds())
-				response.ErrorWithRequest(
-					w,
-					r,
-					http.StatusUnprocessableEntity,
-					response.CodeUnsupportedDocument,
-					"Uploaded image was not identified as an Indonesian Passport",
-				)
-				return
-			}
-			if errors.Is(err, ocr.ErrCircuitOpen) {
-				telemetry.RecordOCRError(r.Context(), "circuit_breaker", response.CodeOCRFailed)
-				telemetry.RecordOCRRequest(r.Context(), "passport", "failure", 0, time.Since(startTime).Seconds())
-				response.ErrorWithRequest(
-					w,
-					r,
-					http.StatusGatewayTimeout,
-					response.CodeOCRFailed,
-					"OCR circuit breaker is open: upstream service temporarily unavailable",
-				)
-				return
-			}
-			if errors.Is(err, context.DeadlineExceeded) || strings.Contains(err.Error(), "context deadline exceeded") {
-				telemetry.RecordOCRError(r.Context(), "ocr_engine", response.CodeOCRFailed)
-				telemetry.RecordOCRRequest(r.Context(), "passport", "failure", 0, time.Since(startTime).Seconds())
-				response.ErrorWithRequest(
-					w,
-					r,
-					http.StatusGatewayTimeout,
-					response.CodeOCRFailed,
-					"OCR engine processing timeout",
-				)
-				return
-			}
-			if errors.Is(err, ocr.ErrOCRFailed) {
-				telemetry.RecordOCRError(r.Context(), "ocr_engine", response.CodeOCRFailed)
-				telemetry.RecordOCRRequest(r.Context(), "passport", "failure", 0, time.Since(startTime).Seconds())
-				response.ErrorWithRequest(
-					w,
-					r,
-					http.StatusBadGateway,
-					response.CodeOCRFailed,
-					"OCR engine processing timeout or failure",
-				)
-				return
-			}
-
-			telemetry.RecordOCRError(r.Context(), "ocr_engine", response.CodeInternalError)
-			telemetry.RecordOCRRequest(r.Context(), "passport", "failure", 0, time.Since(startTime).Seconds())
-			response.ErrorWithRequest(
-				w,
-				r,
-				http.StatusInternalServerError,
-				response.CodeInternalError,
-				"Internal error during document processing",
-			)
-			return
-		}
-		engSpan.SetStatus(codes.Ok, "extracted")
-		engSpan.End()
-		telemetry.RecordOCRStageDuration(r.Context(), "ocr_engine", "success", engDuration)
-
-		if ocrResult == nil || ocrResult.DocumentType != "passport" {
-			telemetry.RecordOCRError(r.Context(), "classification", response.CodeUnsupportedDocument)
-			telemetry.RecordOCRRequest(r.Context(), "passport", "failure", 0, time.Since(startTime).Seconds())
-			response.ErrorWithRequest(
-				w,
-				r,
-				http.StatusUnprocessableEntity,
-				response.CodeUnsupportedDocument,
-				"Uploaded image was not identified as an Indonesian Passport",
-			)
-			return
-		}
-
-		// Stage 3: Field Extraction & Normalization
-		normStart := time.Now()
-		_, normSpan := tracer.Start(r.Context(), "ocr.normalize_and_validate")
-		normalizedPassport, confidence, _ := ocr.ValidatePassport(ocrResult.PassportData)
-		normDuration := time.Since(normStart).Seconds()
-		normSpan.SetAttributes(
-			attribute.Float64("ocr.confidence", confidence),
-			attribute.String("ocr.doc_type", "passport"),
-		)
-		normSpan.SetStatus(codes.Ok, "normalized")
-		normSpan.End()
-		telemetry.RecordOCRStageDuration(r.Context(), "field_extraction", "success", normDuration)
-
-		latencyMS := int(time.Since(startTime).Milliseconds())
-		totalDurationSec := float64(latencyMS) / 1000.0
-		recordID := GenerateUUIDv4()
-
-		// Stage 4: Persist non-PII execution metadata in PostgreSQL
-		if ocrStore != nil {
-			_, storeSpan := tracer.Start(r.Context(), "ocr.store_metadata")
-			var apiKeyID *string
-			if key.ID != "" {
-				apiKeyID = &key.ID
-			}
-
-			ocrReq := &store.OCRRequest{
-				ID:         recordID,
-				OrgID:      key.OrgID,
-				APIKeyID:   apiKeyID,
-				Status:     "completed",
-				Confidence: confidence,
-				LatencyMS:  latencyMS,
-				DocType:    "passport",
-			}
-
-			if err := ocrStore.CreateOCRRequest(r.Context(), ocrReq); err != nil {
-				storeSpan.RecordError(err)
-				storeSpan.SetStatus(codes.Error, err.Error())
-				slog.ErrorContext(r.Context(), "failed saving ocr request metadata",
-					slog.String("error", err.Error()),
-					slog.String("record_id", recordID),
-				)
-			} else {
-				storeSpan.SetStatus(codes.Ok, "saved")
-			}
-			storeSpan.End()
-		}
-
-		// Record overall business metric
-		ocrStatus := "completed"
-		if confidence < 0.7 {
-			ocrStatus = "low_confidence"
-		}
-		telemetry.RecordOCRRequest(r.Context(), "passport", ocrStatus, confidence, totalDurationSec)
-
-		// Zero PII structured log
-		slog.InfoContext(r.Context(), "passport ocr request completed",
-			slog.String("request_id", response.GetRequestID(r.Context())),
-			slog.String("record_id", recordID),
-			slog.String("org_id", key.OrgID),
-			slog.Int("latency_ms", latencyMS),
-			slog.Float64("confidence", confidence),
-			slog.String("doc_type", "passport"),
-		)
-
-		response.JSON(w, http.StatusOK, PassportResponse{
-			ID:           recordID,
-			DocumentType: "passport",
-			Confidence:   confidence,
-			Data:         normalizedPassport,
-			Processing: ProcessingDetail{
-				LatencyMS: latencyMS,
-			},
-		})
-	}
+	return ocrPipeline(passportDocConfig(), engine, ocrStore, quotaChecker)
 }
 
 // NPWPOCRHandler processes an uploaded Indonesian NPWP image, performs classification,
 // deterministic field normalization/validation, and returns structured data.
 // Uploaded image buffers are strictly processed in memory and discarded immediately.
 func NPWPOCRHandler(engine ocr.OCREngine, ocrStore store.OCRRequestStore, quotaChecker QuotaChecker) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		startTime := time.Now()
-
-		key := middleware.GetAPIKey(r.Context())
-		if key == nil {
-			response.ErrorWithRequest(
-				w,
-				r,
-				http.StatusUnauthorized,
-				response.CodeInvalidAPIKey,
-				"Unauthenticated request",
-			)
-			return
-		}
-
-		if quotaChecker != nil {
-			allowed, _, _, err := quotaChecker.CheckQuota(r.Context(), key.OrgID)
-			if err != nil {
-				response.ErrorWithRequest(
-					w,
-					r,
-					http.StatusInternalServerError,
-					response.CodeInternalError,
-					"Failed checking quota availability",
-				)
-				return
-			}
-			if !allowed {
-				response.ErrorWithRequest(
-					w,
-					r,
-					http.StatusTooManyRequests,
-					response.CodeQuotaExceeded,
-					"Monthly API quota exceeded. Please upgrade your plan.",
-				)
-				return
-			}
-		}
-
-		// Enforce maximum upload body size (5MB + 1KB buffer for multipart headers)
-		r.Body = http.MaxBytesReader(w, r.Body, ocr.MaxImageSizeBytes+1024)
-		if err := r.ParseMultipartForm(ocr.MaxImageSizeBytes); err != nil {
-			response.ErrorWithRequest(
-				w,
-				r,
-				http.StatusBadRequest,
-				response.CodeInvalidDocument,
-				"File exceeds 5MB or invalid multipart form",
-			)
-			return
-		}
-		defer func() {
-			if r.MultipartForm != nil {
-				_ = r.MultipartForm.RemoveAll()
-			}
-		}()
-
-		file, _, err := r.FormFile("document")
-		if err != nil {
-			response.ErrorWithRequest(
-				w,
-				r,
-				http.StatusBadRequest,
-				response.CodeInvalidDocument,
-				"Missing 'document' multipart field",
-			)
-			return
-		}
-		defer file.Close()
-
-		// Read into memory
-		imgBytes, err := io.ReadAll(file)
-		if err != nil {
-			response.ErrorWithRequest(
-				w,
-				r,
-				http.StatusBadRequest,
-				response.CodeInvalidDocument,
-				"Failed reading image payload",
-			)
-			return
-		}
-
-		tracer := telemetry.Tracer()
-
-		// Stage 1: Validate Image Format and Quality Boundaries
-		valStart := time.Now()
-		_, valSpan := tracer.Start(r.Context(), "ocr.validate_image")
-		if _, err := ocr.ValidateImage(imgBytes); err != nil {
-			valSpan.RecordError(err)
-			valSpan.SetStatus(codes.Error, err.Error())
-			valSpan.End()
-
-			valDuration := time.Since(valStart).Seconds()
-			telemetry.RecordOCRStageDuration(r.Context(), "validation", "error", valDuration)
-			telemetry.RecordOCRError(r.Context(), "validation", response.CodeInvalidDocument)
-			telemetry.RecordOCRRequest(r.Context(), "npwp", "failure", 0, time.Since(startTime).Seconds())
-
-			clear(imgBytes)
-			response.ErrorWithRequest(
-				w,
-				r,
-				http.StatusBadRequest,
-				response.CodeInvalidDocument,
-				err.Error(),
-			)
-			return
-		}
-		valSpan.SetStatus(codes.Ok, "validated")
-		valSpan.End()
-		valDuration := time.Since(valStart).Seconds()
-		telemetry.RecordOCRStageDuration(r.Context(), "validation", "success", valDuration)
-
-		if engine == nil {
-			telemetry.RecordOCRError(r.Context(), "ocr_engine", response.CodeOCRFailed)
-			telemetry.RecordOCRRequest(r.Context(), "npwp", "failure", 0, time.Since(startTime).Seconds())
-			response.ErrorWithRequest(
-				w,
-				r,
-				http.StatusBadGateway,
-				response.CodeOCRFailed,
-				"OCR engine not available",
-			)
-			return
-		}
-
-		// Stage 2: OCR Engine Extraction
-		engStart := time.Now()
-		engCtx, engSpan := tracer.Start(r.Context(), "ocr.engine_extract")
-		ocrResult, err := engine.Extract(engCtx, imgBytes)
-		clear(imgBytes)
-		engDuration := time.Since(engStart).Seconds()
-
-		if err != nil {
-			slog.ErrorContext(r.Context(), "ocr engine extraction failed", slog.String("error", err.Error()))
-			engSpan.RecordError(err)
-			engSpan.SetStatus(codes.Error, err.Error())
-			engSpan.End()
-			telemetry.RecordOCRStageDuration(r.Context(), "ocr_engine", "error", engDuration)
-
-			if errors.Is(err, ocr.ErrUnsupportedDocument) || errors.Is(err, ocr.ErrUnsupportedNPWPDocument) {
-				telemetry.RecordOCRError(r.Context(), "ocr_engine", response.CodeUnsupportedDocument)
-				telemetry.RecordOCRRequest(r.Context(), "npwp", "failure", 0, time.Since(startTime).Seconds())
-				response.ErrorWithRequest(
-					w,
-					r,
-					http.StatusUnprocessableEntity,
-					response.CodeUnsupportedDocument,
-					"Uploaded image was not identified as an Indonesian NPWP",
-				)
-				return
-			}
-			if errors.Is(err, ocr.ErrCircuitOpen) {
-				telemetry.RecordOCRError(r.Context(), "circuit_breaker", response.CodeOCRFailed)
-				telemetry.RecordOCRRequest(r.Context(), "npwp", "failure", 0, time.Since(startTime).Seconds())
-				response.ErrorWithRequest(
-					w,
-					r,
-					http.StatusGatewayTimeout,
-					response.CodeOCRFailed,
-					"OCR circuit breaker is open: upstream service temporarily unavailable",
-				)
-				return
-			}
-			if errors.Is(err, context.DeadlineExceeded) || strings.Contains(err.Error(), "context deadline exceeded") {
-				telemetry.RecordOCRError(r.Context(), "ocr_engine", response.CodeOCRFailed)
-				telemetry.RecordOCRRequest(r.Context(), "npwp", "failure", 0, time.Since(startTime).Seconds())
-				response.ErrorWithRequest(
-					w,
-					r,
-					http.StatusGatewayTimeout,
-					response.CodeOCRFailed,
-					"OCR engine processing timeout",
-				)
-				return
-			}
-
-			telemetry.RecordOCRError(r.Context(), "ocr_engine", response.CodeOCRFailed)
-			telemetry.RecordOCRRequest(r.Context(), "npwp", "failure", 0, time.Since(startTime).Seconds())
-			response.ErrorWithRequest(
-				w,
-				r,
-				http.StatusBadGateway,
-				response.CodeOCRFailed,
-				"Upstream OCR engine error",
-			)
-			return
-		}
-		engSpan.SetStatus(codes.Ok, "extracted")
-		engSpan.End()
-		telemetry.RecordOCRStageDuration(r.Context(), "ocr_engine", "success", engDuration)
-
-		if ocrResult == nil || ocrResult.DocumentType != "npwp" || ocrResult.NPWPData == nil {
-			telemetry.RecordOCRError(r.Context(), "validation", response.CodeUnsupportedDocument)
-			telemetry.RecordOCRRequest(r.Context(), "npwp", "failure", 0, time.Since(startTime).Seconds())
-			response.ErrorWithRequest(
-				w,
-				r,
-				http.StatusUnprocessableEntity,
-				response.CodeUnsupportedDocument,
-				"Uploaded image was not identified as an Indonesian NPWP",
-			)
-			return
-		}
-
-		// Stage 3: Field Extraction & Normalization
-		normStart := time.Now()
-		_, normSpan := tracer.Start(r.Context(), "ocr.normalize_and_validate")
-		npwpData := ocrResult.NPWPData
-		npwpData.NPWP = ocr.CleanNPWP(npwpData.NPWP)
-		validNPWP, _ := ocr.ValidateNPWPData(npwpData)
-		confidence := ocrResult.Confidence
-		if !validNPWP && confidence > 0.5 {
-			confidence = 0.5
-		}
-		normDuration := time.Since(normStart).Seconds()
-		normSpan.SetAttributes(
-			attribute.Float64("ocr.confidence", confidence),
-			attribute.String("ocr.doc_type", "npwp"),
-		)
-		normSpan.SetStatus(codes.Ok, "normalized")
-		normSpan.End()
-		telemetry.RecordOCRStageDuration(r.Context(), "field_extraction", "success", normDuration)
-
-		latencyMS := int(time.Since(startTime).Milliseconds())
-		totalDurationSec := float64(latencyMS) / 1000.0
-		recordID := GenerateUUIDv4()
-
-		// Stage 4: Persist non-PII execution metadata in PostgreSQL
-		if ocrStore != nil {
-			_, storeSpan := tracer.Start(r.Context(), "ocr.store_metadata")
-			var apiKeyID *string
-			if key.ID != "" {
-				apiKeyID = &key.ID
-			}
-
-			ocrReq := &store.OCRRequest{
-				ID:         recordID,
-				OrgID:      key.OrgID,
-				APIKeyID:   apiKeyID,
-				Status:     "completed",
-				Confidence: confidence,
-				LatencyMS:  latencyMS,
-				DocType:    "npwp",
-			}
-
-			if err := ocrStore.CreateOCRRequest(r.Context(), ocrReq); err != nil {
-				storeSpan.RecordError(err)
-				storeSpan.SetStatus(codes.Error, err.Error())
-				slog.ErrorContext(r.Context(), "failed saving ocr request metadata",
-					slog.String("error", err.Error()),
-					slog.String("record_id", recordID),
-				)
-			} else {
-				storeSpan.SetStatus(codes.Ok, "saved")
-			}
-			storeSpan.End()
-		}
-
-		// Record overall business metric
-		ocrStatus := "completed"
-		if confidence < 0.7 {
-			ocrStatus = "low_confidence"
-		}
-		telemetry.RecordOCRRequest(r.Context(), "npwp", ocrStatus, confidence, totalDurationSec)
-
-		// Zero PII structured log
-		slog.InfoContext(r.Context(), "npwp ocr request completed",
-			slog.String("request_id", response.GetRequestID(r.Context())),
-			slog.String("record_id", recordID),
-			slog.String("org_id", key.OrgID),
-			slog.Int("latency_ms", latencyMS),
-			slog.Float64("confidence", confidence),
-			slog.String("doc_type", "npwp"),
-		)
-
-		response.JSON(w, http.StatusOK, NPWPResponse{
-			ID:           recordID,
-			DocumentType: "npwp",
-			Confidence:   confidence,
-			Data:         npwpData,
-			Processing: ProcessingDetail{
-				LatencyMS: latencyMS,
-			},
-		})
-	}
+	return ocrPipeline(npwpDocConfig(), engine, ocrStore, quotaChecker)
 }
 
 // KKOCRHandler processes an uploaded Indonesian Kartu Keluarga image, performs classification,
 // validates Nomor KK and family member structure, enforces quota, and records telemetry.
 func KKOCRHandler(engine ocr.OCREngine, ocrStore store.OCRRequestStore, quota QuotaChecker) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		startTime := time.Now()
-		ctx, span := telemetry.Tracer().Start(r.Context(), "ocr.kk_handler")
-		defer span.End()
-
-		key := middleware.GetAPIKey(ctx)
-		if key == nil {
-			response.ErrorWithRequest(
-				w,
-				r,
-				http.StatusUnauthorized,
-				response.CodeInvalidAPIKey,
-				"Unauthenticated request: missing or invalid API key",
-			)
-			return
-		}
-
-		// Quota Check
-		if quota != nil && key.OrgID != "" {
-			allowed, _, _, err := quota.CheckQuota(r.Context(), key.OrgID)
-			if err != nil {
-				response.ErrorWithRequest(
-					w,
-					r,
-					http.StatusInternalServerError,
-					response.CodeInternalError,
-					"Failed checking quota availability",
-				)
-				return
-			}
-			if !allowed {
-				response.ErrorWithRequest(
-					w,
-					r,
-					http.StatusTooManyRequests,
-					response.CodeQuotaExceeded,
-					"Monthly API quota exceeded. Please upgrade your plan.",
-				)
-				return
-			}
-		}
-
-		// Enforce maximum upload body size (5MB + 1KB buffer for multipart headers)
-		r.Body = http.MaxBytesReader(w, r.Body, ocr.MaxImageSizeBytes+1024)
-		if err := r.ParseMultipartForm(ocr.MaxImageSizeBytes); err != nil {
-			response.ErrorWithRequest(
-				w,
-				r,
-				http.StatusBadRequest,
-				response.CodeInvalidDocument,
-				"File exceeds 5MB or invalid multipart form",
-			)
-			return
-		}
-		defer func() {
-			if r.MultipartForm != nil {
-				_ = r.MultipartForm.RemoveAll()
-			}
-		}()
-
-		file, _, err := r.FormFile("document")
-		if err != nil {
-			response.ErrorWithRequest(
-				w,
-				r,
-				http.StatusBadRequest,
-				response.CodeInvalidDocument,
-				"Missing 'document' multipart field",
-			)
-			return
-		}
-		defer file.Close()
-
-		// Read into memory
-		imgBytes, err := io.ReadAll(file)
-		if err != nil {
-			response.ErrorWithRequest(
-				w,
-				r,
-				http.StatusBadRequest,
-				response.CodeInvalidDocument,
-				"Failed reading image payload",
-			)
-			return
-		}
-
-		tracer := telemetry.Tracer()
-
-		// Stage 1: Validate Image Format and Quality Boundaries
-		valStart := time.Now()
-		_, valSpan := tracer.Start(r.Context(), "ocr.validate_image")
-		if _, err := ocr.ValidateImage(imgBytes); err != nil {
-			valSpan.RecordError(err)
-			valSpan.SetStatus(codes.Error, err.Error())
-			valSpan.End()
-
-			valDuration := time.Since(valStart).Seconds()
-			telemetry.RecordOCRStageDuration(r.Context(), "validation", "error", valDuration)
-			telemetry.RecordOCRError(r.Context(), "validation", response.CodeInvalidDocument)
-			telemetry.RecordOCRRequest(r.Context(), "kk", "failure", 0, time.Since(startTime).Seconds())
-
-			clear(imgBytes)
-			response.ErrorWithRequest(
-				w,
-				r,
-				http.StatusBadRequest,
-				response.CodeInvalidDocument,
-				err.Error(),
-			)
-			return
-		}
-		valSpan.SetStatus(codes.Ok, "validated")
-		valSpan.End()
-		valDuration := time.Since(valStart).Seconds()
-		telemetry.RecordOCRStageDuration(r.Context(), "validation", "success", valDuration)
-
-		if engine == nil {
-			telemetry.RecordOCRError(r.Context(), "ocr_engine", response.CodeOCRFailed)
-			telemetry.RecordOCRRequest(r.Context(), "kk", "failure", 0, time.Since(startTime).Seconds())
-			response.ErrorWithRequest(
-				w,
-				r,
-				http.StatusBadGateway,
-				response.CodeOCRFailed,
-				"OCR engine not available",
-			)
-			return
-		}
-
-		// Stage 2: OCR Engine Extraction
-		engStart := time.Now()
-		engCtx, engSpan := tracer.Start(r.Context(), "ocr.engine_extract")
-		ocrResult, err := engine.Extract(engCtx, imgBytes)
-		clear(imgBytes)
-		engDuration := time.Since(engStart).Seconds()
-
-		if err != nil {
-			slog.ErrorContext(r.Context(), "ocr engine extraction failed", slog.String("error", err.Error()))
-			engSpan.RecordError(err)
-			engSpan.SetStatus(codes.Error, err.Error())
-			engSpan.End()
-			telemetry.RecordOCRStageDuration(r.Context(), "ocr_engine", "error", engDuration)
-
-			if errors.Is(err, ocr.ErrUnsupportedDocument) || errors.Is(err, ocr.ErrUnsupportedKKDocument) {
-				telemetry.RecordOCRError(r.Context(), "ocr_engine", response.CodeUnsupportedDocument)
-				telemetry.RecordOCRRequest(r.Context(), "kk", "failure", 0, time.Since(startTime).Seconds())
-				response.ErrorWithRequest(
-					w,
-					r,
-					http.StatusUnprocessableEntity,
-					response.CodeUnsupportedDocument,
-					"Uploaded image was not identified as an Indonesian Kartu Keluarga",
-				)
-				return
-			}
-			if errors.Is(err, ocr.ErrCircuitOpen) {
-				telemetry.RecordOCRError(r.Context(), "circuit_breaker", response.CodeOCRFailed)
-				telemetry.RecordOCRRequest(r.Context(), "kk", "failure", 0, time.Since(startTime).Seconds())
-				response.ErrorWithRequest(
-					w,
-					r,
-					http.StatusGatewayTimeout,
-					response.CodeOCRFailed,
-					"OCR circuit breaker is open: upstream service temporarily unavailable",
-				)
-				return
-			}
-			if errors.Is(err, context.DeadlineExceeded) || strings.Contains(err.Error(), "context deadline exceeded") {
-				telemetry.RecordOCRError(r.Context(), "ocr_engine", response.CodeOCRFailed)
-				telemetry.RecordOCRRequest(r.Context(), "kk", "failure", 0, time.Since(startTime).Seconds())
-				response.ErrorWithRequest(
-					w,
-					r,
-					http.StatusGatewayTimeout,
-					response.CodeOCRFailed,
-					"OCR engine processing timeout",
-				)
-				return
-			}
-
-			telemetry.RecordOCRError(r.Context(), "ocr_engine", response.CodeOCRFailed)
-			telemetry.RecordOCRRequest(r.Context(), "kk", "failure", 0, time.Since(startTime).Seconds())
-			response.ErrorWithRequest(
-				w,
-				r,
-				http.StatusBadGateway,
-				response.CodeOCRFailed,
-				"Upstream OCR engine error",
-			)
-			return
-		}
-		engSpan.SetStatus(codes.Ok, "extracted")
-		engSpan.End()
-		telemetry.RecordOCRStageDuration(r.Context(), "ocr_engine", "success", engDuration)
-
-		if ocrResult == nil || ocrResult.DocumentType != "kk" || ocrResult.KKData == nil {
-			telemetry.RecordOCRError(r.Context(), "validation", response.CodeUnsupportedDocument)
-			telemetry.RecordOCRRequest(r.Context(), "kk", "failure", 0, time.Since(startTime).Seconds())
-			response.ErrorWithRequest(
-				w,
-				r,
-				http.StatusUnprocessableEntity,
-				response.CodeUnsupportedDocument,
-				"Uploaded image was not identified as an Indonesian Kartu Keluarga",
-			)
-			return
-		}
-
-		// Stage 3: Field Extraction & Normalization
-		normStart := time.Now()
-		_, normSpan := tracer.Start(r.Context(), "ocr.normalize_and_validate")
-		kkData := ocrResult.KKData
-		kkData.NomorKK = ocr.CleanNomorKK(kkData.NomorKK)
-		valRes := ocr.ValidateKK(kkData)
-		confidence := ocrResult.Confidence
-		if !valRes.IsValid && confidence > 0.5 {
-			confidence = 0.5
-		}
-		normDuration := time.Since(normStart).Seconds()
-		normSpan.SetAttributes(
-			attribute.Float64("ocr.confidence", confidence),
-			attribute.String("ocr.doc_type", "kk"),
-		)
-		normSpan.SetStatus(codes.Ok, "normalized")
-		normSpan.End()
-		telemetry.RecordOCRStageDuration(r.Context(), "field_extraction", "success", normDuration)
-
-		latencyMS := int(time.Since(startTime).Milliseconds())
-		totalDurationSec := float64(latencyMS) / 1000.0
-		recordID := GenerateUUIDv4()
-
-		// Stage 4: Persist non-PII execution metadata in PostgreSQL
-		if ocrStore != nil {
-			_, storeSpan := tracer.Start(r.Context(), "ocr.store_metadata")
-			var apiKeyID *string
-			if key.ID != "" {
-				apiKeyID = &key.ID
-			}
-
-			ocrReq := &store.OCRRequest{
-				ID:         recordID,
-				OrgID:      key.OrgID,
-				APIKeyID:   apiKeyID,
-				Status:     "completed",
-				Confidence: confidence,
-				LatencyMS:  latencyMS,
-				DocType:    "kk",
-			}
-
-			if err := ocrStore.CreateOCRRequest(r.Context(), ocrReq); err != nil {
-				storeSpan.RecordError(err)
-				storeSpan.SetStatus(codes.Error, err.Error())
-				slog.ErrorContext(r.Context(), "failed saving ocr request metadata",
-					slog.String("error", err.Error()),
-					slog.String("record_id", recordID),
-				)
-			} else {
-				storeSpan.SetStatus(codes.Ok, "saved")
-			}
-			storeSpan.End()
-		}
-
-		// Record overall business metric
-		ocrStatus := "completed"
-		if confidence < 0.7 {
-			ocrStatus = "low_confidence"
-		}
-		telemetry.RecordOCRRequest(r.Context(), "kk", ocrStatus, confidence, totalDurationSec)
-
-		// Zero PII structured log
-		slog.InfoContext(r.Context(), "kk ocr request completed",
-			slog.String("request_id", response.GetRequestID(r.Context())),
-			slog.String("record_id", recordID),
-			slog.String("org_id", key.OrgID),
-			slog.Int("latency_ms", latencyMS),
-			slog.Float64("confidence", confidence),
-			slog.String("doc_type", "kk"),
-		)
-
-		response.JSON(w, http.StatusOK, KKResponse{
-			ID:           recordID,
-			DocumentType: "kk",
-			Confidence:   confidence,
-			Data:         kkData,
-			Processing: ProcessingDetail{
-				LatencyMS: latencyMS,
-			},
-		})
-	}
+	return ocrPipeline(kkDocConfig(), engine, ocrStore, quota)
 }
 
 // InvoiceOCRHandler handles Indonesian commercial invoice and e-faktur OCR extraction requests.
 func InvoiceOCRHandler(engine ocr.OCREngine, ocrStore store.OCRRequestStore, quota QuotaChecker) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		startTime := time.Now()
-
-		key := middleware.GetAPIKey(r.Context())
-		if key == nil {
-			response.ErrorWithRequest(
-				w,
-				r,
-				http.StatusUnauthorized,
-				response.CodeInvalidAPIKey,
-				"Unauthenticated request: missing or invalid API key",
-			)
-			return
-		}
-
-		// Quota Check
-		if quota != nil && key.OrgID != "" {
-			allowed, _, _, err := quota.CheckQuota(r.Context(), key.OrgID)
-			if err != nil {
-				response.ErrorWithRequest(
-					w,
-					r,
-					http.StatusInternalServerError,
-					response.CodeInternalError,
-					"Failed checking quota availability",
-				)
-				return
-			}
-			if !allowed {
-				response.ErrorWithRequest(
-					w,
-					r,
-					http.StatusTooManyRequests,
-					response.CodeQuotaExceeded,
-					"Monthly API quota exceeded. Please upgrade your plan.",
-				)
-				return
-			}
-		}
-
-		// Enforce maximum upload body size (5MB + 1KB buffer for multipart headers)
-		r.Body = http.MaxBytesReader(w, r.Body, ocr.MaxImageSizeBytes+1024)
-		if err := r.ParseMultipartForm(ocr.MaxImageSizeBytes); err != nil {
-			response.ErrorWithRequest(
-				w,
-				r,
-				http.StatusBadRequest,
-				response.CodeInvalidDocument,
-				"File exceeds 5MB or invalid multipart form",
-			)
-			return
-		}
-		defer func() {
-			if r.MultipartForm != nil {
-				_ = r.MultipartForm.RemoveAll()
-			}
-		}()
-
-		file, _, err := r.FormFile("document")
-		if err != nil {
-			file, _, err = r.FormFile("image")
-		}
-		if err != nil {
-			response.ErrorWithRequest(
-				w,
-				r,
-				http.StatusBadRequest,
-				response.CodeInvalidDocument,
-				"Missing 'document' multipart field",
-			)
-			return
-		}
-		defer file.Close()
-
-		imgBytes, err := io.ReadAll(file)
-		if err != nil {
-			response.ErrorWithRequest(
-				w,
-				r,
-				http.StatusBadRequest,
-				response.CodeInvalidDocument,
-				"Failed reading image payload",
-			)
-			return
-		}
-
-		tracer := telemetry.Tracer()
-
-		// Stage 1: Validate Image Format and Quality Boundaries
-		valStart := time.Now()
-		_, valSpan := tracer.Start(r.Context(), "ocr.validate_image")
-		if _, err := ocr.ValidateImage(imgBytes); err != nil {
-			valSpan.RecordError(err)
-			valSpan.SetStatus(codes.Error, err.Error())
-			valSpan.End()
-
-			valDuration := time.Since(valStart).Seconds()
-			telemetry.RecordOCRStageDuration(r.Context(), "validation", "error", valDuration)
-			telemetry.RecordOCRError(r.Context(), "validation", response.CodeInvalidDocument)
-			telemetry.RecordOCRRequest(r.Context(), "invoice", "failure", 0, time.Since(startTime).Seconds())
-
-			clear(imgBytes)
-			response.ErrorWithRequest(
-				w,
-				r,
-				http.StatusBadRequest,
-				response.CodeInvalidDocument,
-				err.Error(),
-			)
-			return
-		}
-		valSpan.SetStatus(codes.Ok, "validated")
-		valSpan.End()
-		valDuration := time.Since(valStart).Seconds()
-		telemetry.RecordOCRStageDuration(r.Context(), "validation", "success", valDuration)
-
-		if engine == nil {
-			telemetry.RecordOCRError(r.Context(), "ocr_engine", response.CodeOCRFailed)
-			telemetry.RecordOCRRequest(r.Context(), "invoice", "failure", 0, time.Since(startTime).Seconds())
-			response.ErrorWithRequest(
-				w,
-				r,
-				http.StatusBadGateway,
-				response.CodeOCRFailed,
-				"OCR engine not available",
-			)
-			return
-		}
-
-		// Stage 2: OCR Engine Extraction
-		engStart := time.Now()
-		engCtx, engSpan := tracer.Start(r.Context(), "ocr.engine_extract")
-		ocrResult, err := engine.Extract(engCtx, imgBytes)
-		clear(imgBytes)
-		engDuration := time.Since(engStart).Seconds()
-
-		if err != nil {
-			slog.ErrorContext(r.Context(), "invoice ocr engine extraction failed", slog.String("error", err.Error()))
-			engSpan.RecordError(err)
-			engSpan.SetStatus(codes.Error, err.Error())
-			engSpan.End()
-			telemetry.RecordOCRStageDuration(r.Context(), "ocr_engine", "error", engDuration)
-
-			if errors.Is(err, ocr.ErrUnsupportedDocument) || errors.Is(err, ocr.ErrUnsupportedInvoiceDocument) {
-				telemetry.RecordOCRError(r.Context(), "ocr_engine", response.CodeUnsupportedDocument)
-				telemetry.RecordOCRRequest(r.Context(), "invoice", "failure", 0, time.Since(startTime).Seconds())
-				response.ErrorWithRequest(
-					w,
-					r,
-					http.StatusUnprocessableEntity,
-					response.CodeUnsupportedDocument,
-					"Uploaded image was not identified as an Indonesian commercial invoice or e-faktur",
-				)
-				return
-			}
-			if errors.Is(err, ocr.ErrCircuitOpen) {
-				telemetry.RecordOCRError(r.Context(), "circuit_breaker", response.CodeOCRFailed)
-				telemetry.RecordOCRRequest(r.Context(), "invoice", "failure", 0, time.Since(startTime).Seconds())
-				response.ErrorWithRequest(
-					w,
-					r,
-					http.StatusGatewayTimeout,
-					response.CodeOCRFailed,
-					"OCR circuit breaker is open: upstream service temporarily unavailable",
-				)
-				return
-			}
-			if errors.Is(err, context.DeadlineExceeded) || strings.Contains(err.Error(), "context deadline exceeded") {
-				telemetry.RecordOCRError(r.Context(), "ocr_engine", response.CodeOCRFailed)
-				telemetry.RecordOCRRequest(r.Context(), "invoice", "failure", 0, time.Since(startTime).Seconds())
-				response.ErrorWithRequest(
-					w,
-					r,
-					http.StatusGatewayTimeout,
-					response.CodeOCRFailed,
-					"OCR engine processing timeout",
-				)
-				return
-			}
-
-			telemetry.RecordOCRError(r.Context(), "ocr_engine", response.CodeOCRFailed)
-			telemetry.RecordOCRRequest(r.Context(), "invoice", "failure", 0, time.Since(startTime).Seconds())
-			response.ErrorWithRequest(
-				w,
-				r,
-				http.StatusBadGateway,
-				response.CodeOCRFailed,
-				"Upstream OCR engine error",
-			)
-			return
-		}
-		engSpan.SetStatus(codes.Ok, "extracted")
-		engSpan.End()
-		telemetry.RecordOCRStageDuration(r.Context(), "ocr_engine", "success", engDuration)
-
-		if ocrResult == nil || ocrResult.DocumentType != "invoice" || ocrResult.InvoiceData == nil {
-			telemetry.RecordOCRError(r.Context(), "validation", response.CodeUnsupportedDocument)
-			telemetry.RecordOCRRequest(r.Context(), "invoice", "failure", 0, time.Since(startTime).Seconds())
-			response.ErrorWithRequest(
-				w,
-				r,
-				http.StatusUnprocessableEntity,
-				response.CodeUnsupportedDocument,
-				"Uploaded image was not identified as an Indonesian commercial invoice or e-faktur",
-			)
-			return
-		}
-
-		// Stage 3: Field Extraction & Normalization
-		normStart := time.Now()
-		_, normSpan := tracer.Start(r.Context(), "ocr.normalize_and_validate")
-		invoiceData := ocrResult.InvoiceData
-		valErr := ocr.ValidateInvoice(invoiceData)
-		confidence := ocrResult.Confidence
-		if valErr != nil && confidence > 0.5 {
-			confidence = 0.5
-		}
-		normDuration := time.Since(normStart).Seconds()
-		normSpan.SetAttributes(
-			attribute.Float64("ocr.confidence", confidence),
-			attribute.String("ocr.doc_type", "invoice"),
-		)
-		normSpan.SetStatus(codes.Ok, "normalized")
-		normSpan.End()
-		telemetry.RecordOCRStageDuration(r.Context(), "field_extraction", "success", normDuration)
-
-		latencyMS := int(time.Since(startTime).Milliseconds())
-		totalDurationSec := float64(latencyMS) / 1000.0
-		recordID := GenerateUUIDv4()
-
-		// Stage 4: Persist non-PII execution metadata in PostgreSQL
-		if ocrStore != nil {
-			_, storeSpan := tracer.Start(r.Context(), "ocr.store_metadata")
-			var apiKeyID *string
-			if key.ID != "" {
-				apiKeyID = &key.ID
-			}
-
-			ocrReq := &store.OCRRequest{
-				ID:         recordID,
-				OrgID:      key.OrgID,
-				APIKeyID:   apiKeyID,
-				Status:     "completed",
-				Confidence: confidence,
-				LatencyMS:  latencyMS,
-				DocType:    "invoice",
-			}
-
-			if err := ocrStore.CreateOCRRequest(r.Context(), ocrReq); err != nil {
-				storeSpan.RecordError(err)
-				storeSpan.SetStatus(codes.Error, err.Error())
-				slog.ErrorContext(r.Context(), "failed saving ocr request metadata",
-					slog.String("error", err.Error()),
-					slog.String("record_id", recordID),
-				)
-			} else {
-				storeSpan.SetStatus(codes.Ok, "saved")
-			}
-			storeSpan.End()
-		}
-
-		// Record overall business metric
-		ocrStatus := "completed"
-		if confidence < 0.7 {
-			ocrStatus = "low_confidence"
-		}
-		telemetry.RecordOCRRequest(r.Context(), "invoice", ocrStatus, confidence, totalDurationSec)
-
-		// Zero PII structured log
-		slog.InfoContext(r.Context(), "invoice ocr request completed",
-			slog.String("request_id", response.GetRequestID(r.Context())),
-			slog.String("record_id", recordID),
-			slog.String("org_id", key.OrgID),
-			slog.Int("latency_ms", latencyMS),
-			slog.Float64("confidence", confidence),
-			slog.String("doc_type", "invoice"),
-		)
-
-		response.JSON(w, http.StatusOK, InvoiceResponse{
-			ID:           recordID,
-			DocumentType: "invoice",
-			Confidence:   confidence,
-			Data:         invoiceData,
-			Processing: ProcessingDetail{
-				LatencyMS: latencyMS,
-			},
-		})
-	}
+	return ocrPipeline(invoiceDocConfig(), engine, ocrStore, quota)
 }
 
 // GetOCRRequestHandler retrieves previous OCR execution metadata (non-PII) by ID.

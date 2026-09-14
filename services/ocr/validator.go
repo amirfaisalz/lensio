@@ -2,6 +2,7 @@ package ocr
 
 import (
 	"bytes"
+	"encoding/binary"
 	"fmt"
 	"image"
 	_ "image/jpeg"
@@ -78,11 +79,30 @@ func ValidateImage(data []byte) (string, error) {
 			return "", fmt.Errorf("%w: image dimensions (%dx%d) too small for identity document", ErrInvalidDocument, cfg.Width, cfg.Height)
 		}
 	case MIMEWebP:
-		// Basic WebP container sanity: minimum header length and RIFF payload size check
-		if len(data) < 30 {
-			return "", fmt.Errorf("%w: truncated webp header", ErrInvalidDocument)
+		if err := validateWebPContainer(data); err != nil {
+			return "", err
 		}
 	}
 
 	return mimeType, nil
+}
+
+func validateWebPContainer(data []byte) error {
+	if len(data) < 30 {
+		return fmt.Errorf("%w: truncated webp header", ErrInvalidDocument)
+	}
+	declared := binary.LittleEndian.Uint32(data[4:8])
+	if total := uint64(declared) + 8; total != uint64(len(data)) && total+1 != uint64(len(data)) {
+		return fmt.Errorf("%w: webp RIFF size mismatch", ErrInvalidDocument)
+	}
+	switch chunk := string(data[12:16]); chunk {
+	case "VP8L", "VP8X":
+	case "VP8 ":
+		if data[23] != 0x9d || data[24] != 0x01 || data[25] != 0x2a {
+			return fmt.Errorf("%w: corrupt webp VP8 frame", ErrInvalidDocument)
+		}
+	default:
+		return fmt.Errorf("%w: unknown webp chunk", ErrInvalidDocument)
+	}
+	return nil
 }

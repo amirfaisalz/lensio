@@ -50,7 +50,7 @@ func SessionOrg(accountStore store.AccountStore) func(http.Handler) http.Handler
 
 			ctx := WithAPIKey(r.Context(), &store.APIKey{
 				OrgID:       orgID,
-				Scopes:      user.Roles,
+				Scopes:      sessionScopes(user.Roles),
 				Environment: "live",
 			})
 			if car, ok := w.(interface{ SetRequestContext(context.Context) }); ok {
@@ -59,4 +59,23 @@ func SessionOrg(accountStore store.AccountStore) func(http.Handler) http.Handler
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
+}
+
+var sessionScopeAllowlist = map[string]struct{}{
+	"ocr:read":   {},
+	"ocr:write":  {},
+	"usage:read": {},
+	"developer":  {},
+}
+
+func sessionScopes(roles []string) []string {
+	scopes := make([]string, 0, len(roles))
+	for _, r := range roles {
+		if r = strings.TrimSpace(r); r != "" {
+			if _, ok := sessionScopeAllowlist[r]; ok {
+				scopes = append(scopes, r)
+			}
+		}
+	}
+	return scopes
 }

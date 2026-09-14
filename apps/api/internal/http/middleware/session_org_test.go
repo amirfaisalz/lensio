@@ -153,6 +153,34 @@ func TestSessionOrg_InjectsOrgFromSessionSubject(t *testing.T) {
 	}
 }
 
+func TestSessionOrg_StripsWildcardScopes(t *testing.T) {
+	accountStore := &stubSessionAccountStore{
+		orgByUserID: map[string]*store.Organization{
+			"user-123": {ID: "org-123", Name: "Acme"},
+		},
+	}
+
+	var seen *store.APIKey
+	var called bool
+	handler := middleware.SessionOrg(accountStore)(sessionOrgProbe(&seen, &called))
+
+	user := &middleware.OIDCUser{Subject: "user-123", Email: "budi@acme.test", Roles: []string{"admin", "*", "ocr:write"}}
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/ocr/ktp", nil)
+	req = req.WithContext(middleware.WithOIDCUser(req.Context(), user))
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK || !called {
+		t.Fatalf("expected downstream to run, got status %d", rec.Code)
+	}
+	if seen == nil {
+		t.Fatal("expected synthetic identity to be injected")
+	}
+	if len(seen.Scopes) != 1 || seen.Scopes[0] != "ocr:write" {
+		t.Errorf("expected wildcard roles stripped, got %v", seen.Scopes)
+	}
+}
+
 func TestSessionOrg_FallsBackToEmailLookup(t *testing.T) {
 	accountStore := &stubSessionAccountStore{
 		userByEmail: map[string]*store.UserWithAuth{

@@ -2,6 +2,7 @@ package ocr_test
 
 import (
 	"bytes"
+	"encoding/binary"
 	"errors"
 	"image"
 	"image/color"
@@ -31,8 +32,18 @@ func makeTestJPEG(width, height int) []byte {
 
 func makeFakeWebP(length int) []byte {
 	data := make([]byte, length)
+	if length < 4 {
+		return data
+	}
 	copy(data[0:4], []byte("RIFF"))
-	copy(data[8:12], []byte("WEBP"))
+	if length >= 12 {
+		binary.LittleEndian.PutUint32(data[4:8], uint32(length-8))
+		copy(data[8:12], []byte("WEBP"))
+	}
+	if length >= 26 {
+		copy(data[12:16], []byte("VP8 "))
+		data[23], data[24], data[25] = 0x9d, 0x01, 0x2a
+	}
 	return data
 }
 
@@ -158,6 +169,30 @@ func TestValidateImage(t *testing.T) {
 		}
 		if mime != ocr.MIMEWebP {
 			t.Fatalf("expected %s, got %s", ocr.MIMEWebP, mime)
+		}
+	})
+
+	t.Run("unknown WebP chunk returns error", func(t *testing.T) {
+		badChunk := makeFakeWebP(40)
+		copy(badChunk[12:16], []byte("XXXX"))
+		if _, err := ocr.ValidateImage(badChunk); !errors.Is(err, ocr.ErrInvalidDocument) {
+			t.Fatalf("expected ErrInvalidDocument, got %v", err)
+		}
+	})
+
+	t.Run("corrupt WebP VP8 frame returns error", func(t *testing.T) {
+		badFrame := makeFakeWebP(40)
+		badFrame[23], badFrame[24], badFrame[25] = 0x00, 0x00, 0x00
+		if _, err := ocr.ValidateImage(badFrame); !errors.Is(err, ocr.ErrInvalidDocument) {
+			t.Fatalf("expected ErrInvalidDocument, got %v", err)
+		}
+	})
+
+	t.Run("WebP RIFF size mismatch returns error", func(t *testing.T) {
+		badSize := makeFakeWebP(40)
+		binary.LittleEndian.PutUint32(badSize[4:8], uint32(4))
+		if _, err := ocr.ValidateImage(badSize); !errors.Is(err, ocr.ErrInvalidDocument) {
+			t.Fatalf("expected ErrInvalidDocument, got %v", err)
 		}
 	})
 }

@@ -10,8 +10,9 @@ import (
 	"net/http"
 )
 
-// DefaultMaxBodySize limits buffered payload read size to 10MB to prevent memory exhaustion.
-const DefaultMaxBodySize int64 = 10 * 1024 * 1024
+// DefaultMaxBodySize caps buffered payload reads at 6MB: idempotency only wraps
+// OCR routes whose uploads are capped at 5MB, so larger buffers only aid memory-exhaustion DoS.
+const DefaultMaxBodySize int64 = 6 * 1024 * 1024
 
 // ComputePayloadHash reads the request body up to maxBytes, computes its SHA-256 hash,
 // and resets r.Body with an io.NopCloser so downstream handlers can read it normally.

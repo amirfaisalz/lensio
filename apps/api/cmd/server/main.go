@@ -47,6 +47,17 @@ func main() {
 		slog.String("port", cfg.Port),
 	)
 
+	if cfg.Env == "production" || cfg.Env == "staging" {
+		if strings.TrimSpace(os.Getenv("SESSION_SECRET")) == "" {
+			logger.Error("SESSION_SECRET must be set in production/staging; refusing to start with dev fallback secret")
+			os.Exit(1)
+		}
+		if strings.TrimSpace(os.Getenv("DATABASE_URL")) == "" {
+			logger.Error("DATABASE_URL must be set in production/staging; refusing to start in ephemeral mode")
+			os.Exit(1)
+		}
+	}
+
 	var (
 		db     *store.DB
 		pinger store.Pinger

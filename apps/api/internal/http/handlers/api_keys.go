@@ -97,6 +97,10 @@ func CreateAPIKeyHandler(keyStore store.APIKeyStore, auditStore store.AuditStore
 			return
 		}
 
+		if rejectCrossOrgKeyManagement(r, w, req.OrgID, accountStore) {
+			return
+		}
+
 		if accountStore != nil {
 			if _, err := accountStore.GetOrganization(r.Context(), orgID); err != nil {
 				if errors.Is(err, store.ErrNotFound) {
@@ -257,6 +261,10 @@ func RevokeAPIKeyHandler(keyStore store.APIKeyStore, auditStore store.AuditStore
 		}
 		orgID := resolveOrgIDWithAccount(r, r.URL.Query().Get("org_id"), accountStore, defaultOrgID)
 
+		if rejectCrossOrgKeyManagement(r, w, r.URL.Query().Get("org_id"), accountStore) {
+			return
+		}
+
 		var actorSubject authz.Subject
 		if authorizer != nil {
 			var hasActor bool
@@ -356,5 +364,41 @@ func resolveOrgIDWithAccount(r *http.Request, explicit string, accountStore stor
 		return fallback
 	}
 	return DefaultOrgID
+}
+
+func callerOwnOrgID(r *http.Request, accountStore store.AccountStore) string {
+	if authKey := middleware.GetAPIKey(r.Context()); authKey != nil && strings.TrimSpace(authKey.OrgID) != "" {
+		return strings.TrimSpace(authKey.OrgID)
+	}
+	if oidcUser := middleware.GetOIDCUser(r.Context()); oidcUser != nil && accountStore != nil {
+		if org, err := accountStore.GetUserOrganization(r.Context(), oidcUser.Subject); err == nil && org != nil {
+			return strings.TrimSpace(org.ID)
+		}
+	}
+	return ""
+}
+
+func rejectCrossOrgKeyManagement(r *http.Request, w http.ResponseWriter, explicitOrgID string, accountStore store.AccountStore) bool {
+	explicitOrgID = strings.TrimSpace(explicitOrgID)
+	if explicitOrgID == "" {
+		return false
+	}
+	ownOrgID := callerOwnOrgID(r, accountStore)
+	if ownOrgID == "" || explicitOrgID == ownOrgID {
+		return false
+	}
+	scopes := []string{}
+	if authKey := middleware.GetAPIKey(r.Context()); authKey != nil {
+		scopes = authKey.Scopes
+	} else if oidcUser := middleware.GetOIDCUser(r.Context()); oidcUser != nil {
+		scopes = oidcUser.Roles
+	}
+	for _, s := range scopes {
+		if s == middleware.ScopeAdmin || s == middleware.ScopeAll {
+			return false
+		}
+	}
+	response.ErrorWithRequest(w, r, http.StatusForbidden, response.CodePermissionDenied, "Cannot manage API keys for another organization")
+	return true
 }
 

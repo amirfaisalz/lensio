@@ -46,8 +46,7 @@ func (e *Enforcer) CheckQuota(ctx context.Context, orgID string) (bool, int, int
 		return false, 0, 0, errors.New("orgID is required")
 	}
 	if e.accountStore == nil || e.usageStore == nil {
-		// If stores are not available, allow by default in ephemeral mode
-		return true, 100, 100, nil
+		return false, 0, 0, errors.New("quota stores are not configured")
 	}
 
 	plan, err := e.accountStore.GetOrganizationPlan(ctx, orgID)

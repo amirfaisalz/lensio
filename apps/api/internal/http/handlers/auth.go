@@ -220,7 +220,7 @@ func LoginHandler(accountStore store.AccountStore) http.HandlerFunc {
 			return
 		}
 
-		isSecure := r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https"
+		isSecure := r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https" || os.Getenv("ENV") == "production"
 		http.SetCookie(w, &http.Cookie{
 			Name:     "lensio_session",
 			Value:    token,
@@ -248,7 +248,7 @@ func LoginHandler(accountStore store.AccountStore) http.HandlerFunc {
 // LogoutHandler handles POST /api/v1/auth/logout and clears the secure session cookie.
 func LogoutHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		isSecure := r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https"
+		isSecure := r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https" || os.Getenv("ENV") == "production"
 		http.SetCookie(w, &http.Cookie{
 			Name:     "lensio_session",
 			Value:    "",

@@ -3,8 +3,10 @@ package middleware
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/amirfaisalz/lensio/apps/api/internal/http/response"
 )
@@ -42,8 +44,7 @@ func GetRequestID(r *http.Request) string {
 func generateRequestID() string {
 	b := make([]byte, 12)
 	if _, err := rand.Read(b); err != nil {
-		// Fallback deterministic pseudo-random in improbable failure
-		return "req_000000000000000000000000"
+		return fmt.Sprintf("req_fallback_%d", time.Now().UnixNano())
 	}
 	return "req_" + hex.EncodeToString(b)
 }

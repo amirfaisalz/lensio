@@ -92,11 +92,18 @@ const TestConsumer: React.FC = () => {
 			</button>
 			<button
 				type="button"
-				onClick={() => registerUser("Ali", "ali@test.id", "pass1234")}
+				onClick={() => {
+					void registerUser("Ali", "ali@test.id", "pass1234").catch(() => {});
+				}}
 			>
 				Register Ali
 			</button>
-			<button type="button" onClick={() => verifyUserEmail("ali@test.id")}>
+			<button
+				type="button"
+				onClick={() => {
+					void verifyUserEmail("ali@test.id").catch(() => {});
+				}}
+			>
 				Verify Ali
 			</button>
 			<button type="button" onClick={logout}>

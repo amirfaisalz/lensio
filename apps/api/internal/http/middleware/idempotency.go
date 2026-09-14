@@ -167,8 +167,10 @@ func Idempotency(store idempotency.Store) func(http.Handler) http.Handler {
 
 			next.ServeHTTP(rw, r)
 
-			// Persist successful or client error responses (< 500)
-			if rw.statusCode < http.StatusInternalServerError {
+			// Persist successful or client error responses, except 429 rate/quota
+			// signals: those are retryable by nature and must never be replayed
+			// after the caller's quota or rate window has reset.
+			if rw.statusCode < http.StatusInternalServerError && rw.statusCode != http.StatusTooManyRequests {
 				headersToCache := make(map[string]string)
 				for k, vals := range rw.Header() {
 					if len(vals) > 0 {
@@ -177,7 +179,8 @@ func Idempotency(store idempotency.Store) func(http.Handler) http.Handler {
 				}
 				_ = store.Complete(r.Context(), orgID, keyHeader, rw.statusCode, headersToCache, rw.body.Bytes())
 			} else {
-				// 5xx errors: release lock to allow clients to retry
+				// 5xx errors and 429 rate/quota signals: release the lock to
+				// allow clients to retry with the same key.
 				_ = store.Release(r.Context(), orgID, keyHeader)
 			}
 		})

@@ -742,6 +742,51 @@ func (m *mockAPIKeyAndAccountStore) GetUserOrganization(ctx context.Context, use
 	return nil, store.ErrNotFound
 }
 
+func TestCreateAPIKeyHandler_CrossOrgGuard(t *testing.T) {
+	ownOrg := &store.Organization{ID: "org-uuid-123", Name: "Test Company", Slug: "test-co"}
+	otherOrg := &store.Organization{ID: "org-other-456", Name: "Other Co", Slug: "other-co"}
+	as := &mockAPIKeyAndAccountStore{
+		mockAPIKeyStore: newMockStore(),
+		orgs: map[string]*store.Organization{
+			"org-uuid-123":  ownOrg,
+			"org-other-456": otherOrg,
+		},
+		userOrgs: map[string]*store.Organization{
+			"user-uuid-999": ownOrg,
+		},
+	}
+
+	newReq := func(subject string, roles []string, orgID string) *http.Request {
+		body, _ := json.Marshal(map[string]any{"name": "X", "org_id": orgID})
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/api-keys", bytes.NewReader(body))
+		return req.WithContext(middleware.WithOIDCUser(req.Context(), &middleware.OIDCUser{Subject: subject, Roles: roles}))
+	}
+
+	t.Run("cross-org explicit id is forbidden", func(t *testing.T) {
+		rec := httptest.NewRecorder()
+		handlers.CreateAPIKeyHandler(as, nil, nil, "")(rec, newReq("user-uuid-999", []string{"developer"}, "org-other-456"))
+		if rec.Code != http.StatusForbidden {
+			t.Fatalf("expected 403 for cross-org key creation, got %d. Body: %s", rec.Code, rec.Body.String())
+		}
+	})
+
+	t.Run("same-org explicit id is allowed", func(t *testing.T) {
+		rec := httptest.NewRecorder()
+		handlers.CreateAPIKeyHandler(as, nil, nil, "")(rec, newReq("user-uuid-999", []string{"developer"}, "org-uuid-123"))
+		if rec.Code != http.StatusCreated {
+			t.Fatalf("expected 201 for same-org key creation, got %d. Body: %s", rec.Code, rec.Body.String())
+		}
+	})
+
+	t.Run("admin may manage other orgs", func(t *testing.T) {
+		rec := httptest.NewRecorder()
+		handlers.CreateAPIKeyHandler(as, nil, nil, "")(rec, newReq("user-uuid-999", []string{"admin"}, "org-other-456"))
+		if rec.Code != http.StatusCreated {
+			t.Fatalf("expected 201 for admin cross-org key creation, got %d. Body: %s", rec.Code, rec.Body.String())
+		}
+	})
+}
+
 func TestAPIKeyHandlers_WithAccountStore(t *testing.T) {
 	baseStore := newMockStore()
 	validOrg := &store.Organization{

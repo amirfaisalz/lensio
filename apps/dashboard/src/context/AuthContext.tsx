@@ -46,10 +46,7 @@ export interface AuthContextValue {
 		email: string,
 		password: string,
 	) => Promise<{ requiresVerification: boolean; verificationToken?: string }>;
-	verifyUserEmail: (
-		email: string,
-		token?: string,
-	) => Promise<boolean> | boolean;
+	verifyUserEmail: (email: string, token?: string) => Promise<boolean>;
 	isEmailVerified: (email: string) => boolean;
 	createOrganization: (
 		name: string,
@@ -388,42 +385,26 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
 			requiresVerification: boolean;
 			verificationToken?: string;
 		}> => {
-			try {
-				const res = await api.register({
-					full_name: fullName.trim(),
-					email: email.trim(),
-					password,
-				});
-				return {
-					requiresVerification: true,
-					verificationToken: res.verification_token,
-				};
-			} catch (err: unknown) {
-				// If already a registered error from server, rethrow
-				if (err instanceof Error && err.message.includes("sudah terdaftar")) {
-					throw err;
-				}
-				// Fallback for offline/mock test environments
-				return {
-					requiresVerification: true,
-				};
-			}
+			const res = await api.register({
+				full_name: fullName.trim(),
+				email: email.trim(),
+				password,
+			});
+			return {
+				requiresVerification: true,
+				verificationToken: res.verification_token,
+			};
 		},
 		[],
 	);
 
 	const verifyUserEmail = useCallback(
 		async (email: string, token?: string): Promise<boolean> => {
-			try {
-				await api.verifyEmail({
-					email: email.trim(),
-					token,
-				});
-				return true;
-			} catch {
-				// Fallback for offline/mock test environments
-				return true;
-			}
+			await api.verifyEmail({
+				email: email.trim(),
+				token,
+			});
+			return true;
 		},
 		[],
 	);

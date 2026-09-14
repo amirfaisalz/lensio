@@ -44,9 +44,6 @@ func (m *RateLimitMiddleware) Handler(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/health" || r.URL.Path == "/ready" || r.URL.Path == "/metrics" ||
 			strings.HasPrefix(r.URL.Path, "/docs") || strings.HasPrefix(r.URL.Path, "/openapi") ||
-			strings.HasPrefix(r.URL.Path, "/api/v1/auth/login") ||
-			strings.HasPrefix(r.URL.Path, "/api/v1/auth/register") ||
-			strings.HasPrefix(r.URL.Path, "/api/v1/auth/verify-email") ||
 			strings.HasPrefix(r.URL.Path, "/api/v1/auth/me") ||
 			strings.HasPrefix(r.URL.Path, "/api/v1/auth/logout") ||
 			strings.HasPrefix(r.URL.Path, "/api/v1/account") {
@@ -60,15 +57,11 @@ func (m *RateLimitMiddleware) Handler(next http.Handler) http.Handler {
 		if key := GetAPIKey(r.Context()); key != nil && key.OrgID != "" {
 			rateKey = key.OrgID
 		} else if user := GetOIDCUser(r.Context()); user != nil && (user.Subject != "" || user.Email != "") {
-			if reqOrg := r.URL.Query().Get("org_id"); reqOrg != "" {
-				rateKey = reqOrg
-			} else {
-				sub := user.Subject
-				if sub == "" {
-					sub = user.Email
-				}
-				rateKey = "oidc:" + sub
+			sub := user.Subject
+			if sub == "" {
+				sub = user.Email
 			}
+			rateKey = "oidc:" + sub
 		} else if m.defaultOrgID != "" {
 			rateKey = m.defaultOrgID
 		} else if ip := clientIPFromRequest(r); ip != "" {

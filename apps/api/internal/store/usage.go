@@ -113,7 +113,7 @@ func (db *DB) GetUsageSummary(ctx context.Context, orgID string, since time.Time
 			COALESCE(PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY latency_ms) FILTER (WHERE endpoint NOT LIKE '/api/v1/ocr/%'), 0)::int,
 			COALESCE(PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY latency_ms) FILTER (WHERE endpoint LIKE '/api/v1/ocr/%'), 0)::int,
 			COALESCE(COUNT(*) FILTER (WHERE status_code = 429), 0),
-			COALESCE(COUNT(*) FILTER (WHERE endpoint = '/api/v1/ocr/ktp' AND status_code < 400), 0)
+			COALESCE(COUNT(*) FILTER (WHERE endpoint LIKE '/api/v1/ocr/%' AND status_code < 400), 0)
 		FROM usage_records
 		WHERE org_id = $1 AND timestamp >= $2;
 	`
@@ -257,7 +257,7 @@ func (db *DB) GetMonthlyOCRCount(ctx context.Context, orgID string, since time.T
 		FROM usage_records
 		WHERE org_id = $1 
 		  AND timestamp >= $2 
-		  AND endpoint = '/api/v1/ocr/ktp'
+		  AND endpoint LIKE '/api/v1/ocr/%'
 		  AND status_code < 400;
 	`
 
