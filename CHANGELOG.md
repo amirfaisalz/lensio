@@ -3,6 +3,15 @@
 Format mengikuti [Keep a Changelog](https://keepachangelog.com/id/1.1.0/). Tanggal WIB (Asia/Jakarta).
 
 ## [Unreleased]
+### Added
+- **Validator conformance terhadap spesifikasi** (ICAO 9303, Permendagri 109/2019, PMK 112/2022): spesimen MRZ resmi + 4 test vector check-digit, tiap check digit dibuktikan load-bearing, Luhn NPWP dihitung ulang independen. Menutup 5 celah: check digit personal number MRZ dibuang (`_ =`), karakter sex tidak divalidasi, kode kabupaten/kecamatan `00` diterima, tarif PPN tidak pernah diperiksa (0,5% lolos), diskon tak berbatas.
+- **Pengiriman email transaksional** (`net/smtp`, tanpa dependensi baru) + **reset password**: sebelumnya token verifikasi dibuat lalu tidak pernah dikirim, sehingga signup mandiri mustahil selesai di produksi; dan tidak ada jalur pemulihan password sama sekali.
+- **Rate limit cluster-wide** lewat counter Postgres (`rate_limit_counters`), menggantikan bucket per-proses yang membolehkan burst hingga Nx limit paket pada N replika.
+- **Keanggotaan organisasi sungguhan** (`organization_members`): satu user kini bisa di banyak organisasi dengan peran per-organisasi. `GET /api/v1/account/organizations` menjadikan server sumber kebenaran; dashboard berhenti menyimpan daftar org di localStorage.
+- **Alert keamanan**: `lensio_cross_tenant_denied_total` + rule `CrossTenantAccessAttempts` dan `AuthenticationFailureSurge`, dengan unit test promtool termasuk kasus negatif.
+- **Penegakan retensi**: sweep batch tiap jam untuk `ocr_requests` (90 hari), `usage_records` dan `audit_logs` (12 bulan) — sebelumnya PRIVACY.md menjanjikannya tanpa kode.
+- **Validasi IaC di CI** (`tofu fmt` + `validate` semua modul & environment), yang langsung menemukan `for_each` invalid pada blok Gemini: nilainya berasal dari variabel `sensitive`, dan `for_each` menolak nilai bertanda.
+
 ### Security
 - **Isolasi tenant (P0)**: `resolveOrgID` kini default-deny — `?org_id`/`org_id` body hanya diterima bila sama dengan org pemanggil (atau scope platform `*`, atau saat cek ReBAC SpiceDB langsung menyusul). Sebelumnya 9 endpoint (`/usage*`, `/account*`, `GET /auth/api-keys`) memakai nilai itu apa adanya, sehingga tenant lain bisa dibaca dan `PUT /account/plan` milik tenant lain bisa diubah. Signature helper diubah agar compiler memaksa semua call site ikut — guard sebelumnya hanya terpasang di 2 dari 9.
 - **Bypass verifikasi email (P0)**: token kosong tidak lagi memverifikasi akun. Handler menolak token kosong dan cabang "dev flow" di `store.VerifyUserEmail` (yang mencocokkan hanya berdasarkan email) dihapus.

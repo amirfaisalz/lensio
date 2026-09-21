@@ -7,8 +7,8 @@
 <p align="center">
   <img src="https://img.shields.io/badge/build-passing-brightgreen?style=flat-square" alt="Build Status" />
   <img src="https://img.shields.io/badge/go%20report-A%2B-brightgreen?style=flat-square" alt="Go Report Card" />
-  <img src="https://img.shields.io/badge/core%20backend%20coverage-93.5%25-brightgreen?style=flat-square" alt="Core Backend Coverage" />
-  <img src="https://img.shields.io/badge/repo%20coverage-88.1%25-brightgreen?style=flat-square" alt="Whole Repo Coverage" />
+  <img src="https://img.shields.io/badge/core%20backend%20coverage-88.5%25-brightgreen?style=flat-square" alt="Core Backend Coverage" />
+  <img src="https://img.shields.io/badge/repo%20coverage-87.5%25-brightgreen?style=flat-square" alt="Whole Repo Coverage" />
   <img src="https://img.shields.io/badge/security%20gates-5%2F5%20passed-brightgreen?style=flat-square" alt="Security Gates" />
   <img src="https://img.shields.io/badge/opentelemetry-active-blue?style=flat-square" alt="OpenTelemetry" />
   <img src="https://img.shields.io/badge/plumbing%20benchmark-1%2C000%20RPS%20(mock)-brightgreen?style=flat-square" alt="Plumbing Benchmark 1,000 RPS (mock)" />
@@ -87,7 +87,7 @@ docker compose up -d
 # Keycloak http://localhost:8082 · Adminer http://localhost:8081
 ```
 
-> Coverage badges reflect the last measurement (core ~93.5%, repo ~88.1%). 100% is the aspiration in `AGENTS.md`, not the current state — the numbers above are the measured reality. Re-measure locally with `go test -race -cover ./...`.
+> Coverage badges reflect the last measurement (core ~88.5%, repo ~87.5%). 100% is the aspiration in `AGENTS.md`, not the current state — the numbers above are the measured reality. Re-measure locally with `go test -race -cover ./...`.
 >
 > Coverage is not the safety net on its own: the authorization boundary has its own suite (`apps/api/internal/http/handlers/tenant_isolation_test.go`) because a fully green run once sat on top of a cross-tenant read/write hole.
 
