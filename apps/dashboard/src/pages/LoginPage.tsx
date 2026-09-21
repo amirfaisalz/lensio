@@ -46,6 +46,12 @@ export const LoginPage: React.FC<LoginPageProps> = ({
 	const [agreeTerms, setAgreeTerms] = useState(false);
 
 	// Verification state
+	// Only populated when the API runs with ENV=development/test, where it returns
+	// the verification token inline. In production the token is never disclosed —
+	// it has to arrive by email — so the shortcut below is hidden entirely.
+	const [devVerificationToken, setDevVerificationToken] = useState<
+		string | null
+	>(null);
 	const [verificationPendingEmail, setVerificationPendingEmail] = useState<
 		string | null
 	>(null);
@@ -165,7 +171,8 @@ export const LoginPage: React.FC<LoginPageProps> = ({
 
 		try {
 			// Register user identity into the system with verification requirement
-			await registerUser(name, email, regPassword);
+			const registration = await registerUser(name, email, regPassword);
+			setDevVerificationToken(registration.verificationToken ?? null);
 			setIsLoading(false);
 			// Transition to Email Verification Notice screen
 			setVerificationPendingEmail(email);
@@ -179,14 +186,23 @@ export const LoginPage: React.FC<LoginPageProps> = ({
 		}
 	};
 
-	// Helper to complete verification (calls backend PostgreSQL API)
-	const handleSimulateVerification = async (emailToVerify: string) => {
+	// Completes verification using the token issued at registration. The backend
+	// requires a valid token — an empty one used to verify any address, which is
+	// the account-takeover path that was closed.
+	const handleDevVerification = async (emailToVerify: string) => {
+		if (!devVerificationToken) {
+			setErrorMessage(
+				"Verifikasi butuh token dari email. Token hanya ditampilkan saat API berjalan dengan ENV=development.",
+			);
+			return;
+		}
 		try {
 			setIsLoading(true);
-			await verifyUserEmail(emailToVerify);
+			await verifyUserEmail(emailToVerify, devVerificationToken);
 			setIsLoading(false);
 			setVerificationPendingEmail(null);
 			setUnverifiedAttemptEmail(null);
+			setDevVerificationToken(null);
 			setLoginEmail(emailToVerify);
 			setActiveTab("login");
 			setVerificationSuccessMsg(
@@ -380,17 +396,19 @@ export const LoginPage: React.FC<LoginPageProps> = ({
 						</div>
 
 						<div className="space-y-3">
-							{/* Dev Simulation button */}
-							<button
-								type="button"
-								onClick={() =>
-									handleSimulateVerification(verificationPendingEmail)
-								}
-								className="w-full py-2.5 px-4 text-xs font-semibold text-white bg-[#1877F2] hover:bg-[#166FE5] active:bg-[#0e5ec8] rounded-xl transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
-							>
-								<CheckCircle2 className="w-4 h-4" />
-								<span>Verifikasi Sekarang (Simulasi Dev)</span>
-							</button>
+							{/* Development shortcut: only available when the API disclosed a token. */}
+							{devVerificationToken && (
+								<button
+									type="button"
+									onClick={() =>
+										handleDevVerification(verificationPendingEmail)
+									}
+									className="w-full py-2.5 px-4 text-xs font-semibold text-white bg-[#1877F2] hover:bg-[#166FE5] active:bg-[#0e5ec8] rounded-xl transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+								>
+									<CheckCircle2 className="w-4 h-4" />
+									<span>Verifikasi Sekarang (Simulasi Dev)</span>
+								</button>
+							)}
 
 							<button
 								type="button"
@@ -466,11 +484,11 @@ export const LoginPage: React.FC<LoginPageProps> = ({
 										<p className="text-xs text-rose-600 mt-0.5">
 											{errorMessage}
 										</p>
-										{unverifiedAttemptEmail && (
+										{unverifiedAttemptEmail && devVerificationToken && (
 											<button
 												type="button"
 												onClick={() =>
-													handleSimulateVerification(unverifiedAttemptEmail)
+													handleDevVerification(unverifiedAttemptEmail)
 												}
 												className="mt-2 text-xs font-semibold text-[#1877F2] hover:underline flex items-center gap-1 rounded px-0.5 py-0.5"
 											>
