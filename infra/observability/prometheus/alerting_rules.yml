@@ -93,3 +93,36 @@ groups:
           description: "PostgreSQL in-use connections currently occupy {{ $value | printf \"%.2f\" }}% of open connections for > 3 minutes."
           runbook_url: "docs/incidents/INC-20260912-02-database-outage.md"
           dashboard_url: "https://grafana.lensio.dev/d/lensio-red-metrics"
+
+      # 7. Cross-Tenant Access Attempts: a caller naming an organization it does
+      #    not belong to. One or two are usually a stale dashboard cache; a
+      #    sustained rate means someone is enumerating tenant boundaries.
+      - alert: CrossTenantAccessAttempts
+        expr: sum(rate(lensio_cross_tenant_denied_total[5m])) * 300 > 5
+        for: 5m
+        labels:
+          severity: critical
+          category: security
+          team: security
+          tier: api
+        annotations:
+          summary: "Repeated attempts to access another organization's data"
+          description: "{{ $value | printf \"%.0f\" }} requests in the last 5 minutes named an organization the caller does not belong to. Identify the caller from the request_id in the 403 logs before assuming it is a client bug."
+          runbook_url: "docs/security.md"
+          dashboard_url: "https://grafana.lensio.dev/d/lensio-red-metrics"
+
+      # 8. Authentication Failure Surge: sustained 401s on the public auth
+      #    routes, i.e. credential stuffing or password spraying.
+      - alert: AuthenticationFailureSurge
+        expr: sum(rate(http_requests_total{status_code="401",route=~"/api/v1/auth/.*"}[5m])) * 300 > 50
+        for: 5m
+        labels:
+          severity: warning
+          category: security
+          team: security
+          tier: edge
+        annotations:
+          summary: "Sustained authentication failures on public auth endpoints"
+          description: "{{ $value | printf \"%.0f\" }} failed authentication attempts in the last 5 minutes. Expected during a client misconfiguration; otherwise treat as credential stuffing."
+          runbook_url: "docs/security.md"
+          dashboard_url: "https://grafana.lensio.dev/d/lensio-red-metrics"

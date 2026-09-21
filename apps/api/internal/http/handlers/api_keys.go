@@ -13,6 +13,7 @@ import (
 	"github.com/amirfaisalz/lensio/apps/api/internal/http/middleware"
 	"github.com/amirfaisalz/lensio/apps/api/internal/http/response"
 	"github.com/amirfaisalz/lensio/apps/api/internal/store"
+	"github.com/amirfaisalz/lensio/apps/api/internal/telemetry"
 )
 
 // DefaultOrgID is the seeded fallback organization identifier.
@@ -388,6 +389,7 @@ func resolveOrgID(w http.ResponseWriter, r *http.Request, explicit string, accou
 		return explicit, true
 	}
 
+	telemetry.RecordCrossTenantDenied(r.Context(), r.URL.Path)
 	response.ErrorWithRequest(
 		w,
 		r,

@@ -20,6 +20,7 @@ var (
 	httpErrorsTotal     metric.Int64Counter
 
 	// Rate Limiting Metrics
+	crossTenantDeniedTotal metric.Int64Counter
 	rateLimitExceededTotal metric.Int64Counter
 
 	// OCR Pipeline & Performance Metrics
@@ -65,6 +66,16 @@ func initInstruments(meter metric.Meter) error {
 	)
 	if err != nil {
 		return fmt.Errorf("creating http_errors_total: %w", err)
+	}
+
+	// 4a. Security: cross-tenant access attempts
+	crossTenantDeniedTotal, err = meter.Int64Counter(
+		"lensio_cross_tenant_denied_total",
+		metric.WithDescription("Requests refused because the caller targeted an organization it does not belong to"),
+		metric.WithUnit("{denial}"),
+	)
+	if err != nil {
+		return fmt.Errorf("creating lensio_cross_tenant_denied_total: %w", err)
 	}
 
 	// 4. Rate Limiting: Rate limit exceeded counter
@@ -327,4 +338,20 @@ func RegisterDBStats(db *sql.DB) error {
 
 	dbStatsRegistered = true
 	return nil
+}
+
+// RecordCrossTenantDenied counts requests refused because the caller named an
+// organization it does not belong to.
+//
+// This is deliberately its own counter rather than a slice of http_errors_total:
+// a 403 can also mean a missing scope, and the two need very different responses.
+// A rise here means someone is probing tenant boundaries.
+func RecordCrossTenantDenied(ctx context.Context, route string) {
+	if crossTenantDeniedTotal == nil {
+		return
+	}
+	if route == "" {
+		route = "unknown"
+	}
+	crossTenantDeniedTotal.Add(ctx, 1, metric.WithAttributes(attribute.String("route", route)))
 }

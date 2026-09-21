@@ -107,3 +107,38 @@ tests:
               description: "PostgreSQL in-use connections currently occupy 90.00% of open connections for > 3 minutes."
               runbook_url: "docs/incidents/INC-20260912-02-database-outage.md"
               dashboard_url: "https://grafana.lensio.dev/d/lensio-red-metrics"
+
+  # Test 7: CrossTenantAccessAttempts fires when >5 denials occur in 5 minutes
+  - interval: 1m
+    input_series:
+      - series: 'lensio_cross_tenant_denied_total{route="/api/v1/usage/records"}'
+        values: '0+4x12'  # 4 denials per minute = 20 per 5m window, over the threshold of 5
+    alert_rule_test:
+      # Not yet sustained for the 5m "for" duration
+      - eval_time: 3m
+        alertname: CrossTenantAccessAttempts
+        exp_alerts: []
+      - eval_time: 11m
+        alertname: CrossTenantAccessAttempts
+        exp_alerts:
+          - exp_labels:
+              alertname: CrossTenantAccessAttempts
+              severity: critical
+              category: security
+              team: security
+              tier: api
+            exp_annotations:
+              summary: "Repeated attempts to access another organization's data"
+              description: "20 requests in the last 5 minutes named an organization the caller does not belong to. Identify the caller from the request_id in the 403 logs before assuming it is a client bug."
+              runbook_url: "docs/security.md"
+              dashboard_url: "https://grafana.lensio.dev/d/lensio-red-metrics"
+
+  # Test 8: a single isolated denial (stale dashboard cache) must NOT alert
+  - interval: 1m
+    input_series:
+      - series: 'lensio_cross_tenant_denied_total{route="/api/v1/account"}'
+        values: '0 1 1 1 1 1 1 1 1 1 1 1'
+    alert_rule_test:
+      - eval_time: 11m
+        alertname: CrossTenantAccessAttempts
+        exp_alerts: []

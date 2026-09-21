@@ -80,7 +80,10 @@ resource "azurerm_container_app" "api" {
   }
 
   dynamic "secret" {
-    for_each = var.gemini_api_key != "" ? [1] : []
+    # nonsensitive(): gemini_api_key is a sensitive variable, so the comparison
+    # result inherits that mark and for_each refuses marked values (a key would
+    # leak it). Whether a key was supplied is not itself a secret.
+    for_each = nonsensitive(var.gemini_api_key != "") ? toset(["gemini"]) : toset([])
     content {
       name  = "gemini-api-key"
       value = var.gemini_api_key
@@ -137,7 +140,8 @@ resource "azurerm_container_app" "api" {
       }
 
       dynamic "env" {
-        for_each = var.gemini_api_key != "" ? [1] : []
+        # nonsensitive(): see the secret block above.
+        for_each = nonsensitive(var.gemini_api_key != "") ? toset(["gemini"]) : toset([])
         content {
           name        = "GEMINI_API_KEY"
           secret_name = "gemini-api-key"

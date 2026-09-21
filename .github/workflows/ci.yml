@@ -111,6 +111,54 @@ jobs:
           npx @stoplight/spectral-cli lint openapi/openapi.yaml
 
   # ----------------------------------------------------------------------------
+  # 3b. Infrastructure as Code validation
+  # ----------------------------------------------------------------------------
+  # The IaC was never checked by CI, so a module could reference an undeclared
+  # variable, or drift from the environment variables the API needs to boot,
+  # and nothing would notice until a deploy.
+  iac-validation:
+    name: OpenTofu Format & Validate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up OpenTofu
+        uses: opentofu/setup-opentofu@v1
+        with:
+          tofu_version: 1.8.5
+
+      - name: Check formatting
+        run: tofu fmt -check -recursive infra/
+
+      - name: Validate every module and environment
+        run: |
+          set -euo pipefail
+          # -backend=false keeps validation offline: no remote state, no credentials.
+          for dir in infra/modules/*/ infra/live/*/; do
+            [ -f "${dir}main.tf" ] || continue
+            echo "::group::validate ${dir}"
+            tofu -chdir="${dir}" init -backend=false -input=false >/dev/null
+            tofu -chdir="${dir}" validate
+            echo "::endgroup::"
+          done
+
+      - name: Verify the API's required environment variables are provisioned
+        run: |
+          set -euo pipefail
+          # The API exits on startup without SESSION_SECRET, silently serves mock
+          # fixture data without OCR_PROVIDER, and emits no CORS headers without
+          # CORS_ALLOWED_ORIGINS. Assert the container app module still sets them.
+          missing=0
+          for var in SESSION_SECRET OCR_PROVIDER CORS_ALLOWED_ORIGINS DATABASE_URL RATE_LIMIT_REPLICAS; do
+            if ! grep -q "\"${var}\"" infra/modules/container_apps/main.tf; then
+              echo "::error::${var} is no longer set by infra/modules/container_apps/main.tf"
+              missing=1
+            fi
+          done
+          exit "${missing}"
+
+  # ----------------------------------------------------------------------------
   # 4. End-to-End Integration Tests with Containerized PostgreSQL
   # ----------------------------------------------------------------------------
   integration-test:
@@ -255,6 +303,7 @@ jobs:
       - go-ci
       - frontend-ci
       - openapi-validation
+      - iac-validation
       - integration-test
       - e2e-test
     runs-on: ubuntu-latest
@@ -265,6 +314,7 @@ jobs:
           if [ "${{ needs.go-ci.result }}" != "success" ] || \
              [ "${{ needs.frontend-ci.result }}" != "success" ] || \
              [ "${{ needs.openapi-validation.result }}" != "success" ] || \
+             [ "${{ needs.iac-validation.result }}" != "success" ] || \
              [ "${{ needs.integration-test.result }}" != "success" ] || \
              [ "${{ needs.e2e-test.result }}" != "success" ]; then
             echo "❌ CI Quality Gate Failed: One or more required checks did not succeed." >&2

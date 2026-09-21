@@ -244,7 +244,11 @@ func main() {
 	// Initialize background cleaner for stale rate limiter buckets and expired idempotency keys (Issue #4)
 	cleanerCtx, cleanerCancel := context.WithCancel(context.Background())
 	defer cleanerCancel()
-	cleanerDone := startBackgroundCleaner(cleanerCtx, logger, 10*time.Minute, rateLimiter, idempotencyStore)
+	var purger retentionPurger
+	if db != nil {
+		purger = db
+	}
+	cleanerDone := startBackgroundCleaner(cleanerCtx, logger, 10*time.Minute, rateLimiter, idempotencyStore, purger)
 
 	// Server runner goroutine
 	go func() {
