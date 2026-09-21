@@ -74,7 +74,7 @@ func TestStartBackgroundCleaner_GracefulShutdown(t *testing.T) {
 	limiter := ratelimit.NewLimiter()
 	memStore := idempotency.NewMemoryStore(50 * time.Millisecond)
 
-	done := startBackgroundCleaner(ctx, logger, 10*time.Millisecond, limiter, memStore, nil)
+	done := startBackgroundCleaner(ctx, logger, 10*time.Millisecond, limiter, memStore, nil, nil)
 
 	// Let it run at least one tick
 	time.Sleep(25 * time.Millisecond)

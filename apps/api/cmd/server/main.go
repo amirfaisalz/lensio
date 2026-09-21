@@ -124,10 +124,24 @@ func main() {
 		slog.Duration("timeout", cbCfg.Timeout),
 	)
 
-	rateLimiter := ratelimit.NewLimiter()
-	if cfg.RateLimitReplicas > 1 {
-		logger.Info("dividing plan rate limits across replicas (in-memory buckets are per-process)",
-			slog.Int("replicas", cfg.RateLimitReplicas))
+	// Prefer the shared counter: it enforces the advertised plan limit across every
+	// replica. The in-memory limiter only bounds one process, so with N replicas a
+	// tenant could burst N times its plan; RATE_LIMIT_REPLICAS divides the limit as
+	// a stopgap and is only needed when there is no database to share state through.
+	var rateLimiter ratelimit.RateLimiter
+	replicaDivisor := cfg.RateLimitReplicas
+	var pgLimiter *ratelimit.PostgresLimiter
+	if db != nil {
+		pgLimiter = ratelimit.NewPostgresLimiter(db.DB, logger)
+		rateLimiter = pgLimiter
+		replicaDivisor = 1 // the counter is already cluster-wide
+		logger.Info("rate limiting via shared postgres counter (cluster-wide)")
+	} else {
+		rateLimiter = ratelimit.NewLimiter()
+		if replicaDivisor > 1 {
+			logger.Warn("no database: rate limits are per-process and divided by the configured replica count",
+				slog.Int("replicas", replicaDivisor))
+		}
 	}
 
 	var usageRecorder *usage.Recorder
@@ -272,7 +286,7 @@ func main() {
 	if db != nil {
 		purger = db
 	}
-	cleanerDone := startBackgroundCleaner(cleanerCtx, logger, 10*time.Minute, rateLimiter, idempotencyStore, purger)
+	cleanerDone := startBackgroundCleaner(cleanerCtx, logger, 10*time.Minute, rateLimiter, idempotencyStore, purger, pgLimiter)
 
 	// Server runner goroutine
 	go func() {

@@ -15,6 +15,32 @@ type retentionPurger interface {
 	PurgeExpiredRecords(ctx context.Context, now time.Time, batchSize int) (store.RetentionResult, error)
 }
 
+// rateWindowSweeper deletes elapsed shared rate-limit windows.
+type rateWindowSweeper interface {
+	CleanupStale(ctx context.Context) (int64, error)
+}
+
+// sweepRateWindows removes rate-limit rows whose window has passed, so the table
+// stays proportional to active tenants rather than to uptime.
+func sweepRateWindows(ctx context.Context, logger *slog.Logger, sweeper rateWindowSweeper) {
+	if sweeper == nil {
+		return
+	}
+	sweepCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	rows, err := sweeper.CleanupStale(sweepCtx)
+	if err != nil {
+		if logger != nil {
+			logger.Warn("failed sweeping elapsed rate limit windows", slog.String("error", err.Error()))
+		}
+		return
+	}
+	if rows > 0 && logger != nil {
+		logger.Debug("purged elapsed rate limit windows", slog.Int64("rows", rows))
+	}
+}
+
 // retentionInterval is how often the retention sweep runs. Retention is measured
 // in months, so an hourly sweep is ample and keeps each batch small.
 const retentionInterval = 1 * time.Hour
@@ -25,9 +51,10 @@ func startBackgroundCleaner(
 	ctx context.Context,
 	logger *slog.Logger,
 	interval time.Duration,
-	rateLimiter *ratelimit.Limiter,
+	rateLimiter ratelimit.RateLimiter,
 	idempStore idempotency.Store,
 	purger retentionPurger,
+	windowSweeper rateWindowSweeper,
 ) <-chan struct{} {
 	done := make(chan struct{})
 	go func() {
@@ -44,6 +71,7 @@ func startBackgroundCleaner(
 				return
 			case <-ticker.C:
 				runCleanup(ctx, logger, interval, rateLimiter, idempStore)
+				sweepRateWindows(ctx, logger, windowSweeper)
 			case <-retentionTicker.C:
 				runRetention(ctx, logger, purger)
 			}
@@ -80,9 +108,10 @@ func runRetention(ctx context.Context, logger *slog.Logger, purger retentionPurg
 }
 
 // runCleanup executes a single sweep of stale rate limiter buckets and expired idempotency records.
-func runCleanup(ctx context.Context, logger *slog.Logger, maxIdle time.Duration, rateLimiter *ratelimit.Limiter, idempStore idempotency.Store) {
-	if rateLimiter != nil {
-		if removed := rateLimiter.CleanupStale(maxIdle); removed > 0 && logger != nil {
+func runCleanup(ctx context.Context, logger *slog.Logger, maxIdle time.Duration, rateLimiter ratelimit.RateLimiter, idempStore idempotency.Store) {
+	// Only the in-memory limiter accumulates per-key state that needs pruning.
+	if mem, ok := rateLimiter.(*ratelimit.Limiter); ok && mem != nil {
+		if removed := mem.CleanupStale(maxIdle); removed > 0 && logger != nil {
 			logger.Debug("purged stale rate limit buckets", slog.Int("count", removed))
 		}
 	}
