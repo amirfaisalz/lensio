@@ -1511,6 +1511,16 @@ components:
               type: number
               format: float
               example: 1100000
+            ppn_rate:
+              type: number
+              format: float
+              description: >
+                Statutory Indonesian VAT rate derived from ppn / dpp and verified
+                against 12%, 11% or 10%. Zero when the invoice carries no PPN
+                (non-PKP seller, export, or exempt goods). An amount that matches
+                no statutory rate is rejected rather than returned.
+              enum: [0, 0.10, 0.11, 0.12]
+              example: 0.11
             grand_total:
               type: number
               format: float

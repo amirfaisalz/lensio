@@ -153,8 +153,9 @@ type InvoiceData struct {
 	Currency      string            `json:"currency"` // IDR | USD | EUR, etc.
 	Subtotal      float64           `json:"subtotal"`
 	Discount      float64           `json:"discount,omitempty"`
-	DPP           float64           `json:"dpp"` // Dasar Pengenaan Pajak
-	PPN           float64           `json:"ppn"` // Pajak Pertambahan Nilai
+	DPP           float64           `json:"dpp"`                // Dasar Pengenaan Pajak
+	PPN           float64           `json:"ppn"`                // Pajak Pertambahan Nilai
+	PPNRate       float64           `json:"ppn_rate,omitempty"` // Derived statutory VAT rate (0.12 / 0.11 / 0.10), 0 when exempt
 	GrandTotal    float64           `json:"grand_total"`
 	LineItems     []InvoiceLineItem `json:"line_items"`
 }

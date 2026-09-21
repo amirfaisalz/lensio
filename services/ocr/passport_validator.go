@@ -28,6 +28,8 @@ type MRZValidationResult struct {
 	DOBValid         bool
 	ExpiryValid      bool
 	CompositeValid   bool
+	OptionalValid    bool
+	SexValid         bool
 	Error            string
 }
 
@@ -190,14 +192,20 @@ func ValidateMRZTD3(line1, line2 string) MRZValidationResult {
 	parsedDOB, errDOB := ParseMRZDate(rawDOB, false)
 	dobValid := dobCheckValid && errDOB == nil
 
-	// Char 20: Sex ('M', 'F', or '<')
+	// Char 20: Sex ('M', 'F', or '<' for unspecified). ICAO 9303 Part 4 permits
+	// no other value, so anything else means the line was misread or forged.
 	sexChar := line2[20]
 	var gender string
+	sexValid := true
 	switch sexChar {
 	case 'M':
 		gender = "LAKI-LAKI"
 	case 'F':
 		gender = "PEREMPUAN"
+	case '<':
+		gender = ""
+	default:
+		sexValid = false
 	}
 
 	// Chars 21-27: Expiration Date (YYMMDD)
@@ -208,11 +216,18 @@ func ValidateMRZTD3(line1, line2 string) MRZValidationResult {
 	parsedExpiry, errExp := ParseMRZDate(rawExpiry, true)
 	expiryValid := expiryCheckValid && errExp == nil
 
-	// Chars 28-42: Optional personal number (14 chars)
+	// Chars 28-42: Optional personal number (14 chars), char 42 its check digit.
+	// ICAO 9303 Part 4: when the field is unused it is filled with '<' and the
+	// check digit may be '<' or '0'. When it carries data the digit must verify.
+	// This result used to be computed and discarded, so a forged or misread
+	// personal number was accepted silently.
 	rawOptional := line2[28:42]
 	optionalCheck := line2[42]
 	calcOptionalCheck := CalculateMRZCheckDigit(rawOptional)
-	_ = optionalCheck == calcOptionalCheck || optionalCheck == '<'
+	optionalValid := optionalCheck == calcOptionalCheck
+	if strings.Trim(rawOptional, "<") == "" {
+		optionalValid = optionalCheck == '<' || optionalCheck == '0'
+	}
 
 	// Char 43: Composite check digit over:
 	// line2[0:10] (doc num + check) + line2[13:20] (dob + check) + line2[21:43] (expiry + check + optional + check)
@@ -221,7 +236,7 @@ func ValidateMRZTD3(line1, line2 string) MRZValidationResult {
 	calcCompositeCheck := CalculateMRZCheckDigit(compositePayload)
 	compositeValid := compositeCheck == calcCompositeCheck
 
-	allValid := docNumValid && dobValid && expiryValid && compositeValid
+	allValid := docNumValid && dobValid && expiryValid && compositeValid && optionalValid && sexValid
 
 	res := MRZValidationResult{
 		IsValid:          allValid,
@@ -236,6 +251,8 @@ func ValidateMRZTD3(line1, line2 string) MRZValidationResult {
 		DOBValid:         dobValid,
 		ExpiryValid:      expiryValid,
 		CompositeValid:   compositeValid,
+		OptionalValid:    optionalValid,
+		SexValid:         sexValid,
 	}
 
 	if !allValid {
@@ -251,6 +268,12 @@ func ValidateMRZTD3(line1, line2 string) MRZValidationResult {
 		}
 		if !compositeValid {
 			errs = append(errs, "composite check digit mismatch")
+		}
+		if !optionalValid {
+			errs = append(errs, "optional personal number check digit mismatch")
+		}
+		if !sexValid {
+			errs = append(errs, fmt.Sprintf("invalid sex character %q: ICAO 9303 allows only M, F or <", string(sexChar)))
 		}
 		res.Error = strings.Join(errs, "; ")
 	}

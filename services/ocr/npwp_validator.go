@@ -38,9 +38,15 @@ func CleanNPWP(raw string) string {
 	return sb.String()
 }
 
-// CalculateNPWPCheckDigit computes the official Modulo 10 / Luhn check digit for the first 8 digits.
-// Alternating weights: [1, 2, 1, 2, 1, 2, 1, 2].
-// Complexity: Time O(1), Space O(1).
+// CalculateNPWPCheckDigit computes the 9th digit of a 15-digit NPWP as a Luhn
+// checksum over the first eight digits.
+//
+// Caveat worth stating plainly: the Directorate General of Taxes has never
+// published this algorithm. Luhn-over-eight is the convention the ecosystem
+// converged on and it holds for every NPWP we can check, but it is a community
+// heuristic, not a specification. A number failing this check is very likely
+// mistyped or misread; a number passing it is structurally plausible, not
+// proven to be issued. Do not present it to end users as proof of registration.
 func CalculateNPWPCheckDigit(first8Digits string) (int, error) {
 	if len(first8Digits) != 8 {
 		return -1, fmt.Errorf("expected 8 digits, got %d", len(first8Digits))

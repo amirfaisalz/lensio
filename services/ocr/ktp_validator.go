@@ -85,6 +85,8 @@ type NIKValidationResult struct {
 	IsValid      bool
 	ProvinceCode string
 	ProvinceName string
+	RegencyCode  string
+	DistrictCode string
 	IsFemale     bool
 	BirthDay     int
 	BirthMonth   int
@@ -131,6 +133,21 @@ func ValidateNIK(nik string) NIKValidationResult {
 		}
 	}
 
+	// Digits 3-4 are the kabupaten/kota code and 5-6 the kecamatan code. Neither
+	// is ever "00" in a real NIK; both were previously accepted unchecked.
+	if nik[2:4] == "00" {
+		return NIKValidationResult{
+			IsValid: false,
+			Error:   "kabupaten/kota code cannot be 00",
+		}
+	}
+	if nik[4:6] == "00" {
+		return NIKValidationResult{
+			IsValid: false,
+			Error:   "kecamatan code cannot be 00",
+		}
+	}
+
 	rawDay, _ := strconv.Atoi(nik[6:8])
 	month, _ := strconv.Atoi(nik[8:10])
 	year2D, _ := strconv.Atoi(nik[10:12])
@@ -143,10 +160,18 @@ func ValidateNIK(nik string) NIKValidationResult {
 		}
 	}
 
+	// Women are encoded as day + 40, so raw values 32..40 and >71 are impossible.
 	isFemale := rawDay > 40
 	realDay := rawDay
 	if isFemale {
 		realDay = rawDay - 40
+	}
+
+	if rawDay > 31 && rawDay <= 40 {
+		return NIKValidationResult{
+			IsValid: false,
+			Error:   fmt.Sprintf("invalid birth day encoding in NIK: %02d (32-40 is neither a day nor a day+40)", rawDay),
+		}
 	}
 
 	if realDay < 1 || realDay > 31 {
@@ -184,6 +209,8 @@ func ValidateNIK(nik string) NIKValidationResult {
 		IsValid:      true,
 		ProvinceCode: provCode,
 		ProvinceName: provName,
+		RegencyCode:  nik[2:4],
+		DistrictCode: nik[4:6],
 		IsFemale:     isFemale,
 		BirthDay:     realDay,
 		BirthMonth:   month,

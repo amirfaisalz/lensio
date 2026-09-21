@@ -26,4 +26,10 @@ Operator API (Anda) adalah Pengendali Data: wajib memperoleh persetujuan subjek,
 Karena Lensio tidak menyimpan PII di luar cache idempotency berdurasi 1 jam di atas, permintaan akses/hapus diajukan ke operator aplikasi pemanggil. Kontak DPO operator wajib dicantumkan di aplikasi Anda, bukan di repo ini.
 
 ## Validasi ≠ verifikasi kependudukan
-`ValidateNIK` hanya cek struktur (16 digit, kode provinsi, tanggal+offset 40). **Bukan** verifikasi ke Dukcapil. Jangan mengklaim keaslian orang berdasarkan skor confidence.
+Semua validator kami **struktural**, bukan verifikasi ke instansi penerbit:
+- `ValidateNIK`: 16 digit, kode provinsi/kabupaten/kecamatan, tanggal + offset 40. **Bukan** verifikasi Dukcapil.
+- `ValidateMRZTD3`: check digit ICAO 9303 (nomor paspor, lahir, kedaluwarsa, personal number, composite). Membuktikan MRZ konsisten secara matematis, **bukan** bahwa paspornya asli atau berlaku.
+- `ValidateNPWP`: Luhn atas 8 digit pertama. DJP tidak pernah menerbitkan algoritma ini — ini konvensi ekosistem, **bukan** spesifikasi. Lolos = plausibel secara struktur, bukan terbukti terdaftar.
+- `ValidateInvoice`: aritmetika pajak dan tarif PPN statutori (12%/11%/10%, atau 0 untuk non-PKP/ekspor/bebas). **Bukan** verifikasi e-Faktur ke DJP.
+
+Jangan mengklaim keaslian orang atau dokumen berdasarkan skor confidence.

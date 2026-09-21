@@ -44,7 +44,23 @@ var (
 
 	// ErrGrandTotalNonPositive indicates grand total is zero or negative.
 	ErrGrandTotalNonPositive = errors.New("grand total must be greater than zero")
+
+	// ErrInvalidDiscount indicates a negative discount or one exceeding the subtotal.
+	ErrInvalidDiscount = errors.New("discount must be non-negative and cannot exceed the subtotal")
+
+	// ErrNegativeDPP indicates the taxable base resolved to a negative amount.
+	ErrNegativeDPP = errors.New("dpp (taxable base) cannot be negative")
+
+	// ErrPPNRateInvalid indicates the PPN amount does not correspond to any
+	// statutory Indonesian VAT rate for the given taxable base.
+	ErrPPNRateInvalid = errors.New("ppn does not match a statutory indonesian vat rate")
 )
+
+// statutoryPPNRates are the Indonesian VAT rates an invoice may legitimately carry:
+// 12% (from 2025), 11% (2022-2024) and 10% (pre-2022, still seen on archived
+// documents). Checking only that GrandTotal == DPP + PPN accepted any number at
+// all in the PPN field, so a 0.5% "tax" line balanced arithmetically and passed.
+var statutoryPPNRates = []float64{0.12, 0.11, 0.10}
 
 const floatRoundingTolerance = 2.0 // Tolerates minor tax rounding or decimal truncations in Indonesian Rupiah
 
@@ -187,6 +203,10 @@ func ValidateInvoice(data *InvoiceData) error {
 	}
 
 	// 8. DPP (Dasar Pengenaan Pajak) & Tax Math
+	if data.Discount < 0 || (data.Subtotal > 0 && data.Discount > data.Subtotal+floatRoundingTolerance) {
+		return fmt.Errorf("%w: discount %.2f against subtotal %.2f", ErrInvalidDiscount, data.Discount, data.Subtotal)
+	}
+
 	if data.DPP == 0 {
 		if data.Subtotal > 0 {
 			data.DPP = data.Subtotal - data.Discount
@@ -195,8 +215,20 @@ func ValidateInvoice(data *InvoiceData) error {
 			data.Subtotal = data.DPP
 		}
 	}
+	if data.DPP < -floatRoundingTolerance {
+		return fmt.Errorf("%w: %.2f", ErrNegativeDPP, data.DPP)
+	}
 	if data.PPN < 0 {
 		return errors.New("ppn cannot be negative")
+	}
+
+	// V4: verify the PPN actually corresponds to a statutory rate on the taxable
+	// base. Nothing previously constrained it beyond the DPP + PPN sum.
+	if rate, ok := matchPPNRate(data.DPP, data.PPN); ok {
+		data.PPNRate = rate
+	} else {
+		return fmt.Errorf("%w: ppn %.2f on dpp %.2f implies %.4f%%", ErrPPNRateInvalid,
+			data.PPN, data.DPP, ppnImpliedRate(data.DPP, data.PPN)*100)
 	}
 
 	expectedGrandTotal := data.DPP + data.PPN
@@ -211,4 +243,36 @@ func ValidateInvoice(data *InvoiceData) error {
 	}
 
 	return nil
+}
+
+// ppnImpliedRate returns PPN as a fraction of the taxable base, or 0 when the
+// base is zero.
+func ppnImpliedRate(dpp, ppn float64) float64 {
+	if dpp <= 0 {
+		return 0
+	}
+	return ppn / dpp
+}
+
+// matchPPNRate reports which statutory VAT rate the PPN amount corresponds to.
+//
+// A zero PPN is accepted: non-PKP sellers, exports and exempt goods legitimately
+// carry none. Otherwise the amount must land on a statutory rate within the same
+// rounding tolerance used elsewhere, scaled for large rupiah values where
+// per-line rounding accumulates.
+func matchPPNRate(dpp, ppn float64) (float64, bool) {
+	if ppn == 0 {
+		return 0, true
+	}
+	if dpp <= 0 {
+		return 0, false
+	}
+
+	tolerance := math.Max(floatRoundingTolerance, dpp*0.0005)
+	for _, rate := range statutoryPPNRates {
+		if math.Abs(ppn-dpp*rate) <= tolerance {
+			return rate, true
+		}
+	}
+	return 0, false
 }
