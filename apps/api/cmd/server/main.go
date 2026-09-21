@@ -14,6 +14,7 @@ import (
 	"github.com/amirfaisalz/lensio/apps/api/internal/auth"
 	"github.com/amirfaisalz/lensio/apps/api/internal/authz"
 	"github.com/amirfaisalz/lensio/apps/api/internal/config"
+	"github.com/amirfaisalz/lensio/apps/api/internal/email"
 	internalhttp "github.com/amirfaisalz/lensio/apps/api/internal/http"
 	"github.com/amirfaisalz/lensio/apps/api/internal/http/handlers"
 	"github.com/amirfaisalz/lensio/apps/api/internal/http/middleware"
@@ -150,6 +151,27 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Transactional email. Registration and password reset are dead ends without
+	// it, so production and staging refuse to start rather than accept signups
+	// whose verification mail can never arrive.
+	var emailSender email.Sender
+	if cfg.SMTPHost != "" {
+		smtpSender, err := email.NewSMTPSender(cfg.SMTPHost, cfg.SMTPPort, cfg.SMTPUsername, cfg.SMTPPassword, cfg.SMTPFrom)
+		if err != nil {
+			logger.Error("invalid SMTP configuration", slog.String("error", err.Error()))
+			os.Exit(1)
+		}
+		emailSender = smtpSender
+		logger.Info("configured SMTP email sender",
+			slog.String("host", cfg.SMTPHost), slog.String("from", cfg.SMTPFrom))
+	} else if cfg.Env == "production" || cfg.Env == "staging" {
+		logger.Error("SMTP_HOST must be set in production/staging: without it verification and password-reset mail is never delivered and self-service signup cannot complete")
+		os.Exit(1)
+	} else {
+		logger.Warn("no SMTP_HOST configured; verification and reset links will be written to the log instead of sent")
+		emailSender = &email.LogSender{Logger: logger}
+	}
+
 	// Configure session secret and validators
 	auth.SetTokenSecret([]byte(cfg.SessionSecret))
 	sessionVal := middleware.NewSessionTokenValidator([]byte(cfg.SessionSecret))
@@ -225,6 +247,8 @@ func main() {
 		UsageRecorder:           usageRecorder,
 		IdempotencyStore:        idempotencyStore,
 		IdempotencySealer:       idempotencySealer,
+		EmailSender:             emailSender,
+		AppBaseURL:              cfg.AppBaseURL,
 		SessionRevoker:          sessionRevoker,
 		SessionCacheInvalidator: sessionVal,
 		OIDCValidator:           oidcValidator,

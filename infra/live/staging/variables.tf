@@ -154,3 +154,34 @@ variable "cors_allowed_origins" {
   description = "Browser origins allowed to call the API with credentials, i.e. the dashboard origin. Empty emits no CORS headers and breaks the dashboard."
   default     = []
 }
+
+variable "smtp_host" {
+  type        = string
+  description = "SMTP host for transactional email. Required: the API refuses to start without it in production/staging."
+  default     = ""
+}
+
+variable "smtp_username" {
+  type        = string
+  description = "SMTP username."
+  default     = ""
+}
+
+variable "smtp_password" {
+  type        = string
+  description = "SMTP password. Supply via TF_VAR_smtp_password or Key Vault."
+  sensitive   = true
+  default     = ""
+}
+
+variable "smtp_from" {
+  type        = string
+  description = "From address on transactional email."
+  default     = "noreply@lensio.dev"
+}
+
+variable "app_base_url" {
+  type        = string
+  description = "Dashboard origin used to build links inside transactional email."
+  default     = "https://staging-dashboard.lensio.dev"
+}

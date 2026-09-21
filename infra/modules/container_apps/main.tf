@@ -79,6 +79,16 @@ resource "azurerm_container_app" "api" {
     value = var.session_secret
   }
 
+  # The API also refuses to start in production/staging without an SMTP host:
+  # unsent verification mail means no self-service account can ever be used.
+  dynamic "secret" {
+    for_each = nonsensitive(var.smtp_password != "") ? toset(["smtp"]) : toset([])
+    content {
+      name  = "smtp-password"
+      value = var.smtp_password
+    }
+  }
+
   dynamic "secret" {
     # nonsensitive(): gemini_api_key is a sensitive variable, so the comparison
     # result inherits that mark and for_each refuses marked values (a key would
@@ -137,6 +147,35 @@ resource "azurerm_container_app" "api" {
       env {
         name        = "SESSION_SECRET"
         secret_name = "session-secret"
+      }
+
+      env {
+        name  = "SMTP_HOST"
+        value = var.smtp_host
+      }
+      env {
+        name  = "SMTP_PORT"
+        value = var.smtp_port
+      }
+      env {
+        name  = "SMTP_USERNAME"
+        value = var.smtp_username
+      }
+      env {
+        name  = "SMTP_FROM"
+        value = var.smtp_from
+      }
+      env {
+        name  = "APP_BASE_URL"
+        value = var.app_base_url
+      }
+
+      dynamic "env" {
+        for_each = nonsensitive(var.smtp_password != "") ? toset(["smtp"]) : toset([])
+        content {
+          name        = "SMTP_PASSWORD"
+          secret_name = "smtp-password"
+        }
       }
 
       dynamic "env" {

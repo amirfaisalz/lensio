@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/amirfaisalz/lensio/apps/api/internal/authz"
+	"github.com/amirfaisalz/lensio/apps/api/internal/email"
 	"github.com/amirfaisalz/lensio/apps/api/internal/http/handlers"
 	"github.com/amirfaisalz/lensio/apps/api/internal/http/middleware"
 	"github.com/amirfaisalz/lensio/apps/api/internal/http/response"
@@ -37,7 +38,12 @@ type RouterDeps struct {
 	SessionRevoker          handlers.SessionRevoker
 	SessionCacheInvalidator handlers.SessionCacheInvalidator
 	// RateLimitReplicas divides plan limits across API instances; 0 or 1 means single-instance.
-	RateLimitReplicas  int
+	RateLimitReplicas int
+	// EmailSender delivers verification and password-reset mail. Without one the
+	// self-service signup and recovery flows cannot complete.
+	EmailSender email.Sender
+	// AppBaseURL is the dashboard origin used to build links in those emails.
+	AppBaseURL         string
 	OIDCValidator      middleware.TokenValidator
 	Authorizer         authz.Authorizer
 	CORSAllowedOrigins []string
@@ -89,10 +95,19 @@ func NewRouterWithDeps(deps RouterDeps) http.Handler {
 
 	// Public Authentication Endpoints (Registration, Verification, Login, Logout)
 	if deps.AccountStore != nil {
-		mux.Handle("POST /api/v1/auth/register", throttle(handlers.RegisterHandler(deps.AccountStore)))
+		mux.Handle("POST /api/v1/auth/register", throttle(handlers.RegisterHandler(deps.AccountStore, deps.EmailSender, deps.AppBaseURL)))
 		mux.Handle("POST /api/v1/auth/verify-email", throttle(handlers.VerifyEmailHandler(deps.AccountStore)))
 		mux.Handle("POST /api/v1/auth/login", throttle(handlers.LoginHandler(deps.AccountStore)))
 		mux.Handle("POST /api/v1/auth/logout", handlers.LogoutHandler(deps.SessionRevoker, deps.SessionCacheInvalidator))
+
+		// Password recovery. Both are public and unauthenticated, so both are
+		// throttled; a reset request is also a way to send mail on demand.
+		if resetStore, ok := deps.AccountStore.(handlers.PasswordResetStore); ok {
+			mux.Handle("POST /api/v1/auth/password-reset",
+				throttle(handlers.RequestPasswordResetHandler(resetStore, deps.EmailSender, deps.AppBaseURL)))
+			mux.Handle("POST /api/v1/auth/password-reset/confirm",
+				throttle(handlers.ConfirmPasswordResetHandler(resetStore)))
+		}
 	}
 
 	// API v1 Routes (PRD Section 6)

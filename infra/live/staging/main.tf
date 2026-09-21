@@ -83,6 +83,11 @@ module "container_apps" {
   gemini_api_key           = var.gemini_api_key
   ocr_provider             = var.ocr_provider
   cors_allowed_origins     = var.cors_allowed_origins
+  smtp_host                = var.smtp_host
+  smtp_username            = var.smtp_username
+  smtp_password            = var.smtp_password
+  smtp_from                = var.smtp_from
+  app_base_url             = var.app_base_url
   api_image                = var.api_image
   dashboard_image          = var.dashboard_image
   api_cpu                  = var.api_cpu

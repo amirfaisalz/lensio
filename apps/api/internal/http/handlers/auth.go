@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/amirfaisalz/lensio/apps/api/internal/auth"
+	mailer "github.com/amirfaisalz/lensio/apps/api/internal/email"
 	"github.com/amirfaisalz/lensio/apps/api/internal/http/middleware"
 	"github.com/amirfaisalz/lensio/apps/api/internal/http/response"
 	"github.com/amirfaisalz/lensio/apps/api/internal/store"
@@ -46,7 +47,12 @@ type CreateOrgRequest struct {
 }
 
 // RegisterHandler handles POST /api/v1/auth/register.
-func RegisterHandler(accountStore store.AccountStore) http.HandlerFunc {
+//
+// The verification token is delivered by email. It used to be generated, stored
+// and then dropped: outside development nobody could ever receive it, so no
+// self-service account could ever be verified, and an unverified account cannot
+// log in.
+func RegisterHandler(accountStore store.AccountStore, sender mailer.Sender, baseURL string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if accountStore == nil {
 			response.ErrorWithRequest(w, r, http.StatusInternalServerError, response.CodeInternalError, "Account store unavailable")
@@ -99,6 +105,16 @@ func RegisterHandler(accountStore store.AccountStore) http.HandlerFunc {
 			slog.ErrorContext(r.Context(), "user registration failed", slog.String("error", err.Error()))
 			response.ErrorWithRequest(w, r, http.StatusInternalServerError, response.CodeInternalError, "Gagal mendaftarkan user")
 			return
+		}
+
+		if sender != nil {
+			msg := mailer.VerificationMessage(baseURL, createdUser.Email, verificationToken)
+			if err := sender.Send(r.Context(), msg); err != nil {
+				// The account exists either way; surface the failure in logs and
+				// let the user request a resend rather than failing signup.
+				slog.ErrorContext(r.Context(), "failed sending verification email",
+					slog.String("error", err.Error()))
+			}
 		}
 
 		respData := map[string]any{

@@ -131,3 +131,40 @@ variable "cors_allowed_origins" {
   type        = list(string)
   default     = []
 }
+
+variable "smtp_host" {
+  description = "SMTP host for verification and password-reset mail. The API refuses to start in production/staging without it."
+  type        = string
+  default     = ""
+}
+
+variable "smtp_port" {
+  description = "SMTP submission port."
+  type        = string
+  default     = "587"
+}
+
+variable "smtp_username" {
+  description = "SMTP username. Empty means unauthenticated relay."
+  type        = string
+  default     = ""
+}
+
+variable "smtp_password" {
+  description = "SMTP password, stored as a container app secret."
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "smtp_from" {
+  description = "From address on transactional email."
+  type        = string
+  default     = "noreply@lensio.dev"
+}
+
+variable "app_base_url" {
+  description = "Dashboard origin used to build the links inside transactional email."
+  type        = string
+  default     = ""
+}

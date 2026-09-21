@@ -547,3 +547,77 @@ func (db *DB) RevokeUserSessions(ctx context.Context, userID string) error {
 
 	return nil
 }
+
+// PasswordResetTTL bounds how long a reset token stays usable.
+const PasswordResetTTL = 1 * time.Hour
+
+// SetPasswordResetToken records the hash of a reset token for the given email.
+//
+// It reports ErrNotFound when no such account exists. Callers must NOT surface
+// that distinction: replying differently for known and unknown addresses turns
+// the reset endpoint into an account enumeration oracle.
+func (db *DB) SetPasswordResetToken(ctx context.Context, email, tokenHash string, expiresAt time.Time) error {
+	email = strings.ToLower(strings.TrimSpace(email))
+	if email == "" {
+		return errors.New("email is required")
+	}
+	if tokenHash == "" {
+		return errors.New("token hash is required")
+	}
+
+	res, err := db.ExecContext(ctx,
+		`UPDATE users
+		 SET password_reset_token_hash = $2, password_reset_expires_at = $3
+		 WHERE LOWER(email) = LOWER($1);`,
+		email, tokenHash, expiresAt)
+	if err != nil {
+		return fmt.Errorf("storing password reset token: %w", err)
+	}
+
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("checking rows affected on reset token: %w", err)
+	}
+	if rows == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+// ConsumePasswordResetToken atomically verifies an unexpired reset token, sets
+// the new password hash, clears the token, and invalidates every existing
+// session for that user.
+//
+// It is a single statement so a token cannot be redeemed twice concurrently:
+// the same UPDATE that matches the token also clears it.
+func (db *DB) ConsumePasswordResetToken(ctx context.Context, email, tokenHash, newPasswordHash string, now time.Time) error {
+	email = strings.ToLower(strings.TrimSpace(email))
+	if email == "" || tokenHash == "" || newPasswordHash == "" {
+		return errors.New("email, token hash and new password hash are required")
+	}
+
+	res, err := db.ExecContext(ctx,
+		`UPDATE users
+		 SET password_hash = $3,
+		     password_reset_token_hash = NULL,
+		     password_reset_expires_at = NULL,
+		     sessions_valid_from = $4
+		 WHERE LOWER(email) = LOWER($1)
+		   AND password_reset_token_hash = $2
+		   AND password_reset_expires_at > $4;`,
+		email, tokenHash, newPasswordHash, now)
+	if err != nil {
+		return fmt.Errorf("consuming password reset token: %w", err)
+	}
+
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("checking rows affected on password reset: %w", err)
+	}
+	if rows == 0 {
+		// Wrong token, wrong email, already used, or expired — all the same to
+		// the caller, deliberately.
+		return ErrNotFound
+	}
+	return nil
+}

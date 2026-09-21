@@ -29,6 +29,15 @@ type Config struct {
 	// EnableDevAuth switches on DevTokenValidator, which accepts unsigned JWTs.
 	// It must be opted into explicitly; ENV alone is not enough to enable it.
 	EnableDevAuth bool
+	// SMTP transport for verification and password-reset mail. Without a host the
+	// API cannot complete self-service signup, so production/staging refuse to start.
+	SMTPHost     string
+	SMTPPort     string
+	SMTPUsername string
+	SMTPPassword string
+	SMTPFrom     string
+	// AppBaseURL is the dashboard origin used to build links inside those emails.
+	AppBaseURL string
 }
 
 // Load reads configuration from environment variables with sensible defaults.
@@ -95,6 +104,20 @@ func Load() *Config {
 	// defaults to "development") silently accepted forged tokens.
 	enableDevAuth := strings.EqualFold(strings.TrimSpace(os.Getenv("ENABLE_DEV_AUTH")), "true")
 
+	smtpHost := strings.TrimSpace(os.Getenv("SMTP_HOST"))
+	smtpPort := strings.TrimSpace(os.Getenv("SMTP_PORT"))
+	if smtpPort == "" {
+		smtpPort = "587"
+	}
+	smtpUsername := strings.TrimSpace(os.Getenv("SMTP_USERNAME"))
+	smtpPassword := os.Getenv("SMTP_PASSWORD")
+	smtpFrom := strings.TrimSpace(os.Getenv("SMTP_FROM"))
+
+	appBaseURL := strings.TrimSpace(os.Getenv("APP_BASE_URL"))
+	if appBaseURL == "" {
+		appBaseURL = "http://localhost:5173"
+	}
+
 	sessionSecret := strings.TrimSpace(os.Getenv("SESSION_SECRET"))
 	if sessionSecret == "" {
 		// #nosec G101 -- default dev fallback secret
@@ -118,5 +141,11 @@ func Load() *Config {
 		SessionSecret:       sessionSecret,
 		RateLimitReplicas:   rateLimitReplicas,
 		EnableDevAuth:       enableDevAuth,
+		SMTPHost:            smtpHost,
+		SMTPPort:            smtpPort,
+		SMTPUsername:        smtpUsername,
+		SMTPPassword:        smtpPassword,
+		SMTPFrom:            smtpFrom,
+		AppBaseURL:          appBaseURL,
 	}
 }

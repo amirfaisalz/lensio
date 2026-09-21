@@ -99,6 +99,106 @@ paths:
                     type: string
                     format: date-time
 
+  /api/v1/auth/password-reset:
+    post:
+      summary: Request Password Reset
+      description: |
+        Sends a single-use password reset link to the address, when it is registered.
+
+        The response is identical whether or not the address exists: replying
+        differently would turn this unauthenticated endpoint into an account
+        enumeration oracle. The token is stored only as a SHA-256 hash and
+        expires after one hour.
+      operationId: requestPasswordReset
+      tags:
+        - Authentication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: developer@example.com
+      responses:
+        '200':
+          description: Request accepted. Says nothing about whether the account exists.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+                  message:
+                    type: string
+                    example: Jika email tersebut terdaftar, tautan pengaturan ulang kata sandi telah dikirim.
+        '400':
+          $ref: '#/components/responses/InvalidRequest'
+        '429':
+          $ref: '#/components/responses/RateLimitExceeded'
+
+  /api/v1/auth/password-reset/confirm:
+    post:
+      summary: Confirm Password Reset
+      description: |
+        Completes a password reset using the emailed token. The token is
+        single-use and expires after one hour. A successful reset invalidates
+        every existing session for that user.
+      operationId: confirmPasswordReset
+      tags:
+        - Authentication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - token
+                - new_password
+              properties:
+                email:
+                  type: string
+                  format: email
+                token:
+                  type: string
+                  description: The token from the reset email.
+                new_password:
+                  type: string
+                  format: password
+                  minLength: 8
+      responses:
+        '200':
+          description: Password updated and existing sessions invalidated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+                  message:
+                    type: string
+        '400':
+          description: >
+            The token is wrong, already used, or expired. The three cases are
+            deliberately indistinguishable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '429':
+          $ref: '#/components/responses/RateLimitExceeded'
+
   /api/v1/auth/api-keys:
     post:
       summary: Create API Key

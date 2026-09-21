@@ -163,7 +163,7 @@ func (m *mockAccountStore) GetUserOrganization(ctx context.Context, userID strin
 
 func TestRegisterHandler(t *testing.T) {
 	// Nil store
-	hNil := handlers.RegisterHandler(nil)
+	hNil := handlers.RegisterHandler(nil, nil, "")
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/register", bytes.NewBufferString(`{}`))
 	rec := httptest.NewRecorder()
 	hNil.ServeHTTP(rec, req)
@@ -172,7 +172,7 @@ func TestRegisterHandler(t *testing.T) {
 	}
 
 	mockStore := newMockAccountStore()
-	h := handlers.RegisterHandler(mockStore)
+	h := handlers.RegisterHandler(mockStore, nil, "")
 
 	// Invalid JSON
 	req = httptest.NewRequest(http.MethodPost, "/api/v1/auth/register", bytes.NewBufferString(`invalid-json`))
