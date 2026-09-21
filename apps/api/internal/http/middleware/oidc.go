@@ -70,17 +70,86 @@ type TokenValidator interface {
 	ValidateToken(ctx context.Context, token string) (*OIDCUser, error)
 }
 
+// ErrSessionRevoked reports a token that was valid but issued before the user's
+// sessions were invalidated (for example by an explicit logout).
+var ErrSessionRevoked = errors.New("session token has been revoked")
+
+// SessionRevocationChecker reports the instant from which a user's session tokens
+// are accepted. It is a narrow interface on purpose: widening store.AccountStore
+// would force every test double in the codebase to grow a method it never uses.
+type SessionRevocationChecker interface {
+	SessionsValidFrom(ctx context.Context, userID string) (time.Time, error)
+}
+
 // SessionTokenValidator validates internal HS256 session tokens signed with a secret.
 type SessionTokenValidator struct {
-	secret []byte
+	secret  []byte
+	revoker SessionRevocationChecker
+
+	mu    sync.RWMutex
+	cache map[string]sessionRevocationEntry
 }
+
+type sessionRevocationEntry struct {
+	validFrom time.Time
+	expiresAt time.Time
+}
+
+// sessionRevocationCacheTTL bounds how stale a revocation decision may be. Logout
+// takes effect within this window at worst; it keeps the auth hot path from
+// issuing a database round trip on every single request.
+const sessionRevocationCacheTTL = 30 * time.Second
 
 // NewSessionTokenValidator creates a validator for internal HMAC-SHA256 session tokens.
 func NewSessionTokenValidator(secret []byte) *SessionTokenValidator {
 	if len(secret) == 0 {
 		secret = auth.GetTokenSecret()
 	}
-	return &SessionTokenValidator{secret: secret}
+	return &SessionTokenValidator{secret: secret, cache: make(map[string]sessionRevocationEntry)}
+}
+
+// SetRevocationChecker enables server-side session revocation. Without one, a
+// token stays valid until it expires even after the user logs out.
+func (v *SessionTokenValidator) SetRevocationChecker(c SessionRevocationChecker) {
+	v.mu.Lock()
+	v.revoker = c
+	v.cache = make(map[string]sessionRevocationEntry)
+	v.mu.Unlock()
+}
+
+// InvalidateRevocationCache drops a cached revocation decision so a just-issued
+// logout is observed immediately by the replica that served it.
+func (v *SessionTokenValidator) InvalidateRevocationCache(userID string) {
+	v.mu.Lock()
+	delete(v.cache, userID)
+	v.mu.Unlock()
+}
+
+func (v *SessionTokenValidator) sessionsValidFrom(ctx context.Context, userID string) (time.Time, bool) {
+	v.mu.RLock()
+	revoker := v.revoker
+	entry, cached := v.cache[userID]
+	v.mu.RUnlock()
+
+	if revoker == nil || userID == "" {
+		return time.Time{}, false
+	}
+	if cached && entry.expiresAt.After(time.Now()) {
+		return entry.validFrom, true
+	}
+
+	validFrom, err := revoker.SessionsValidFrom(ctx, userID)
+	if err != nil {
+		// Fail open on lookup errors: a database blip must not sign every user
+		// out. Revocation is a containment control, not the primary auth gate.
+		return time.Time{}, false
+	}
+
+	v.mu.Lock()
+	v.cache[userID] = sessionRevocationEntry{validFrom: validFrom, expiresAt: time.Now().Add(sessionRevocationCacheTTL)}
+	v.mu.Unlock()
+
+	return validFrom, true
 }
 
 // ValidateToken validates the HS256 session token and returns the authenticated user identity.
@@ -88,6 +157,12 @@ func (v *SessionTokenValidator) ValidateToken(ctx context.Context, token string)
 	claims, err := auth.ValidateSessionToken(token, v.secret)
 	if err != nil {
 		return nil, err
+	}
+
+	if validFrom, ok := v.sessionsValidFrom(ctx, claims.Sub); ok {
+		if claims.Iat > 0 && time.Unix(claims.Iat, 0).Before(validFrom) {
+			return nil, ErrSessionRevoked
+		}
 	}
 
 	return &OIDCUser{
@@ -736,4 +811,3 @@ func (v *DevTokenValidator) ValidateToken(ctx context.Context, token string) (*O
 
 	return nil, ErrMalformedToken
 }
-

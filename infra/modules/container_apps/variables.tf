@@ -108,3 +108,26 @@ variable "tags" {
   description = "Resource tags"
   default     = {}
 }
+
+variable "session_secret" {
+  description = "HMAC signing key for session cookies and the idempotency response sealer. The API refuses to start without it in production/staging."
+  type        = string
+  sensitive   = true
+}
+
+variable "ocr_provider" {
+  description = "OCR engine to use. Anything other than a gemini_* value falls back to the deterministic mock engine."
+  type        = string
+  default     = "gemini_flash"
+
+  validation {
+    condition     = contains(["gemini_flash", "gemini", "gemini-flash", "mock"], var.ocr_provider)
+    error_message = "ocr_provider must be one of: gemini_flash, gemini, gemini-flash, mock."
+  }
+}
+
+variable "cors_allowed_origins" {
+  description = "Browser origins permitted to call the API with credentials (the dashboard origin). Empty means no CORS headers are emitted."
+  type        = list(string)
+  default     = []
+}

@@ -80,6 +80,10 @@ module "container_apps" {
   resource_group_name      = module.networking.resource_group_name
   infrastructure_subnet_id = module.networking.container_apps_subnet_id
   database_url             = module.postgres.connection_string
+  session_secret           = var.session_secret
+  gemini_api_key           = var.gemini_api_key
+  ocr_provider             = var.ocr_provider
+  cors_allowed_origins     = var.cors_allowed_origins
   api_image                = var.api_image
   dashboard_image          = var.dashboard_image
   api_cpu                  = var.api_cpu

@@ -70,4 +70,3 @@ func NewCORSMiddleware(allowedOrigins []string) func(http.Handler) http.Handler 
 func CORS(next http.Handler) http.Handler {
 	return NewCORSMiddleware([]string{"http://localhost:5173", "http://localhost:3000", "http://localhost:8080"})(next)
 }
-

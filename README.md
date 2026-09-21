@@ -87,7 +87,9 @@ docker compose up -d
 # Keycloak http://localhost:8082 · Adminer http://localhost:8081
 ```
 
-> Coverage badges reflect the last measurement (core ~93.5%, repo ~88.1%; target 100%). Re-measure locally with `go test -race -cover ./...`.
+> Coverage badges reflect the last measurement (core ~93.5%, repo ~88.1%). 100% is the aspiration in `AGENTS.md`, not the current state — the numbers above are the measured reality. Re-measure locally with `go test -race -cover ./...`.
+>
+> Coverage is not the safety net on its own: the authorization boundary has its own suite (`apps/api/internal/http/handlers/tenant_isolation_test.go`) because a fully green run once sat on top of a cross-tenant read/write hole.
 
 ## Configuration
 

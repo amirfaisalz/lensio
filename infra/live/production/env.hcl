@@ -16,4 +16,11 @@ locals {
   dashboard_memory               = "1.0Gi"
   api_subdomain                  = "api"
   dashboard_subdomain            = "dashboard"
+
+  # Serving fixture data to paying callers is worse than failing loudly, so this
+  # is set explicitly rather than left to the "mock" default.
+  ocr_provider = "gemini_flash"
+
+  # The dashboard is a separate origin; without it the API emits no CORS headers.
+  cors_allowed_origins = ["https://dashboard.lensio.dev"]
 }

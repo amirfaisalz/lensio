@@ -15,11 +15,11 @@ import (
 )
 
 var (
-	ErrPermissionDenied   = errors.New("permission denied")
-	ErrInvalidResource    = errors.New("invalid resource specification")
-	ErrInvalidSubject     = errors.New("invalid subject specification")
-	ErrInvalidPermission  = errors.New("invalid permission")
-	ErrAuthorizerFailed   = errors.New("authorizer service communication failed")
+	ErrPermissionDenied  = errors.New("permission denied")
+	ErrInvalidResource   = errors.New("invalid resource specification")
+	ErrInvalidSubject    = errors.New("invalid subject specification")
+	ErrInvalidPermission = errors.New("invalid permission")
+	ErrAuthorizerFailed  = errors.New("authorizer service communication failed")
 )
 
 var validSpiceDBIDRegex = regexp.MustCompile(`^[a-zA-Z0-9/_|\-=+]+$`)

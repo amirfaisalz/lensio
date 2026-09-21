@@ -44,7 +44,7 @@ func TestIdempotencyMiddleware_NilStoreAndNoHeader(t *testing.T) {
 
 	t.Run("nil store passes through", func(t *testing.T) {
 		handlerCalled = false
-		mw := middleware.Idempotency(nil)(dummyHandler)
+		mw := middleware.Idempotency(nil, nil)(dummyHandler)
 		req := httptest.NewRequest(http.MethodPost, "/api/v1/ocr/ktp", bytes.NewReader([]byte("body")))
 		req.Header.Set("Idempotency-Key", "test-key-1")
 		rec := httptest.NewRecorder()
@@ -58,7 +58,7 @@ func TestIdempotencyMiddleware_NilStoreAndNoHeader(t *testing.T) {
 	t.Run("no idempotency header passes through without caching", func(t *testing.T) {
 		handlerCalled = false
 		memStore := idempotency.NewMemoryStore(time.Hour)
-		mw := middleware.Idempotency(memStore)(dummyHandler)
+		mw := middleware.Idempotency(memStore, nil)(dummyHandler)
 		req := httptest.NewRequest(http.MethodPost, "/api/v1/ocr/ktp", bytes.NewReader([]byte("body")))
 		rec := httptest.NewRecorder()
 
@@ -77,7 +77,7 @@ func TestIdempotencyMiddleware_InvalidKeyLength(t *testing.T) {
 	dummyHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
-	mw := middleware.Idempotency(memStore)(dummyHandler)
+	mw := middleware.Idempotency(memStore, nil)(dummyHandler)
 
 	longKey := strings.Repeat("k", 257)
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/ocr/ktp", bytes.NewReader([]byte("body")))
@@ -101,7 +101,7 @@ func TestIdempotencyMiddleware_StoreError(t *testing.T) {
 	dummyHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
-	mw := middleware.Idempotency(failStore)(dummyHandler)
+	mw := middleware.Idempotency(failStore, nil)(dummyHandler)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/ocr/ktp", bytes.NewReader([]byte("body")))
 	req.Header.Set("Idempotency-Key", "key-fail")
@@ -125,7 +125,7 @@ func TestIdempotencyMiddleware_ReplayAndMismatch(t *testing.T) {
 		_, _ = w.Write([]byte(`{"message":"success"}`))
 	})
 
-	mw := middleware.Idempotency(memStore)(handler)
+	mw := middleware.Idempotency(memStore, nil)(handler)
 	keyID := "idemp-key-12345"
 	payload := []byte("original payload bytes")
 
@@ -203,7 +203,7 @@ func TestIdempotencyMiddleware_ConcurrentRequestsReturn409(t *testing.T) {
 		_, _ = w.Write([]byte(`{"result":"done"}`))
 	})
 
-	mw := middleware.Idempotency(memStore)(slowHandler)
+	mw := middleware.Idempotency(memStore, nil)(slowHandler)
 
 	var rec1 *httptest.ResponseRecorder
 	var wg sync.WaitGroup
@@ -260,7 +260,7 @@ func TestIdempotencyMiddleware_TransientFailureReleasesLock(t *testing.T) {
 		_, _ = w.Write([]byte("recovered"))
 	})
 
-	mw := middleware.Idempotency(memStore)(handler)
+	mw := middleware.Idempotency(memStore, nil)(handler)
 	keyID := "transient-key"
 	payload := []byte("transient payload")
 
@@ -298,7 +298,7 @@ func TestIdempotencyMiddleware_PanicReleasesLock(t *testing.T) {
 		panic("unexpected crash")
 	})
 
-	mw := middleware.Idempotency(memStore)(panickingHandler)
+	mw := middleware.Idempotency(memStore, nil)(panickingHandler)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/ocr/ktp", bytes.NewReader(payload))
 	req.Header.Set("Idempotency-Key", keyID)
@@ -323,7 +323,7 @@ func TestIdempotencyMiddleware_WithAuthContext(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("ok"))
 	})
-	mw := middleware.Idempotency(memStore)(handler)
+	mw := middleware.Idempotency(memStore, nil)(handler)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/ocr/ktp", bytes.NewReader([]byte("body")))
 	req.Header.Set("Idempotency-Key", "auth-key-1")
@@ -354,7 +354,7 @@ func TestIdempotencyMiddleware_RateLimitNotCached(t *testing.T) {
 		w.WriteHeader(http.StatusTooManyRequests)
 		_, _ = w.Write([]byte("quota exceeded"))
 	})
-	mw := middleware.Idempotency(memStore)(limitedHandler)
+	mw := middleware.Idempotency(memStore, nil)(limitedHandler)
 
 	newReq := func() *http.Request {
 		req := httptest.NewRequest(http.MethodPost, "/api/v1/ocr/sim", bytes.NewReader([]byte("same-payload")))

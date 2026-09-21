@@ -91,13 +91,12 @@ func CreateAPIKeyHandler(keyStore store.APIKeyStore, auditStore store.AuditStore
 		}
 
 		// Resolve org ID
-		orgID := resolveOrgIDWithAccount(r, req.OrgID, accountStore, defaultOrgID)
-		if orgID == "" {
-			response.ErrorWithRequest(w, r, http.StatusBadRequest, response.CodeInvalidRequest, "Organisasi belum dipilih atau tidak valid")
+		orgID, ok := resolveOrgID(w, r, req.OrgID, accountStore, defaultOrgID, authorizer != nil)
+		if !ok {
 			return
 		}
-
-		if rejectCrossOrgKeyManagement(r, w, req.OrgID, accountStore) {
+		if orgID == "" {
+			response.ErrorWithRequest(w, r, http.StatusBadRequest, response.CodeInvalidRequest, "Organisasi belum dipilih atau tidak valid")
 			return
 		}
 
@@ -209,7 +208,10 @@ func ListAPIKeysHandler(keyStore store.APIKeyStore, defaultOrgID string) http.Ha
 		if as, ok := keyStore.(store.AccountStore); ok {
 			accountStore = as
 		}
-		orgID := resolveOrgIDWithAccount(r, r.URL.Query().Get("org_id"), accountStore, defaultOrgID)
+		orgID, ok := resolveOrgID(w, r, r.URL.Query().Get("org_id"), accountStore, defaultOrgID, false)
+		if !ok {
+			return
+		}
 		if orgID == "" {
 			response.JSON(w, http.StatusOK, map[string]any{
 				"data": []APIKeyListItem{},
@@ -259,9 +261,8 @@ func RevokeAPIKeyHandler(keyStore store.APIKeyStore, auditStore store.AuditStore
 		if as, ok := keyStore.(store.AccountStore); ok {
 			accountStore = as
 		}
-		orgID := resolveOrgIDWithAccount(r, r.URL.Query().Get("org_id"), accountStore, defaultOrgID)
-
-		if rejectCrossOrgKeyManagement(r, w, r.URL.Query().Get("org_id"), accountStore) {
+		orgID, ok := resolveOrgID(w, r, r.URL.Query().Get("org_id"), accountStore, defaultOrgID, authorizer != nil)
+		if !ok {
 			return
 		}
 
@@ -344,28 +345,81 @@ func resolveActorSubject(r *http.Request) (authz.Subject, bool) {
 	return authz.Subject{}, false
 }
 
-func resolveOrgIDWithAccount(r *http.Request, explicit string, accountStore store.AccountStore, fallback string) string {
-	if explicit = strings.TrimSpace(explicit); explicit != "" {
-		return explicit
-	}
-	if authKey := middleware.GetAPIKey(r.Context()); authKey != nil && authKey.OrgID != "" {
-		return authKey.OrgID
-	}
-	if oidcUser := middleware.GetOIDCUser(r.Context()); oidcUser != nil && accountStore != nil {
-		org, err := accountStore.GetUserOrganization(r.Context(), oidcUser.Subject)
-		if err == nil && org != nil && org.ID != "" {
-			return org.ID
+// resolveOrgID resolves which organization the current request is allowed to act on.
+//
+// Security contract (default-deny): an explicit org_id supplied by the caller —
+// query parameter or request body — is honoured ONLY when it matches the
+// caller's own organization, or when the caller holds the platform wildcard
+// scope "*". Every other explicit org_id is a cross-tenant attempt: this helper
+// writes a 403 envelope and returns ok=false, and the caller MUST return
+// immediately without touching the store.
+//
+// The ResponseWriter parameter is deliberate: it makes the deny path impossible
+// to forget at a call site, which is how the previous org-scoping guard was
+// applied to only two of its nine callers.
+//
+// delegatedAuthz must be set only by handlers that immediately run an explicit
+// permission check (SpiceDB ReBAC) against the resolved organization. Those
+// handlers are allowed to accept a cross-org target because the check, not this
+// helper, is the authority. Every handler without such a check passes false.
+func resolveOrgID(w http.ResponseWriter, r *http.Request, explicit string, accountStore store.AccountStore, fallback string, delegatedAuthz bool) (string, bool) {
+	own := callerOwnOrgID(r, accountStore)
+	explicit = strings.TrimSpace(explicit)
+
+	switch {
+	case explicit == "":
+		// No explicit target: act on the caller's own organization.
+		if own != "" {
+			return own, true
 		}
-		if errors.Is(err, store.ErrNotFound) {
-			return ""
+		if fallback != "" {
+			return fallback, true
 		}
+		return DefaultOrgID, true
+	case explicit == own:
+		return explicit, true
+	case hasPlatformWildcard(r):
+		// "*" is never granted by self-service signup; it is a deliberate
+		// platform-operator key, so cross-org access is intentional here.
+		return explicit, true
+	case delegatedAuthz:
+		// A ReBAC check on this exact organization runs next and will reject the
+		// caller if they lack the permission.
+		return explicit, true
 	}
-	if fallback != "" {
-		return fallback
-	}
-	return DefaultOrgID
+
+	response.ErrorWithRequest(
+		w,
+		r,
+		http.StatusForbidden,
+		response.CodePermissionDenied,
+		"Cannot access resources belonging to another organization",
+	)
+	return "", false
 }
 
+// hasPlatformWildcard reports whether the caller holds the "*" platform scope.
+// Note that the "admin" role is deliberately NOT a wildcard: it is handed to
+// every organization owner at login and only describes a role inside one
+// organization, never platform-wide authority.
+func hasPlatformWildcard(r *http.Request) bool {
+	var scopes []string
+	if authKey := middleware.GetAPIKey(r.Context()); authKey != nil {
+		scopes = authKey.Scopes
+	} else if oidcUser := middleware.GetOIDCUser(r.Context()); oidcUser != nil {
+		scopes = oidcUser.Roles
+	}
+	for _, s := range scopes {
+		if s == middleware.ScopeAll {
+			return true
+		}
+	}
+	return false
+}
+
+// callerOwnOrgID returns the organization the authenticated caller belongs to,
+// or "" when it cannot be established. A store error yields "" rather than a
+// shared fallback org: a database hiccup must never widen access.
 func callerOwnOrgID(r *http.Request, accountStore store.AccountStore) string {
 	if authKey := middleware.GetAPIKey(r.Context()); authKey != nil && strings.TrimSpace(authKey.OrgID) != "" {
 		return strings.TrimSpace(authKey.OrgID)
@@ -377,28 +431,3 @@ func callerOwnOrgID(r *http.Request, accountStore store.AccountStore) string {
 	}
 	return ""
 }
-
-func rejectCrossOrgKeyManagement(r *http.Request, w http.ResponseWriter, explicitOrgID string, accountStore store.AccountStore) bool {
-	explicitOrgID = strings.TrimSpace(explicitOrgID)
-	if explicitOrgID == "" {
-		return false
-	}
-	ownOrgID := callerOwnOrgID(r, accountStore)
-	if ownOrgID == "" || explicitOrgID == ownOrgID {
-		return false
-	}
-	scopes := []string{}
-	if authKey := middleware.GetAPIKey(r.Context()); authKey != nil {
-		scopes = authKey.Scopes
-	} else if oidcUser := middleware.GetOIDCUser(r.Context()); oidcUser != nil {
-		scopes = oidcUser.Roles
-	}
-	for _, s := range scopes {
-		if s == middleware.ScopeAdmin || s == middleware.ScopeAll {
-			return false
-		}
-	}
-	response.ErrorWithRequest(w, r, http.StatusForbidden, response.CodePermissionDenied, "Cannot manage API keys for another organization")
-	return true
-}
-

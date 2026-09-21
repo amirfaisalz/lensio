@@ -95,6 +95,19 @@ func VerifyPassword(password, storedHash string) bool {
 	return false
 }
 
+// dummyPasswordHash is a real bcrypt hash of a throwaway value, used only to
+// spend the same CPU time when no account matches the submitted email.
+// #nosec G101 -- not a credential: it hashes a fixed non-secret string.
+const dummyPasswordHash = "$2a$10$F7aZtg0LKefNVGskqE1GGuVpCGqodSFMcn9iLRPmfVU..8MBJztXm"
+
+// EqualizeLoginTiming performs a throwaway bcrypt comparison so that a login
+// attempt for an unknown email costs roughly the same as one for a real
+// account. Without it, "no such user" returned in microseconds while a real
+// account spent ~80ms in bcrypt, which is a reliable account-enumeration oracle.
+func EqualizeLoginTiming(password string) {
+	_ = bcrypt.CompareHashAndPassword([]byte(dummyPasswordHash), []byte(password))
+}
+
 // GenerateVerificationToken returns a cryptographically secure hex-encoded 16-byte random token.
 func GenerateVerificationToken() (string, error) {
 	b := make([]byte, 16)

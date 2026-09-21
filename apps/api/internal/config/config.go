@@ -2,16 +2,17 @@ package config
 
 import (
 	"os"
+	"strconv"
 	"strings"
 )
 
 // Config represents the application runtime configuration.
 type Config struct {
-	Port         string
-	Env          string
-	DatabaseURL  string
-	LogLevel     string
-	OCRProvider  string
+	Port                string
+	Env                 string
+	DatabaseURL         string
+	LogLevel            string
+	OCRProvider         string
 	GeminiAPIKey        string
 	GeminiModel         string
 	KeycloakJWKSURL     string
@@ -21,6 +22,13 @@ type Config struct {
 	SpiceDBPresharedKey string
 	CORSAllowedOrigins  []string
 	SessionSecret       string
+	// RateLimitReplicas is how many API instances share the load. Token buckets
+	// are per-process, so the plan limit is divided by this to approximate the
+	// advertised rate. Defaults to 1.
+	RateLimitReplicas int
+	// EnableDevAuth switches on DevTokenValidator, which accepts unsigned JWTs.
+	// It must be opted into explicitly; ENV alone is not enough to enable it.
+	EnableDevAuth bool
 }
 
 // Load reads configuration from environment variables with sensible defaults.
@@ -49,10 +57,9 @@ func Load() *Config {
 
 	geminiAPIKey := strings.TrimSpace(os.Getenv("GEMINI_API_KEY"))
 
+	// Left empty on purpose: the provider owns its own default model so the
+	// fallback is not duplicated in two packages that can drift apart.
 	geminiModel := strings.TrimSpace(os.Getenv("GEMINI_MODEL"))
-	if geminiModel == "" {
-		geminiModel = "gemini-3.6-flash"
-	}
 
 	keycloakJWKSURL := strings.TrimSpace(os.Getenv("KEYCLOAK_JWKS_URL"))
 	keycloakIssuer := strings.TrimSpace(os.Getenv("KEYCLOAK_ISSUER"))
@@ -76,6 +83,18 @@ func Load() *Config {
 		corsOrigins = []string{"http://localhost:5173", "http://localhost:3000", "http://localhost:8080"}
 	}
 
+	rateLimitReplicas := 1
+	if raw := strings.TrimSpace(os.Getenv("RATE_LIMIT_REPLICAS")); raw != "" {
+		if n, err := strconv.Atoi(raw); err == nil && n > 0 {
+			rateLimitReplicas = n
+		}
+	}
+
+	// Default deny: only an explicit opt-in enables the unsigned-token dev
+	// validator. Relying on ENV alone meant a single missing variable (ENV
+	// defaults to "development") silently accepted forged tokens.
+	enableDevAuth := strings.EqualFold(strings.TrimSpace(os.Getenv("ENABLE_DEV_AUTH")), "true")
+
 	sessionSecret := strings.TrimSpace(os.Getenv("SESSION_SECRET"))
 	if sessionSecret == "" {
 		// #nosec G101 -- default dev fallback secret
@@ -97,5 +116,7 @@ func Load() *Config {
 		SpiceDBPresharedKey: spiceDBPresharedKey,
 		CORSAllowedOrigins:  corsOrigins,
 		SessionSecret:       sessionSecret,
+		RateLimitReplicas:   rateLimitReplicas,
+		EnableDevAuth:       enableDevAuth,
 	}
 }

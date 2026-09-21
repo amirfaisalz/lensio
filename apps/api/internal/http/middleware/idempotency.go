@@ -6,7 +6,6 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/amirfaisalz/lensio/apps/api/internal/http/response"
 	"github.com/amirfaisalz/lensio/apps/api/internal/idempotency"
@@ -56,7 +55,12 @@ func (w *idempotencyResponseWriter) Flush() {
 // Idempotency returns a middleware that guarantees safe client retries using the Idempotency-Key header.
 // It detects in-progress requests (HTTP 409), payload mismatches (HTTP 422),
 // and replays cached responses (HTTP 200 with Idempotent-Replayed: true).
-func Idempotency(store idempotency.Store) func(http.Handler) http.Handler {
+//
+// sealer encrypts the cached response body before it is persisted. It is required
+// in any deployment that handles real documents: OCR responses contain extracted
+// identity fields, so an unsealed cache turns idempotency into 24 hours of PII at
+// rest. Passing nil disables encryption and is intended only for tests.
+func Idempotency(store idempotency.Store, sealer *idempotency.Sealer) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if store == nil {
@@ -99,7 +103,7 @@ func Idempotency(store idempotency.Store) func(http.Handler) http.Handler {
 				return
 			}
 
-			rec, isNew, err := store.LockOrGet(r.Context(), orgID, keyHeader, payloadHash, 24*time.Hour)
+			rec, isNew, err := store.LockOrGet(r.Context(), orgID, keyHeader, payloadHash, idempotency.DefaultReplayTTL)
 			if err != nil {
 				response.ErrorWithRequest(
 					w,
@@ -136,12 +140,27 @@ func Idempotency(store idempotency.Store) func(http.Handler) http.Handler {
 				}
 
 				if rec.Status == idempotency.StatusCompleted {
+					body, err := sealer.Open(rec.ResponseBody)
+					if err != nil {
+						slog.ErrorContext(r.Context(), "failed decrypting cached idempotent response",
+							"error", err.Error(),
+							"request_id", response.GetRequestID(r.Context()),
+						)
+						response.ErrorWithRequest(
+							w,
+							r,
+							http.StatusInternalServerError,
+							response.CodeInternalError,
+							"Failed replaying idempotent response",
+						)
+						return
+					}
 					for k, v := range rec.Headers {
 						w.Header().Set(k, v)
 					}
 					w.Header().Set("Idempotent-Replayed", "true")
 					w.WriteHeader(rec.StatusCode)
-					_, _ = w.Write(rec.ResponseBody)
+					_, _ = w.Write(body)
 					return
 				}
 			}
@@ -177,7 +196,18 @@ func Idempotency(store idempotency.Store) func(http.Handler) http.Handler {
 						headersToCache[k] = vals[0]
 					}
 				}
-				_ = store.Complete(r.Context(), orgID, keyHeader, rw.statusCode, headersToCache, rw.body.Bytes())
+				sealed, err := sealer.Seal(rw.body.Bytes())
+				if err != nil {
+					// Never persist the plaintext as a fallback: release the lock
+					// so the client can retry rather than leaving PII unsealed.
+					slog.ErrorContext(r.Context(), "failed sealing idempotent response; releasing lock",
+						"error", err.Error(),
+						"request_id", response.GetRequestID(r.Context()),
+					)
+					_ = store.Release(r.Context(), orgID, keyHeader)
+					return
+				}
+				_ = store.Complete(r.Context(), orgID, keyHeader, rw.statusCode, headersToCache, sealed)
 			} else {
 				// 5xx errors and 429 rate/quota signals: release the lock to
 				// allow clients to retry with the same key.

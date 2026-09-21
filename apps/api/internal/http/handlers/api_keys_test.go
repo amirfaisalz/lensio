@@ -152,6 +152,10 @@ func TestCreateAPIKeyHandler_CustomScopesAndEnv(t *testing.T) {
 
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/api-keys", bytes.NewReader(body))
+	// An explicit org_id is only honoured for the caller's own organization.
+	req = req.WithContext(middleware.WithAPIKey(req.Context(), &store.APIKey{
+		ID: "key-owner", OrgID: "org-custom-123", Scopes: []string{"ocr:read"},
+	}))
 
 	handler.ServeHTTP(rec, req)
 
@@ -778,11 +782,21 @@ func TestCreateAPIKeyHandler_CrossOrgGuard(t *testing.T) {
 		}
 	})
 
-	t.Run("admin may manage other orgs", func(t *testing.T) {
+	// "admin" is granted to every organization owner at login, so it must not
+	// unlock other tenants. Only the deliberate "*" platform scope may.
+	t.Run("admin role does not grant cross-org access", func(t *testing.T) {
 		rec := httptest.NewRecorder()
 		handlers.CreateAPIKeyHandler(as, nil, nil, "")(rec, newReq("user-uuid-999", []string{"admin"}, "org-other-456"))
+		if rec.Code != http.StatusForbidden {
+			t.Fatalf("expected 403 for admin cross-org key creation, got %d. Body: %s", rec.Code, rec.Body.String())
+		}
+	})
+
+	t.Run("platform wildcard scope may manage other orgs", func(t *testing.T) {
+		rec := httptest.NewRecorder()
+		handlers.CreateAPIKeyHandler(as, nil, nil, "")(rec, newReq("user-uuid-999", []string{"*"}, "org-other-456"))
 		if rec.Code != http.StatusCreated {
-			t.Fatalf("expected 201 for admin cross-org key creation, got %d. Body: %s", rec.Code, rec.Body.String())
+			t.Fatalf("expected 201 for wildcard cross-org key creation, got %d. Body: %s", rec.Code, rec.Body.String())
 		}
 	})
 }
@@ -837,6 +851,9 @@ func TestAPIKeyHandlers_WithAccountStore(t *testing.T) {
 		b, _ := json.Marshal(body)
 
 		req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/api-keys", bytes.NewReader(b))
+		req = req.WithContext(middleware.WithAPIKey(req.Context(), &store.APIKey{
+			ID: "key-owner", OrgID: "org-non-existent",
+		}))
 		rec := httptest.NewRecorder()
 
 		handlers.CreateAPIKeyHandler(as, nil, nil, "")(rec, req)
@@ -919,4 +936,3 @@ func TestAPIKeyHandlers_WithAccountStore(t *testing.T) {
 		}
 	})
 }
-

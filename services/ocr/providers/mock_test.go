@@ -267,4 +267,3 @@ func TestMockOCREngine(t *testing.T) {
 		}
 	})
 }
-

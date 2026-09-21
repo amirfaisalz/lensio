@@ -34,9 +34,9 @@ func TestCalculateNPWPCheckDigit(t *testing.T) {
 		{"09254294", 3, false},
 		{"01234567", 4, false},
 		{"02345678", 3, false},
-		{"1234567", -1, true},  // Too short
+		{"1234567", -1, true},   // Too short
 		{"123456789", -1, true}, // Too long
-		{"1234567A", -1, true}, // Non numeric
+		{"1234567A", -1, true},  // Non numeric
 	}
 
 	for _, tt := range tests {
@@ -263,7 +263,7 @@ func TestValidateNPWPData(t *testing.T) {
 		Nama:          "A", // Too short
 		Alamat:        "",
 		KPP:           "",
-		NIK:           "123", // Invalid NIK
+		NIK:           "123",        // Invalid NIK
 		TanggalDaftar: "2099-01-01", // Future date
 	}
 	valid, errs = ValidateNPWPData(invalidData)

@@ -8,13 +8,13 @@ import (
 
 func TestValidateNIK(t *testing.T) {
 	tests := []struct {
-		name         string
-		nik          string
-		wantValid    bool
-		wantFemale   bool
-		wantDay      int
-		wantMonth    int
-		wantErrSub   string
+		name       string
+		nik        string
+		wantValid  bool
+		wantFemale bool
+		wantDay    int
+		wantMonth  int
+		wantErrSub string
 	}{
 		{
 			name:       "valid male Jakarta NIK",

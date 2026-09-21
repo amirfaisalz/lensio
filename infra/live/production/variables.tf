@@ -135,3 +135,28 @@ variable "tags" {
   description = "Resource tags"
   default     = {}
 }
+
+variable "session_secret" {
+  type        = string
+  description = "HMAC signing key for session cookies and the idempotency response sealer. Supply via TF_VAR_session_secret or Key Vault; the API refuses to start without it."
+  sensitive   = true
+}
+
+variable "gemini_api_key" {
+  type        = string
+  description = "Google AI Studio key for the Gemini vision engine. Empty makes the API fall back to the deterministic mock engine."
+  sensitive   = true
+  default     = ""
+}
+
+variable "ocr_provider" {
+  type        = string
+  description = "OCR engine selector. Anything outside the gemini_* values serves deterministic fixture data."
+  default     = "gemini_flash"
+}
+
+variable "cors_allowed_origins" {
+  type        = list(string)
+  description = "Browser origins allowed to call the API with credentials, i.e. the dashboard origin. Empty emits no CORS headers and breaks the dashboard."
+  default     = []
+}

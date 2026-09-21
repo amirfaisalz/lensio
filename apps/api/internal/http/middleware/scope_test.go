@@ -38,11 +38,6 @@ func TestRequireScope_Success(t *testing.T) {
 			requiredScopes: []string{"ocr:write", "usage:read"},
 		},
 		{
-			name:           "admin scope grants all",
-			keyScopes:      []string{"admin"},
-			requiredScopes: []string{"ocr:write", "keys:manage"},
-		},
-		{
 			name:           "empty required scopes always passes",
 			keyScopes:      []string{"ocr:read"},
 			requiredScopes: []string{},
@@ -66,6 +61,21 @@ func TestRequireScope_Success(t *testing.T) {
 				t.Fatalf("expected status 200, got %d", rec.Code)
 			}
 		})
+	}
+}
+
+// TestRequireScope_AdminIsNotWildcard guards the privilege-escalation path where
+// the "admin" role — granted to every organization owner at login — satisfied
+// every scope check on the platform.
+func TestRequireScope_AdminIsNotWildcard(t *testing.T) {
+	if ok, missing := middleware.HasScope([]string{"admin"}, "ocr:write"); ok {
+		t.Fatalf("admin must not satisfy ocr:write (missing=%q)", missing)
+	}
+	if ok, _ := middleware.HasScope([]string{"admin", "ocr:write"}, "ocr:write"); !ok {
+		t.Fatal("an explicitly granted scope must still pass alongside admin")
+	}
+	if ok, _ := middleware.HasScope([]string{"*"}, "ocr:write", "anything:else"); !ok {
+		t.Fatal("the platform wildcard must still satisfy every scope")
 	}
 }
 

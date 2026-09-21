@@ -370,27 +370,20 @@ func (db *DB) VerifyUserEmail(ctx context.Context, email, token string) error {
 		return errors.New("email is required")
 	}
 
-	var query string
-	var args []any
-
-	if token != "" {
-		query = `
-			UPDATE users
-			SET email_verified = TRUE, verification_token = NULL
-			WHERE LOWER(email) = LOWER($1) AND verification_token = $2;
-		`
-		args = []any{email, token}
-	} else {
-		// When token is empty (e.g. admin or dev verification flow), verify user by email
-		query = `
-			UPDATE users
-			SET email_verified = TRUE, verification_token = NULL
-			WHERE LOWER(email) = LOWER($1);
-		`
-		args = []any{email}
+	// The verification token is mandatory. An earlier "dev flow" branch verified
+	// by email alone whenever the token was empty, which let anyone activate any
+	// account without ever reading its mailbox.
+	if token == "" {
+		return ErrNotFound
 	}
 
-	res, err := db.ExecContext(ctx, query, args...)
+	const query = `
+		UPDATE users
+		SET email_verified = TRUE, verification_token = NULL
+		WHERE LOWER(email) = LOWER($1) AND verification_token = $2;
+	`
+
+	res, err := db.ExecContext(ctx, query, email, token)
 	if err != nil {
 		return fmt.Errorf("updating user verification: %w", err)
 	}
@@ -506,4 +499,51 @@ func (db *DB) GetUserOrganization(ctx context.Context, userID string) (*Organiza
 	}
 
 	return db.GetOrganization(ctx, orgID.String)
+}
+
+// SessionsValidFrom returns the instant from which session tokens for a user are
+// accepted. Tokens issued before it were revoked, typically by an explicit logout.
+func (db *DB) SessionsValidFrom(ctx context.Context, userID string) (time.Time, error) {
+	userID = strings.TrimSpace(userID)
+	if userID == "" {
+		return time.Time{}, errors.New("userID is required")
+	}
+
+	var validFrom time.Time
+	err := db.QueryRowContext(ctx,
+		`SELECT sessions_valid_from FROM users WHERE id = $1;`, userID,
+	).Scan(&validFrom)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return time.Time{}, ErrNotFound
+		}
+		return time.Time{}, fmt.Errorf("querying session validity for user: %w", err)
+	}
+
+	return validFrom, nil
+}
+
+// RevokeUserSessions invalidates every session token issued to a user so far.
+func (db *DB) RevokeUserSessions(ctx context.Context, userID string) error {
+	userID = strings.TrimSpace(userID)
+	if userID == "" {
+		return errors.New("userID is required")
+	}
+
+	res, err := db.ExecContext(ctx,
+		`UPDATE users SET sessions_valid_from = NOW() WHERE id = $1;`, userID,
+	)
+	if err != nil {
+		return fmt.Errorf("revoking user sessions: %w", err)
+	}
+
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("checking rows affected on session revocation: %w", err)
+	}
+	if rows == 0 {
+		return ErrNotFound
+	}
+
+	return nil
 }

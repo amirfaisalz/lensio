@@ -145,16 +145,16 @@ func TestSLODocumentation_Completeness(t *testing.T) {
 	content := string(data)
 
 	requiredSections := []string{
-		"99.9%",                     // 99.9% Availability SLA/SLO contract
-		"43.2 minutes",              // Permitted downtime calculation
-		"P95",                       // Latency SLO contract
-		"Error Budget",              // Error budget consumption
-		"Burn Rate",                 // Burn rate calculations
-		"Multi-Window",              // Multi-window multi-burn-rate alerting
-		"HighErrorRate",             // Alerting matrix coverage
-		"P95LatencyBreached",        // Latency alert
-		"CircuitBreakerOpen",        // Circuit breaker alert
-		"RateLimitSurge",            // Rate limit surge alert
+		"99.9%",                      // 99.9% Availability SLA/SLO contract
+		"43.2 minutes",               // Permitted downtime calculation
+		"P95",                        // Latency SLO contract
+		"Error Budget",               // Error budget consumption
+		"Burn Rate",                  // Burn rate calculations
+		"Multi-Window",               // Multi-window multi-burn-rate alerting
+		"HighErrorRate",              // Alerting matrix coverage
+		"P95LatencyBreached",         // Latency alert
+		"CircuitBreakerOpen",         // Circuit breaker alert
+		"RateLimitSurge",             // Rate limit surge alert
 		"Error Budget Freeze Policy", // Operational governance
 	}
 

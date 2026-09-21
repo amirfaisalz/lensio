@@ -495,4 +495,3 @@ func TestDrill_ScenarioE_CircuitBreakerTrippingAndFastFail(t *testing.T) {
 		t.Fatalf("expected breaker to be StateClosed after Reset, got %v", cb.State())
 	}
 }
-

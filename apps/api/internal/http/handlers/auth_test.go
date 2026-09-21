@@ -406,7 +406,7 @@ func TestLoginHandler(t *testing.T) {
 }
 
 func TestLogoutHandler(t *testing.T) {
-	h := handlers.LogoutHandler()
+	h := handlers.LogoutHandler(nil, nil)
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/logout", nil)
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
@@ -453,7 +453,7 @@ func TestSessionCookieSecureInProduction(t *testing.T) {
 
 	outReq := httptest.NewRequest(http.MethodPost, "/api/v1/auth/logout", nil)
 	outRec := httptest.NewRecorder()
-	handlers.LogoutHandler()(outRec, outReq)
+	handlers.LogoutHandler(nil, nil)(outRec, outReq)
 	for _, c := range outRec.Result().Cookies() {
 		if c.Name == "lensio_session" && !c.Secure {
 			t.Error("expected Secure logout cookie in production even over plain HTTP")

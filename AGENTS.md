@@ -10,7 +10,7 @@
 **Lensio** is an affordable Indonesian Identity Document OCR API (KTP, SIM, Passport, NPWP, KK & Invoice) as a service. It is designed as a production-grade API product demonstrating end-to-end platform engineering:
 - **Language & Runtime**: Go (Backend API) + React & TypeScript (Developer Dashboard)
 - **Database**: PostgreSQL 16 (Relational state, migrations via `golang-migrate`)
-- **Primary OCR Engine**: Pluggable `OCREngine` interface. Default Vision AI: **Google Gemini 2.0 Flash / 1.5 Flash** (Google AI Studio Free Tier); Default Test Engine: **MockOCREngine** (deterministic fixtures).
+- **Primary OCR Engine**: Pluggable `OCREngine` interface. Default Vision AI: **Google Gemini Flash** — the default model id lives in `services/ocr/providers/gemini.go` (`defaultGeminiModel`) and is overridable via `GEMINI_MODEL`; config intentionally does not duplicate it. Default Test Engine: **MockOCREngine** (deterministic fixtures).
 - **Platform Infrastructure**: Azure Container Apps, Cloudflare, OpenTofu, Terragrunt, OpenTelemetry, Grafana.
 
 ### Core Engineering Principle

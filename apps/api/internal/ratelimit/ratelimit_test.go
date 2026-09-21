@@ -201,4 +201,3 @@ func TestRateLimiter_InterfaceCompliance(t *testing.T) {
 		t.Fatalf("expected mock limiter to deny request")
 	}
 }
-

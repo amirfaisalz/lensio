@@ -58,12 +58,12 @@ var (
 	}
 
 	validReligions = map[string]struct{}{
-		"ISLAM":                  {},
-		"KRISTEN":                {},
-		"KATOLIK":                {},
-		"HINDU":                  {},
-		"BUDDHA":                 {},
-		"KHONGHUCU":              {},
+		"ISLAM":                 {},
+		"KRISTEN":               {},
+		"KATOLIK":               {},
+		"HINDU":                 {},
+		"BUDDHA":                {},
+		"KHONGHUCU":             {},
 		"PENGHAYAT KEPERCAYAAN": {},
 	}
 
@@ -98,9 +98,10 @@ type NIKValidationResult struct {
 // 2. All characters must be ASCII numeric ('0'-'9').
 // 3. Province code (digits 1-2) must match official Kemendagri codes (O(1) map lookup).
 // 4. Encoded birth date (digits 7-12, DDMMYY):
-//    - Day: 01-31 (Male) or 41-71 (Female: Day + 40)
-//    - Month: 01-12
-//    - Calendar validity check (month length, leap year bounds)
+//   - Day: 01-31 (Male) or 41-71 (Female: Day + 40)
+//   - Month: 01-12
+//   - Calendar validity check (month length, leap year bounds)
+//
 // 5. Sequence number (digits 13-16) must be > 0000.
 // Time Complexity: O(n) single pass with n=16. Zero heap allocations.
 func ValidateNIK(nik string) NIKValidationResult {

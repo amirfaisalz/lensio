@@ -3,8 +3,6 @@ package http
 import (
 	"net/http"
 
-	"time"
-
 	"github.com/amirfaisalz/lensio/apps/api/internal/authz"
 	"github.com/amirfaisalz/lensio/apps/api/internal/http/handlers"
 	"github.com/amirfaisalz/lensio/apps/api/internal/http/middleware"
@@ -31,9 +29,18 @@ type RouterDeps struct {
 	RateLimiter      ratelimit.RateLimiter
 	UsageRecorder    *usage.Recorder
 	IdempotencyStore idempotency.Store
-	OIDCValidator       middleware.TokenValidator
-	Authorizer          authz.Authorizer
-	CORSAllowedOrigins  []string
+	// IdempotencySealer encrypts cached response bodies at rest. Supply one in
+	// any deployment processing real documents; nil stores them in plaintext.
+	IdempotencySealer *idempotency.Sealer
+	// SessionRevoker invalidates a user's session tokens on logout. Nil leaves
+	// logout cookie-only, which cannot stop an already-copied token.
+	SessionRevoker          handlers.SessionRevoker
+	SessionCacheInvalidator handlers.SessionCacheInvalidator
+	// RateLimitReplicas divides plan limits across API instances; 0 or 1 means single-instance.
+	RateLimitReplicas  int
+	OIDCValidator      middleware.TokenValidator
+	Authorizer         authz.Authorizer
+	CORSAllowedOrigins []string
 }
 
 // NewRouter constructs the root HTTP handler for backward compatibility.
@@ -61,12 +68,31 @@ func NewRouterWithDeps(deps RouterDeps) http.Handler {
 	mux.HandleFunc("GET /openapi.yaml", handlers.OpenAPIHandler())
 	mux.HandleFunc("GET /docs", handlers.DocsHandler("/openapi.yaml"))
 
+	// Rate limiting is built once and shared by the public (unauthenticated) and
+	// authenticated route groups so both draw on the same token buckets.
+	var rlMw *middleware.RateLimitMiddleware
+	if deps.RateLimiter != nil {
+		rlMw = middleware.NewRateLimitMiddleware(deps.RateLimiter, deps.AccountStore, "")
+		rlMw.SetReplicaCount(deps.RateLimitReplicas)
+	}
+
+	// throttle applies the limiter when one is configured. Public auth routes are
+	// unauthenticated, so the limiter keys them by client IP. Without this they
+	// were reachable without any bucket at all, leaving login an unthrottled
+	// password-guessing and bcrypt-CPU oracle.
+	throttle := func(h http.Handler) http.Handler {
+		if rlMw == nil {
+			return h
+		}
+		return rlMw.Handler(h)
+	}
+
 	// Public Authentication Endpoints (Registration, Verification, Login, Logout)
 	if deps.AccountStore != nil {
-		mux.HandleFunc("POST /api/v1/auth/register", handlers.RegisterHandler(deps.AccountStore))
-		mux.HandleFunc("POST /api/v1/auth/verify-email", handlers.VerifyEmailHandler(deps.AccountStore))
-		mux.HandleFunc("POST /api/v1/auth/login", handlers.LoginHandler(deps.AccountStore))
-		mux.HandleFunc("POST /api/v1/auth/logout", handlers.LogoutHandler())
+		mux.Handle("POST /api/v1/auth/register", throttle(handlers.RegisterHandler(deps.AccountStore)))
+		mux.Handle("POST /api/v1/auth/verify-email", throttle(handlers.VerifyEmailHandler(deps.AccountStore)))
+		mux.Handle("POST /api/v1/auth/login", throttle(handlers.LoginHandler(deps.AccountStore)))
+		mux.Handle("POST /api/v1/auth/logout", handlers.LogoutHandler(deps.SessionRevoker, deps.SessionCacheInvalidator))
 	}
 
 	// API v1 Routes (PRD Section 6)
@@ -79,8 +105,7 @@ func NewRouterWithDeps(deps RouterDeps) http.Handler {
 		}
 
 		authMiddleware := baseAuthMiddleware
-		if deps.RateLimiter != nil {
-			rlMw := middleware.NewRateLimitMiddleware(deps.RateLimiter, deps.AccountStore, "")
+		if rlMw != nil {
 			authMiddleware = func(next http.Handler) http.Handler {
 				return baseAuthMiddleware(rlMw.Handler(next))
 			}
@@ -134,9 +159,9 @@ func NewRouterWithDeps(deps RouterDeps) http.Handler {
 		}
 
 		if deps.IdempotencyStore == nil {
-			deps.IdempotencyStore = idempotency.NewMemoryStore(24 * time.Hour)
+			deps.IdempotencyStore = idempotency.NewMemoryStore(idempotency.DefaultReplayTTL)
 		}
-		idempotencyMiddleware := middleware.Idempotency(deps.IdempotencyStore)
+		idempotencyMiddleware := middleware.Idempotency(deps.IdempotencyStore, deps.IdempotencySealer)
 		sessionOrgMiddleware := middleware.SessionOrg(deps.AccountStore)
 
 		ktpHandler := handlers.KTPOCRHandler(deps.OCREngine, deps.OCRStore, quotaChecker)
@@ -178,13 +203,14 @@ func NewRouterWithDeps(deps RouterDeps) http.Handler {
 		}
 	}
 
-	var rootHandler http.Handler = mux
+	var rootHandler http.Handler = middleware.Recover(mux)
 
 	// Usage Metering & Metrics Middleware (PRD Section 11 & 16)
 	rootHandler = middleware.UsageMetering(deps.UsageRecorder, handlers.DefaultOrgID)(rootHandler)
 
-	// Global Middleware: Request ID injection, Distributed Tracing, and CORS (PRD Section 16 & 20)
+	// Global Middleware: panic recovery, Request ID injection, Distributed Tracing, and CORS (PRD Section 16 & 20)
+	// Recover sits inside UsageMetering so a panicking handler is still metered
+	// with its 500 status instead of dropping the connection with no response.
 	corsHandler := middleware.NewCORSMiddleware(deps.CORSAllowedOrigins)(rootHandler)
 	return middleware.RequestID(middleware.Tracing(nil)(corsHandler))
 }
-

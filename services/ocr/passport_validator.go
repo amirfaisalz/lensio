@@ -16,19 +16,19 @@ var (
 
 // MRZValidationResult captures the detailed outcome of MRZ TD3 validation.
 type MRZValidationResult struct {
-	IsValid            bool
-	PassportNumber     string
-	Nationality        string
-	DateOfBirth        string // YYYY-MM-DD
-	Gender             string // LAKI-LAKI | PEREMPUAN
-	ExpiryDate         string // YYYY-MM-DD
-	Surname            string
-	GivenNames         string
-	PassportNumValid   bool
-	DOBValid           bool
-	ExpiryValid        bool
-	CompositeValid     bool
-	Error              string
+	IsValid          bool
+	PassportNumber   string
+	Nationality      string
+	DateOfBirth      string // YYYY-MM-DD
+	Gender           string // LAKI-LAKI | PEREMPUAN
+	ExpiryDate       string // YYYY-MM-DD
+	Surname          string
+	GivenNames       string
+	PassportNumValid bool
+	DOBValid         bool
+	ExpiryValid      bool
+	CompositeValid   bool
+	Error            string
 }
 
 // PassportNumberValidationResult provides the outcome of deterministic passport number validation.
@@ -50,7 +50,7 @@ func CalculateMRZCheckDigit(data string) byte {
 		case ch >= '0' && ch <= '9':
 			val = int(ch - '0')
 		case ch >= 'A' && ch <= 'Z':
-			val = int(ch - 'A') + 10
+			val = int(ch-'A') + 10
 		default:
 			val = 0
 		}

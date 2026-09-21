@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"context"
+	"net"
 	"net/http"
 	"strconv"
 	"strings"
@@ -25,6 +26,7 @@ type RateLimitMiddleware struct {
 	limiter      ratelimit.RateLimiter
 	accountStore store.AccountStore
 	defaultOrgID string
+	replicas     int
 	mu           sync.RWMutex
 	cache        map[string]planCacheEntry
 }
@@ -35,18 +37,56 @@ func NewRateLimitMiddleware(limiter ratelimit.RateLimiter, accountStore store.Ac
 		limiter:      limiter,
 		accountStore: accountStore,
 		defaultOrgID: defaultOrgID,
+		replicas:     1,
 		cache:        make(map[string]planCacheEntry),
 	}
+}
+
+// SetReplicaCount tells the limiter how many API replicas share the load, so the
+// per-replica budget can be divided down to approximate the advertised plan limit.
+//
+// The token buckets live in process memory, so with N replicas behind a load
+// balancer a tenant could otherwise burst N x its plan limit. Dividing is an
+// approximation: it assumes even load balancing and under-counts when replicas
+// scale in. It is a deliberate ceiling — the exact fix is a shared counter
+// (Redis / Postgres), which is the upgrade path once billing accuracy demands it.
+func (m *RateLimitMiddleware) SetReplicaCount(n int) {
+	if n < 1 {
+		n = 1
+	}
+	m.mu.Lock()
+	m.replicas = n
+	m.cache = make(map[string]planCacheEntry) // cached limits were computed for the old divisor
+	m.mu.Unlock()
+}
+
+// perReplicaLimit divides a plan limit across replicas, never below 1.
+func (m *RateLimitMiddleware) perReplicaLimit(limit int) int {
+	m.mu.RLock()
+	replicas := m.replicas
+	m.mu.RUnlock()
+
+	if replicas <= 1 {
+		return limit
+	}
+	if divided := limit / replicas; divided >= 1 {
+		return divided
+	}
+	return 1
 }
 
 // Handler returns an http.Handler middleware enforcing rate limits and emitting standard RFC headers.
 func (m *RateLimitMiddleware) Handler(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Probes, docs and cheap dashboard reads bypass the limiter. Account
+		// *writes* deliberately do not: POST /api/v1/account/organizations is a
+		// mutation and was previously unthrottled by the blanket prefix match.
+		accountRead := strings.HasPrefix(r.URL.Path, "/api/v1/account") && r.Method == http.MethodGet
 		if r.URL.Path == "/health" || r.URL.Path == "/ready" || r.URL.Path == "/metrics" ||
 			strings.HasPrefix(r.URL.Path, "/docs") || strings.HasPrefix(r.URL.Path, "/openapi") ||
 			strings.HasPrefix(r.URL.Path, "/api/v1/auth/me") ||
 			strings.HasPrefix(r.URL.Path, "/api/v1/auth/logout") ||
-			strings.HasPrefix(r.URL.Path, "/api/v1/account") {
+			accountRead {
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -72,7 +112,7 @@ func (m *RateLimitMiddleware) Handler(next http.Handler) http.Handler {
 		}
 
 		limit, planCode := m.getOrgRateLimit(r.Context(), rateKey)
-		res := m.limiter.Allow(rateKey, limit)
+		res := m.limiter.Allow(rateKey, m.perReplicaLimit(limit))
 
 		w.Header().Set("X-RateLimit-Limit", strconv.Itoa(res.Limit))
 		w.Header().Set("X-RateLimit-Remaining", strconv.Itoa(res.Remaining))
@@ -166,18 +206,27 @@ func (m *RateLimitMiddleware) getOrgRateLimit(ctx context.Context, orgID string)
 	return limit, planCode
 }
 
+// clientIPFromRequest derives the rate-limit identity for unauthenticated callers.
+//
+// X-Forwarded-For is client-controlled: a caller can prepend any address they
+// like. Only the RIGHTMOST entry is appended by our own ingress, so that is the
+// one hop an attacker cannot forge; reading the leftmost entry (as before) let
+// anyone mint a fresh bucket per request and skip the limit entirely.
 func clientIPFromRequest(r *http.Request) string {
-	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
-		if idx := strings.Index(xff, ","); idx >= 0 {
-			return strings.TrimSpace(xff[:idx])
+	if xff := strings.TrimSpace(r.Header.Get("X-Forwarded-For")); xff != "" {
+		if idx := strings.LastIndex(xff, ","); idx >= 0 {
+			if last := strings.TrimSpace(xff[idx+1:]); last != "" {
+				return last
+			}
+		} else {
+			return xff
 		}
-		return strings.TrimSpace(xff)
 	}
-	if host := strings.TrimSpace(r.RemoteAddr); host != "" {
-		if idx := strings.LastIndex(host, ":"); idx >= 0 {
-			return host[:idx]
+	if addr := strings.TrimSpace(r.RemoteAddr); addr != "" {
+		if host, _, err := net.SplitHostPort(addr); err == nil {
+			return host
 		}
-		return host
+		return addr
 	}
 	return ""
 }

@@ -696,8 +696,21 @@ func TestRequireScope_WithOIDCUser(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 	}))
 
-	t.Run("oidc user with admin role passes any scope", func(t *testing.T) {
+	// Every organization owner receives the "admin" role at login, so it must
+	// not satisfy scopes it was never granted.
+	t.Run("oidc user with only admin role is refused", func(t *testing.T) {
 		user := &middleware.OIDCUser{Subject: "admin-1", Roles: []string{"admin"}}
+		req := httptest.NewRequest(http.MethodPost, "/ocr", nil)
+		req = req.WithContext(middleware.WithOIDCUser(req.Context(), user))
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, req)
+		if rec.Code != http.StatusForbidden {
+			t.Errorf("expected 403, got %d", rec.Code)
+		}
+	})
+
+	t.Run("oidc user with platform wildcard passes any scope", func(t *testing.T) {
+		user := &middleware.OIDCUser{Subject: "platform-1", Roles: []string{"*"}}
 		req := httptest.NewRequest(http.MethodPost, "/ocr", nil)
 		req = req.WithContext(middleware.WithOIDCUser(req.Context(), user))
 		rec := httptest.NewRecorder()
@@ -992,5 +1005,3 @@ func TestDualAuth_ProductionRejectsMockTokens(t *testing.T) {
 		})
 	}
 }
-
-

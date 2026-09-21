@@ -25,15 +25,15 @@ type UsageRecord struct {
 // API keys) so the SLA tracks overhead the team controls. Upstream Vision
 // AI time is reported separately in P95OCRLatencyMS and carries no SLA.
 type UsageSummary struct {
-	TotalRequests        int       `json:"total_requests"`
-	SuccessCount         int       `json:"success_count"`
-	ErrorCount           int       `json:"error_count"`
-	QuotaLimit           int       `json:"quota_limit"`
-	QuotaRemaining       int       `json:"quota_remaining"`
-	P95LatencyMS         int       `json:"p95_latency_ms"`
-	P95OCRLatencyMS      int       `json:"p95_ocr_latency_ms"`
-	RateLimitViolations  int       `json:"rate_limit_violations"`
-	BillingCycleReset    time.Time `json:"billing_cycle_reset"`
+	TotalRequests       int       `json:"total_requests"`
+	SuccessCount        int       `json:"success_count"`
+	ErrorCount          int       `json:"error_count"`
+	QuotaLimit          int       `json:"quota_limit"`
+	QuotaRemaining      int       `json:"quota_remaining"`
+	P95LatencyMS        int       `json:"p95_latency_ms"`
+	P95OCRLatencyMS     int       `json:"p95_ocr_latency_ms"`
+	RateLimitViolations int       `json:"rate_limit_violations"`
+	BillingCycleReset   time.Time `json:"billing_cycle_reset"`
 }
 
 // DailyUsage represents aggregated request counts per calendar day.
@@ -338,4 +338,3 @@ func (db *DB) GetUsageRecords(ctx context.Context, orgID string, filter UsageRec
 
 	return records, total, nil
 }
-

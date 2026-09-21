@@ -22,6 +22,8 @@ inputs = {
   dashboard_max_replicas         = local.env_vars.dashboard_max_replicas
   dashboard_cpu                  = local.env_vars.dashboard_cpu
   dashboard_memory               = local.env_vars.dashboard_memory
+  ocr_provider                   = local.env_vars.ocr_provider
+  cors_allowed_origins           = local.env_vars.cors_allowed_origins
   api_subdomain                  = local.env_vars.api_subdomain
   dashboard_subdomain            = local.env_vars.dashboard_subdomain
 }

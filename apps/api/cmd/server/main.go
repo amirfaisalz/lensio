@@ -15,6 +15,7 @@ import (
 	"github.com/amirfaisalz/lensio/apps/api/internal/authz"
 	"github.com/amirfaisalz/lensio/apps/api/internal/config"
 	internalhttp "github.com/amirfaisalz/lensio/apps/api/internal/http"
+	"github.com/amirfaisalz/lensio/apps/api/internal/http/handlers"
 	"github.com/amirfaisalz/lensio/apps/api/internal/http/middleware"
 	"github.com/amirfaisalz/lensio/apps/api/internal/idempotency"
 	"github.com/amirfaisalz/lensio/apps/api/internal/ratelimit"
@@ -123,6 +124,10 @@ func main() {
 	)
 
 	rateLimiter := ratelimit.NewLimiter()
+	if cfg.RateLimitReplicas > 1 {
+		logger.Info("dividing plan rate limits across replicas (in-memory buckets are per-process)",
+			slog.Int("replicas", cfg.RateLimitReplicas))
+	}
 
 	var usageRecorder *usage.Recorder
 	if db != nil {
@@ -131,14 +136,34 @@ func main() {
 
 	var idempotencyStore idempotency.Store
 	if db != nil {
-		idempotencyStore = idempotency.NewPostgresStore(db.DB, 24*time.Hour)
+		idempotencyStore = idempotency.NewPostgresStore(db.DB, idempotency.DefaultReplayTTL)
 	} else {
-		idempotencyStore = idempotency.NewMemoryStore(24 * time.Hour)
+		idempotencyStore = idempotency.NewMemoryStore(idempotency.DefaultReplayTTL)
+	}
+
+	// Cached OCR responses carry extracted identity fields; seal them before they
+	// reach the database so the idempotency table never holds plaintext PII.
+	idempotencySealer, err := idempotency.NewSealer([]byte(cfg.SessionSecret))
+	if err != nil {
+		logger.Error("failed initializing idempotency sealer; refusing to start with unencrypted response cache",
+			slog.String("error", err.Error()))
+		os.Exit(1)
 	}
 
 	// Configure session secret and validators
 	auth.SetTokenSecret([]byte(cfg.SessionSecret))
 	sessionVal := middleware.NewSessionTokenValidator([]byte(cfg.SessionSecret))
+	if db != nil {
+		// Enables server-side session revocation on logout.
+		sessionVal.SetRevocationChecker(db)
+	}
+
+	// DevTokenValidator accepts unsigned JWTs, so it requires an explicit opt-in
+	// and is refused outright in production/staging regardless of the flag.
+	devAuthEnabled := cfg.EnableDevAuth && cfg.Env != "production" && cfg.Env != "staging"
+	if cfg.EnableDevAuth && !devAuthEnabled {
+		logger.Error("ENABLE_DEV_AUTH is set but ignored: unsigned dev tokens are never permitted in production/staging")
+	}
 
 	var oidcValidator middleware.TokenValidator
 	if cfg.KeycloakJWKSURL != "" {
@@ -150,13 +175,13 @@ func main() {
 		if cfg.KeycloakAudience != "" {
 			validator.SetExpectedAudience(cfg.KeycloakAudience)
 		}
-		if cfg.Env == "development" || cfg.Env == "test" {
+		if devAuthEnabled {
 			oidcValidator = middleware.NewCompositeTokenValidator(validator, sessionVal, middleware.NewDevTokenValidator())
 		} else {
 			oidcValidator = middleware.NewCompositeTokenValidator(validator, sessionVal)
 		}
-	} else if cfg.Env == "development" || cfg.Env == "test" {
-		logger.Info("Keycloak JWKS URL not configured, enabling DevTokenValidator & SessionTokenValidator for local development/test")
+	} else if devAuthEnabled {
+		logger.Warn("ENABLE_DEV_AUTH is on: DevTokenValidator accepts UNSIGNED tokens. Never enable this outside local development")
 		oidcValidator = middleware.NewCompositeTokenValidator(sessionVal, middleware.NewDevTokenValidator())
 	} else {
 		oidcValidator = sessionVal
@@ -181,20 +206,31 @@ func main() {
 		}
 	}
 
+	// db is a *store.DB, which is nil-typed rather than nil when the pool failed
+	// to open; assign through an interface variable so the handler's nil check works.
+	var sessionRevoker handlers.SessionRevoker
+	if db != nil {
+		sessionRevoker = db
+	}
+
 	router := internalhttp.NewRouterWithDeps(internalhttp.RouterDeps{
-		Pinger:             pinger,
-		KeyStore:           db,
-		OCREngine:          ocrEngine,
-		OCRStore:           db,
-		UsageStore:         db,
-		AccountStore:       db,
-		AuditStore:         db,
-		RateLimiter:        rateLimiter,
-		UsageRecorder:      usageRecorder,
-		IdempotencyStore:   idempotencyStore,
-		OIDCValidator:      oidcValidator,
-		Authorizer:         authorizer,
-		CORSAllowedOrigins: cfg.CORSAllowedOrigins,
+		Pinger:                  pinger,
+		KeyStore:                db,
+		OCREngine:               ocrEngine,
+		OCRStore:                db,
+		UsageStore:              db,
+		AccountStore:            db,
+		AuditStore:              db,
+		RateLimiter:             rateLimiter,
+		UsageRecorder:           usageRecorder,
+		IdempotencyStore:        idempotencyStore,
+		IdempotencySealer:       idempotencySealer,
+		SessionRevoker:          sessionRevoker,
+		SessionCacheInvalidator: sessionVal,
+		OIDCValidator:           oidcValidator,
+		Authorizer:              authorizer,
+		CORSAllowedOrigins:      cfg.CORSAllowedOrigins,
+		RateLimitReplicas:       cfg.RateLimitReplicas,
 	})
 
 	srv := &http.Server{

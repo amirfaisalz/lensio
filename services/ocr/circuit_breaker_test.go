@@ -21,11 +21,11 @@ import (
 
 // mockFailingEngine allows injecting errors and delays.
 type mockFailingEngine struct {
-	mu         sync.Mutex
-	err        error
-	delay      time.Duration
-	callCount  int
-	ktpResult  *ocr.OCRResult
+	mu        sync.Mutex
+	err       error
+	delay     time.Duration
+	callCount int
+	ktpResult *ocr.OCRResult
 }
 
 func (m *mockFailingEngine) Extract(ctx context.Context, image []byte) (*ocr.OCRResult, error) {

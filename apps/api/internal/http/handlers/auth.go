@@ -1,9 +1,11 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"os"
 	"regexp"
@@ -94,7 +96,8 @@ func RegisterHandler(accountStore store.AccountStore) http.HandlerFunc {
 				response.ErrorWithRequest(w, r, http.StatusConflict, response.CodeInvalidRequest, "Email sudah terdaftar. Silakan gunakan email lain atau masuk.")
 				return
 			}
-			response.ErrorWithRequest(w, r, http.StatusInternalServerError, response.CodeInternalError, fmt.Sprintf("Gagal mendaftarkan user: %v", err))
+			slog.ErrorContext(r.Context(), "user registration failed", slog.String("error", err.Error()))
+			response.ErrorWithRequest(w, r, http.StatusInternalServerError, response.CodeInternalError, "Gagal mendaftarkan user")
 			return
 		}
 
@@ -133,6 +136,11 @@ func VerifyEmailHandler(accountStore store.AccountStore) http.HandlerFunc {
 
 		if email == "" {
 			response.ErrorWithRequest(w, r, http.StatusBadRequest, response.CodeInvalidRequest, "Email tidak boleh kosong")
+			return
+		}
+
+		if token == "" {
+			response.ErrorWithRequest(w, r, http.StatusBadRequest, response.CodeInvalidRequest, "Token verifikasi tidak boleh kosong")
 			return
 		}
 
@@ -177,6 +185,9 @@ func LoginHandler(accountStore store.AccountStore) http.HandlerFunc {
 		userWithAuth, err := accountStore.GetUserByEmail(r.Context(), email)
 		if err != nil {
 			if errors.Is(err, store.ErrNotFound) {
+				// Spend the same bcrypt time as a real account so the response
+				// latency does not reveal whether this email is registered.
+				auth.EqualizeLoginTiming(password)
 				response.ErrorWithRequest(w, r, http.StatusUnauthorized, response.CodeInvalidAPIKey, "Email atau kata sandi tidak valid.")
 				return
 			}
@@ -245,9 +256,33 @@ func LoginHandler(accountStore store.AccountStore) http.HandlerFunc {
 	}
 }
 
-// LogoutHandler handles POST /api/v1/auth/logout and clears the secure session cookie.
-func LogoutHandler() http.HandlerFunc {
+// SessionRevoker invalidates every session token previously issued to a user.
+type SessionRevoker interface {
+	RevokeUserSessions(ctx context.Context, userID string) error
+}
+
+// SessionCacheInvalidator lets the handler drop the local revocation cache so a
+// logout takes effect immediately on the replica that served it.
+type SessionCacheInvalidator interface {
+	InvalidateRevocationCache(userID string)
+}
+
+// LogoutHandler handles POST /api/v1/auth/logout. It clears the session cookie and,
+// when a revoker is configured, invalidates the token server-side so a copy taken
+// out of the browser stops working instead of living until its 7-day expiry.
+func LogoutHandler(revoker SessionRevoker, cache SessionCacheInvalidator) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if revoker != nil {
+			if userID := sessionUserID(r); userID != "" {
+				if err := revoker.RevokeUserSessions(r.Context(), userID); err != nil {
+					slog.ErrorContext(r.Context(), "failed revoking user sessions on logout",
+						slog.String("error", err.Error()))
+				} else if cache != nil {
+					cache.InvalidateRevocationCache(userID)
+				}
+			}
+		}
+
 		isSecure := r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https" || os.Getenv("ENV") == "production"
 		http.SetCookie(w, &http.Cookie{
 			Name:     "lensio_session",
@@ -364,7 +399,8 @@ func CreateOrganizationHandler(accountStore store.AccountStore) http.HandlerFunc
 
 		org, err := accountStore.CreateOrganization(r.Context(), name, slug, planCode)
 		if err != nil {
-			response.ErrorWithRequest(w, r, http.StatusInternalServerError, response.CodeInternalError, fmt.Sprintf("Gagal membuat organisasi: %v", err))
+			slog.ErrorContext(r.Context(), "organization creation failed", slog.String("error", err.Error()))
+			response.ErrorWithRequest(w, r, http.StatusInternalServerError, response.CodeInternalError, "Gagal membuat organisasi")
 			return
 		}
 
@@ -388,4 +424,29 @@ func CreateOrganizationHandler(accountStore store.AccountStore) http.HandlerFunc
 			},
 		})
 	}
+}
+
+// sessionUserID extracts the subject from the caller's session cookie or bearer
+// token. Logout is an unauthenticated route, so the token is parsed here rather
+// than read from a context the auth middleware never populated.
+func sessionUserID(r *http.Request) string {
+	if user := middleware.GetOIDCUser(r.Context()); user != nil && user.Subject != "" {
+		return user.Subject
+	}
+
+	token := ""
+	if authHeader := r.Header.Get("Authorization"); strings.HasPrefix(authHeader, "Bearer ") {
+		token = strings.TrimSpace(strings.TrimPrefix(authHeader, "Bearer "))
+	} else if cookie, err := r.Cookie("lensio_session"); err == nil {
+		token = strings.TrimSpace(cookie.Value)
+	}
+	if token == "" {
+		return ""
+	}
+
+	claims, err := auth.ValidateSessionToken(token, auth.GetTokenSecret())
+	if err != nil {
+		return ""
+	}
+	return claims.Sub
 }

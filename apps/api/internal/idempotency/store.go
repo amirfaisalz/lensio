@@ -6,6 +6,14 @@ import (
 	"time"
 )
 
+// DefaultReplayTTL bounds how long a completed response stays replayable.
+//
+// It was 24 hours, which is also how long an OCR response — extracted identity
+// fields — sat in the database. Client retries happen within seconds to minutes,
+// so one hour keeps idempotency useful while cutting the PII retention window by
+// 24x. Raise it only with a matching change to PRIVACY.md.
+const DefaultReplayTTL = 1 * time.Hour
+
 var (
 	ErrNilRecord       = errors.New("idempotency record is nil")
 	ErrKeyRequired     = errors.New("idempotency key is required")

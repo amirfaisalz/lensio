@@ -514,5 +514,3 @@ Grand Total : Rp 11.100.000,00
 		_ = ocr.ParseInvoiceFromRawText(raw)
 	}
 }
-
-

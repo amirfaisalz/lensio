@@ -1,7 +1,9 @@
 # ==============================================================================
 # Stage 1: Build binary with official Go compiler
 # ==============================================================================
-FROM golang:alpine AS builder
+# Pinned to the toolchain in go.mod. An unpinned `golang:alpine` silently
+# changes compiler version between builds, so the image is not reproducible.
+FROM golang:1.26-alpine AS builder
 
 WORKDIR /src
 

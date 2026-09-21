@@ -826,5 +826,3 @@ func TestRouter_E2E_SIMOCR_CompleteWorkflow(t *testing.T) {
 		t.Fatalf("expected 422 for unsupported document on /api/v1/ocr/sim, got %d", respUnsupp.StatusCode)
 	}
 }
-
-

@@ -14,7 +14,10 @@ import (
 // UsageSummaryHandler handles GET /api/v1/usage.
 func UsageSummaryHandler(usageStore store.UsageStore, accountStore store.AccountStore, defaultOrgID string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		orgID := resolveOrgIDWithAccount(r, r.URL.Query().Get("org_id"), accountStore, defaultOrgID)
+		orgID, ok := resolveOrgID(w, r, r.URL.Query().Get("org_id"), accountStore, defaultOrgID, false)
+		if !ok {
+			return
+		}
 		cycleStart, cycleReset := quota.CurrentBillingCycle(time.Now())
 
 		if orgID == "" {
@@ -62,7 +65,10 @@ func UsageSummaryHandler(usageStore store.UsageStore, accountStore store.Account
 // DailyUsageHandler handles GET /api/v1/usage/daily.
 func DailyUsageHandler(usageStore store.UsageStore, accountStore store.AccountStore, defaultOrgID string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		orgID := resolveOrgIDWithAccount(r, r.URL.Query().Get("org_id"), accountStore, defaultOrgID)
+		orgID, ok := resolveOrgID(w, r, r.URL.Query().Get("org_id"), accountStore, defaultOrgID, false)
+		if !ok {
+			return
+		}
 		if orgID == "" {
 			response.JSON(w, http.StatusOK, map[string]any{"data": []store.DailyUsage{}})
 			return
@@ -87,7 +93,10 @@ func DailyUsageHandler(usageStore store.UsageStore, accountStore store.AccountSt
 // EndpointUsageHandler handles GET /api/v1/usage/endpoints.
 func EndpointUsageHandler(usageStore store.UsageStore, accountStore store.AccountStore, defaultOrgID string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		orgID := resolveOrgIDWithAccount(r, r.URL.Query().Get("org_id"), accountStore, defaultOrgID)
+		orgID, ok := resolveOrgID(w, r, r.URL.Query().Get("org_id"), accountStore, defaultOrgID, false)
+		if !ok {
+			return
+		}
 		if orgID == "" {
 			response.JSON(w, http.StatusOK, map[string]any{"data": []store.EndpointUsage{}})
 			return
@@ -112,7 +121,10 @@ func EndpointUsageHandler(usageStore store.UsageStore, accountStore store.Accoun
 // UsageRecordsHandler handles GET /api/v1/usage/records.
 func UsageRecordsHandler(usageStore store.UsageStore, accountStore store.AccountStore, defaultOrgID string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		orgID := resolveOrgIDWithAccount(r, r.URL.Query().Get("org_id"), accountStore, defaultOrgID)
+		orgID, ok := resolveOrgID(w, r, r.URL.Query().Get("org_id"), accountStore, defaultOrgID, false)
+		if !ok {
+			return
+		}
 		limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
 		if limit <= 0 {
 			limit = 50
@@ -169,4 +181,3 @@ func UsageRecordsHandler(usageStore store.UsageStore, accountStore store.Account
 		})
 	}
 }
-

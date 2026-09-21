@@ -72,6 +72,13 @@ resource "azurerm_container_app" "api" {
     value = var.database_url
   }
 
+  # The API refuses to start in production/staging without SESSION_SECRET, so it
+  # must be provisioned here rather than set by hand on the running revision.
+  secret {
+    name  = "session-secret"
+    value = var.session_secret
+  }
+
   dynamic "secret" {
     for_each = var.gemini_api_key != "" ? [1] : []
     content {
@@ -102,13 +109,31 @@ resource "azurerm_container_app" "api" {
         name  = "LOG_LEVEL"
         value = var.log_level
       }
+      # Rate-limit buckets are per-process, so the API divides plan limits by the
+      # replica count to approximate the advertised limit across instances.
       env {
-        name  = "RATE_LIMIT_ENABLED"
-        value = "true"
+        name  = "RATE_LIMIT_REPLICAS"
+        value = tostring(var.api_min_replicas)
+      }
+      # Without this the provider silently falls back to the deterministic mock
+      # engine, which would serve fixture data to paying callers.
+      env {
+        name  = "OCR_PROVIDER"
+        value = var.ocr_provider
+      }
+      # Unset means no CORS headers at all, which breaks the dashboard because it
+      # is served from a different origin than the API.
+      env {
+        name  = "CORS_ALLOWED_ORIGINS"
+        value = join(",", var.cors_allowed_origins)
       }
       env {
         name        = "DATABASE_URL"
         secret_name = "database-url"
+      }
+      env {
+        name        = "SESSION_SECRET"
+        secret_name = "session-secret"
       }
 
       dynamic "env" {

@@ -184,6 +184,8 @@ paths:
           $ref: '#/components/responses/InvalidRequest'
         '401':
           $ref: '#/components/responses/InvalidAPIKey'
+        '403':
+          $ref: '#/components/responses/Forbidden'
 
     get:
       summary: List API Keys
@@ -194,6 +196,8 @@ paths:
       security:
         - BearerAuth: []
         - {}
+      parameters:
+        - $ref: '#/components/parameters/OrgIdQuery'
       responses:
         '200':
           description: List of organization API keys
@@ -208,6 +212,8 @@ paths:
                       $ref: '#/components/schemas/APIKeyListItem'
         '401':
           $ref: '#/components/responses/InvalidAPIKey'
+        '403':
+          $ref: '#/components/responses/Forbidden'
 
   /api/v1/auth/api-keys/{id}:
     delete:
@@ -219,6 +225,7 @@ paths:
       security:
         - BearerAuth: []
       parameters:
+        - $ref: '#/components/parameters/OrgIdQuery'
         - name: id
           in: path
           required: true
@@ -241,6 +248,8 @@ paths:
                     format: uuid
         '401':
           $ref: '#/components/responses/InvalidAPIKey'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
 
@@ -724,6 +733,8 @@ paths:
         - Usage
       security:
         - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/OrgIdQuery'
       responses:
         '200':
           description: Organization usage summary
@@ -734,7 +745,7 @@ paths:
         '401':
           $ref: '#/components/responses/InvalidAPIKey'
         '403':
-          $ref: '#/components/responses/InsufficientScope'
+          $ref: '#/components/responses/Forbidden'
 
   /api/v1/usage/daily:
     get:
@@ -745,6 +756,8 @@ paths:
         - Usage
       security:
         - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/OrgIdQuery'
       responses:
         '200':
           description: Daily usage timeseries
@@ -769,6 +782,8 @@ paths:
                           type: integer
         '401':
           $ref: '#/components/responses/InvalidAPIKey'
+        '403':
+          $ref: '#/components/responses/Forbidden'
 
   /api/v1/usage/endpoints:
     get:
@@ -779,6 +794,8 @@ paths:
         - Usage
       security:
         - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/OrgIdQuery'
       responses:
         '200':
           description: Endpoint usage breakdown
@@ -800,6 +817,8 @@ paths:
                           type: number
         '401':
           $ref: '#/components/responses/InvalidAPIKey'
+        '403':
+          $ref: '#/components/responses/Forbidden'
 
   /api/v1/usage/records:
     get:
@@ -811,6 +830,7 @@ paths:
       security:
         - BearerAuth: []
       parameters:
+        - $ref: '#/components/parameters/OrgIdQuery'
         - name: limit
           in: query
           required: false
@@ -868,6 +888,8 @@ paths:
                           format: date-time
         '401':
           $ref: '#/components/responses/InvalidAPIKey'
+        '403':
+          $ref: '#/components/responses/Forbidden'
 
   /api/v1/account:
     get:
@@ -878,6 +900,8 @@ paths:
         - Account
       security:
         - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/OrgIdQuery'
       responses:
         '200':
           description: Account information
@@ -897,6 +921,8 @@ paths:
                     type: integer
         '401':
           $ref: '#/components/responses/InvalidAPIKey'
+        '403':
+          $ref: '#/components/responses/Forbidden'
 
   /api/v1/account/plan:
     get:
@@ -907,6 +933,8 @@ paths:
         - Account
       security:
         - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/OrgIdQuery'
       responses:
         '200':
           description: Plan details
@@ -929,6 +957,8 @@ paths:
                     example: 30
         '401':
           $ref: '#/components/responses/InvalidAPIKey'
+        '403':
+          $ref: '#/components/responses/Forbidden'
 
   /api/v1/account/members:
     get:
@@ -939,6 +969,8 @@ paths:
         - Account
       security:
         - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/OrgIdQuery'
       responses:
         '200':
           description: Organization team members
@@ -970,6 +1002,8 @@ paths:
                           format: date-time
         '401':
           $ref: '#/components/responses/InvalidAPIKey'
+        '403':
+          $ref: '#/components/responses/Forbidden'
 
 components:
   securitySchemes:
@@ -1042,6 +1076,7 @@ components:
                 - internal_error
                 - request_in_progress
                 - idempotency_key_mismatch
+                - permission_denied
               example: invalid_document
             message:
               type: string
@@ -1545,7 +1580,46 @@ components:
           type: string
           format: date-time
 
+  parameters:
+    OrgIdQuery:
+      name: org_id
+      in: query
+      required: false
+      description: >
+        Organization to act on. Optional: when omitted the caller's own
+        organization is used. When supplied it MUST match the caller's own
+        organization — any other value is refused with 403 permission_denied.
+        Only a key holding the platform wildcard scope "*" may target another
+        organization.
+      schema:
+        type: string
+        format: uuid
+      example: 00000000-0000-0000-0000-000000000001
+
   responses:
+    Forbidden:
+      description: >
+        Authorization failure: the credential lacks a required scope
+        (insufficient_scope), or it targeted an organization it does not belong
+        to (permission_denied).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+          examples:
+            insufficientScope:
+              value:
+                error:
+                  code: insufficient_scope
+                  message: "API key lacks required scope: ocr:write"
+                  request_id: req_01JABC12345
+            crossOrganization:
+              value:
+                error:
+                  code: permission_denied
+                  message: Cannot access resources belonging to another organization
+                  request_id: req_01JABC12345
+
     InvalidRequest:
       description: Malformed request payload
       content:

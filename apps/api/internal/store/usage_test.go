@@ -247,4 +247,3 @@ func TestMonthlyOCRCount_MultiDocTypes(t *testing.T) {
 		t.Errorf("expected quota remaining 94, got %d", summary.QuotaRemaining)
 	}
 }
-

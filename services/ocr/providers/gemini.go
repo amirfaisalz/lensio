@@ -394,7 +394,11 @@ func (g *GeminiOCREngine) Extract(ctx context.Context, imageBytes []byte) (*ocr.
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("%w: gemini returned HTTP %d: %s", ocr.ErrOCRFailed, resp.StatusCode, string(bodyBytes))
+		// The body is deliberately not interpolated: this error is logged, and an
+		// upstream failure (safety block, quota rejection) can echo fragments of
+		// the extracted document back. Status alone is enough to act on.
+		return nil, fmt.Errorf("%w: gemini returned HTTP %d (%d bytes of response withheld from logs)",
+			ocr.ErrOCRFailed, resp.StatusCode, len(bodyBytes))
 	}
 
 	var geminiResp geminiResponse
@@ -403,7 +407,7 @@ func (g *GeminiOCREngine) Extract(ctx context.Context, imageBytes []byte) (*ocr.
 	}
 
 	if geminiResp.Error != nil {
-		return nil, fmt.Errorf("%w: gemini api error: %s", ocr.ErrOCRFailed, geminiResp.Error.Message)
+		return nil, fmt.Errorf("%w: gemini api error (status %q)", ocr.ErrOCRFailed, geminiResp.Error.Status)
 	}
 
 	if len(geminiResp.Candidates) == 0 || len(geminiResp.Candidates[0].Content.Parts) == 0 {
@@ -429,7 +433,9 @@ func (g *GeminiOCREngine) Extract(ctx context.Context, imageBytes []byte) (*ocr.
 
 	var extracted geminiExtractedJSON
 	if err := json.Unmarshal([]byte(cleanedText), &extracted); err != nil {
-		return nil, fmt.Errorf("%w: failed parsing model json output: %v", ocr.ErrOCRFailed, err)
+		// The parse error would quote the malformed model output, which is the
+		// extracted document. Report the failure without the payload.
+		return nil, fmt.Errorf("%w: failed parsing model json output (%d bytes)", ocr.ErrOCRFailed, len(cleanedText))
 	}
 
 	if strings.EqualFold(extracted.DocumentType, "unsupported") {

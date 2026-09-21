@@ -591,12 +591,15 @@ func TestNewRouterWithDeps_Phase4(t *testing.T) {
 
 	// 10. Test Dual Authentication with OIDCValidator (Phase 11.4)
 	t.Run("Router with OIDCValidator supports dual authentication", func(t *testing.T) {
+		// Roles mirror what LoginHandler actually issues. "admin" is present but
+		// is no longer a scope wildcard, so the explicit ocr:* roles are what
+		// satisfy RequireScope.
 		mockValidator := &testOIDCValidator{
 			user: &middleware.OIDCUser{
 				Subject:           "oidc-admin-1",
 				Email:             "admin@lensio.dev",
 				PreferredUsername: "admin",
-				Roles:             []string{"admin"},
+				Roles:             []string{"admin", "developer", "ocr:read", "ocr:write", "usage:read"},
 			},
 		}
 
@@ -628,6 +631,26 @@ func TestNewRouterWithDeps_Phase4(t *testing.T) {
 
 		if recKey.Code != http.StatusOK {
 			t.Fatalf("expected 200 for API key under dualRouter, got %d", recKey.Code)
+		}
+
+		// Regression guard: the "admin" role is handed to every organization
+		// owner at login. It must never act as a platform-wide scope wildcard.
+		adminOnlyRouter := internalhttp.NewRouterWithDeps(internalhttp.RouterDeps{
+			KeyStore: kStore,
+			OIDCValidator: &testOIDCValidator{
+				user: &middleware.OIDCUser{
+					Subject: "oidc-owner-2",
+					Email:   "owner@other-tenant.dev",
+					Roles:   []string{"admin"},
+				},
+			},
+		})
+		adminReq := httptest.NewRequest(http.MethodGet, "/api/v1/auth/verify", nil)
+		adminReq.Header.Set("Authorization", "Bearer eyJhbGci.eyJzdWIi.c2ln")
+		adminRec := httptest.NewRecorder()
+		adminOnlyRouter.ServeHTTP(adminRec, adminReq)
+		if adminRec.Code != http.StatusForbidden {
+			t.Fatalf("expected 403: 'admin' must not satisfy ocr:write, got %d: %s", adminRec.Code, adminRec.Body.String())
 		}
 	})
 

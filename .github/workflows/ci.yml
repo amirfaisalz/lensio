@@ -32,11 +32,21 @@ jobs:
 
       - name: Verify Go Formatting & Vet
         run: |
+          # gofmt was never enforced, so formatting drifted across ~20 files while
+          # the "zero lint errors" gate reported green.
+          unformatted="$(gofmt -l . | grep -v '^apps/dashboard/' || true)"
+          if [ -n "${unformatted}" ]; then
+            echo "::error::gofmt found unformatted files:"
+            echo "${unformatted}"
+            exit 1
+          fi
           go vet ./...
 
       - name: Run golangci-lint
         run: |
-          go run github.com/golangci/golangci-lint/cmd/golangci-lint@latest run --timeout=5m
+          # Pinned: @latest made the lint gate change under us between runs.
+          # Config is v1 schema; migrating to golangci-lint v2 is a separate change.
+          go run github.com/golangci/golangci-lint/cmd/golangci-lint@v1.64.8 run --timeout=5m
 
       - name: Run Go Tests with Race Detector & Coverage
         run: |

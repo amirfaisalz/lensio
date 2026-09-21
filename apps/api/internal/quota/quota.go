@@ -41,6 +41,15 @@ func NewEnforcer(accountStore store.AccountStore, usageStore store.UsageStore) *
 
 // CheckQuota verifies if the organization has remaining OCR requests in the current billing cycle.
 // Returns (allowed, remaining, limit, error).
+//
+// Known bound: this is a read-then-act check, and usage is recorded
+// asynchronously after the response. Requests already in flight are therefore
+// not yet counted, so a burst can overshoot the monthly quota by roughly the
+// tenant's in-flight concurrency (bounded in turn by the per-minute rate limit).
+// That is accepted deliberately — a monthly quota is a commercial limit, not a
+// safety control, and an atomic reserve would put a serialised write on the hot
+// path of every OCR call. Upgrade path if billing accuracy ever demands it:
+// reserve a slot in the same transaction that records usage.
 func (e *Enforcer) CheckQuota(ctx context.Context, orgID string) (bool, int, int, error) {
 	if orgID == "" {
 		return false, 0, 0, errors.New("orgID is required")

@@ -13,7 +13,11 @@ const (
 )
 
 // HasScope verifies whether the given key scopes satisfy all required scopes.
-// Supports ScopeAdmin ("admin") and ScopeAll ("*") wildcards.
+//
+// ScopeAll ("*") is the only wildcard. ScopeAdmin ("admin") is deliberately NOT
+// a wildcard: it is granted to every organization owner at login, so treating it
+// as one turned "owner of any org" into "authorized for every scope on the
+// platform". It is matched literally, like any other scope name.
 func HasScope(keyScopes []string, required ...string) (bool, string) {
 	if len(required) == 0 {
 		return true, ""
@@ -21,7 +25,7 @@ func HasScope(keyScopes []string, required ...string) (bool, string) {
 
 	scopeSet := make(map[string]struct{}, len(keyScopes))
 	for _, s := range keyScopes {
-		if s == ScopeAdmin || s == ScopeAll {
+		if s == ScopeAll {
 			return true, ""
 		}
 		scopeSet[s] = struct{}{}

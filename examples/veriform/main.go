@@ -25,9 +25,9 @@ type Config struct {
 
 // LensioResponse matches the OCR response envelope returned by Lensio API.
 type LensioResponse struct {
-	ID           string `json:"id"`
-	Status       string `json:"status"`
-	DocumentType string `json:"document_type"`
+	ID           string  `json:"id"`
+	Status       string  `json:"status"`
+	DocumentType string  `json:"document_type"`
 	Confidence   float64 `json:"confidence"`
 	Data         struct {
 		NIK              string `json:"nik"`

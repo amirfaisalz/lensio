@@ -23,16 +23,16 @@ var (
 	kwnRegex       = regexp.MustCompile(`(?i)(?:Kewarganegaraan)[\s:;.-]*(WNI|WNA)`)
 
 	// SIM specific regex patterns
-	simNomorRegex      = regexp.MustCompile(`(?i)(?:No\.?\s*SIM|Nomor\s*SIM|SIM\s*No\.?)[\t :;.-]*([0-9OlI\t -]{12,24})`)
-	simNomorFallback  = regexp.MustCompile(`\b([0-9]{12,16})\b`)
-	simGolonganRegex   = regexp.MustCompile(`(?i)(?:Gol(?:ongan)?\.?\s*(?:SIM)?|SIM)[\s:;.-]*([A-D](?:\s*(?:I|II|1|2))?(?:\s*UMUM)?|INTERNASIONAL)`)
-	simNamaRegex       = regexp.MustCompile(`(?i)(?:1\.?\s*Nama|Nama)[\s:;.-]+([^\r\n]+)`)
-	simTTLRegex        = regexp.MustCompile(`(?i)(?:2\.?\s*Tempat(?:/|\s*)Tgl\s*Lahir|Tempat(?:/|\s*)Tgl\s*Lahir)[\s:;.-]+([^,;\r\n]+)[,;.\s]+(\d{1,2}[-\s/.]\d{1,2}[-\s/.]\d{4})`)
-	simDarahRegex      = regexp.MustCompile(`(?i)(?:Gol(?:ongan)?\.?\s*Darah|Darah)[\s:;.-]*([ABO-]{1,2})`)
-	simGenderRegex     = regexp.MustCompile(`(?i)(?:3\.?\s*Jenis\s*Kelamin|Jenis\s*Kelamin)[\s:;.-]*(PRIA|WANITA|LAKI-LAKI|PEREMPUAN)`)
-	simAlamatRegex     = regexp.MustCompile(`(?i)(?:4\.?\s*Alamat|Alamat)[\s:;.-]+([^\n\r]+)`)
-	simPekerjaanRegex  = regexp.MustCompile(`(?i)(?:5\.?\s*Pekerjaan|Pekerjaan)[\s:;.-]+([^\n\r]+)`)
-	simPoldaRegex      = regexp.MustCompile(`(?i)(?:Polda|Kepolisian\s*Daerah)[\s:;.-]+([^\n\r]+)`)
+	simNomorRegex       = regexp.MustCompile(`(?i)(?:No\.?\s*SIM|Nomor\s*SIM|SIM\s*No\.?)[\t :;.-]*([0-9OlI\t -]{12,24})`)
+	simNomorFallback    = regexp.MustCompile(`\b([0-9]{12,16})\b`)
+	simGolonganRegex    = regexp.MustCompile(`(?i)(?:Gol(?:ongan)?\.?\s*(?:SIM)?|SIM)[\s:;.-]*([A-D](?:\s*(?:I|II|1|2))?(?:\s*UMUM)?|INTERNASIONAL)`)
+	simNamaRegex        = regexp.MustCompile(`(?i)(?:1\.?\s*Nama|Nama)[\s:;.-]+([^\r\n]+)`)
+	simTTLRegex         = regexp.MustCompile(`(?i)(?:2\.?\s*Tempat(?:/|\s*)Tgl\s*Lahir|Tempat(?:/|\s*)Tgl\s*Lahir)[\s:;.-]+([^,;\r\n]+)[,;.\s]+(\d{1,2}[-\s/.]\d{1,2}[-\s/.]\d{4})`)
+	simDarahRegex       = regexp.MustCompile(`(?i)(?:Gol(?:ongan)?\.?\s*Darah|Darah)[\s:;.-]*([ABO-]{1,2})`)
+	simGenderRegex      = regexp.MustCompile(`(?i)(?:3\.?\s*Jenis\s*Kelamin|Jenis\s*Kelamin)[\s:;.-]*(PRIA|WANITA|LAKI-LAKI|PEREMPUAN)`)
+	simAlamatRegex      = regexp.MustCompile(`(?i)(?:4\.?\s*Alamat|Alamat)[\s:;.-]+([^\n\r]+)`)
+	simPekerjaanRegex   = regexp.MustCompile(`(?i)(?:5\.?\s*Pekerjaan|Pekerjaan)[\s:;.-]+([^\n\r]+)`)
+	simPoldaRegex       = regexp.MustCompile(`(?i)(?:Polda|Kepolisian\s*Daerah)[\s:;.-]+([^\n\r]+)`)
 	simMasaBerlakuRegex = regexp.MustCompile(`(?i)(?:Berlaku\s*(?:s/d|hingga|sampai)|Masa\s*Berlaku)[\s:;.-]*(\d{1,2}[-\s/.]\d{1,2}[-\s/.]\d{4})`)
 
 	// Passport specific regex patterns
@@ -573,6 +573,3 @@ func ParseInvoiceFromRawText(rawText string) *InvoiceData {
 
 	return data
 }
-
-
-

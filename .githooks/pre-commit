@@ -12,6 +12,15 @@ echo "==> [Layer 1/4] Checking Types & Compilation..."
 if [ -f "go.mod" ]; then
     echo "  • Verifying Go build & type safety..."
     go build ./... || { echo "❌ [Layer 1 Failed]: Go compilation / type checking failed."; exit 1; }
+
+    echo "  • Verifying gofmt formatting..."
+    UNFORMATTED="$(gofmt -l . | grep -v '^apps/dashboard/' || true)"
+    if [ -n "${UNFORMATTED}" ]; then
+        echo "❌ [Layer 1 Failed]: gofmt found unformatted files:"
+        echo "${UNFORMATTED}"
+        echo "   Fix with: gofmt -w ."
+        exit 1
+    fi
 fi
 
 if [ -f "apps/dashboard/package.json" ]; then

@@ -41,8 +41,10 @@ func TestLoad_Defaults(t *testing.T) {
 	if cfg.GeminiAPIKey != "" {
 		t.Fatalf("expected empty GeminiAPIKey, got '%s'", cfg.GeminiAPIKey)
 	}
-	if cfg.GeminiModel != "gemini-3.6-flash" {
-		t.Fatalf("expected GeminiModel 'gemini-3.6-flash', got '%s'", cfg.GeminiModel)
+	// The model default lives in the Gemini provider, so config leaves it empty
+	// rather than duplicating a string the two packages could drift apart on.
+	if cfg.GeminiModel != "" {
+		t.Fatalf("expected empty GeminiModel (provider owns the default), got '%s'", cfg.GeminiModel)
 	}
 	if cfg.KeycloakJWKSURL != "" {
 		t.Fatalf("expected empty KeycloakJWKSURL, got '%s'", cfg.KeycloakJWKSURL)

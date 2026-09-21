@@ -21,7 +21,10 @@ type UpdatePlanRequest struct {
 // AccountDetailsHandler handles GET /api/v1/account.
 func AccountDetailsHandler(accountStore store.AccountStore, defaultOrgID string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		orgID := resolveOrgIDWithAccount(r, r.URL.Query().Get("org_id"), accountStore, defaultOrgID)
+		orgID, ok := resolveOrgID(w, r, r.URL.Query().Get("org_id"), accountStore, defaultOrgID, false)
+		if !ok {
+			return
+		}
 
 		if accountStore == nil {
 			response.ErrorWithRequest(w, r, http.StatusInternalServerError, response.CodeInternalError, "Account store unavailable")
@@ -58,7 +61,10 @@ func AccountDetailsHandler(accountStore store.AccountStore, defaultOrgID string)
 // AccountPlanHandler handles GET /api/v1/account/plan.
 func AccountPlanHandler(accountStore store.AccountStore, defaultOrgID string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		orgID := resolveOrgIDWithAccount(r, r.URL.Query().Get("org_id"), accountStore, defaultOrgID)
+		orgID, ok := resolveOrgID(w, r, r.URL.Query().Get("org_id"), accountStore, defaultOrgID, false)
+		if !ok {
+			return
+		}
 
 		if accountStore == nil {
 			response.ErrorWithRequest(w, r, http.StatusInternalServerError, response.CodeInternalError, "Account store unavailable")
@@ -95,7 +101,10 @@ func AccountPlanHandler(accountStore store.AccountStore, defaultOrgID string) ht
 // UpdatePlanHandler handles PUT /api/v1/account/plan.
 func UpdatePlanHandler(accountStore store.AccountStore, auditStore store.AuditStore, defaultOrgID string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		orgID := resolveOrgIDWithAccount(r, r.URL.Query().Get("org_id"), accountStore, defaultOrgID)
+		orgID, ok := resolveOrgID(w, r, r.URL.Query().Get("org_id"), accountStore, defaultOrgID, false)
+		if !ok {
+			return
+		}
 
 		var req UpdatePlanRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -163,7 +172,10 @@ func UpdatePlanHandler(accountStore store.AccountStore, auditStore store.AuditSt
 // AccountMembersHandler handles GET /api/v1/account/members.
 func AccountMembersHandler(accountStore store.AccountStore, defaultOrgID string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		orgID := resolveOrgIDWithAccount(r, r.URL.Query().Get("org_id"), accountStore, defaultOrgID)
+		orgID, ok := resolveOrgID(w, r, r.URL.Query().Get("org_id"), accountStore, defaultOrgID, false)
+		if !ok {
+			return
+		}
 
 		if accountStore == nil {
 			response.JSON(w, http.StatusOK, map[string]any{"data": []store.User{}})
@@ -184,4 +196,3 @@ func AccountMembersHandler(accountStore store.AccountStore, defaultOrgID string)
 		response.JSON(w, http.StatusOK, map[string]any{"data": members})
 	}
 }
-

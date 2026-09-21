@@ -5,6 +5,7 @@
 ## Data yang diproses
 - **Gambar dokumen** (KTP, SIM, Passport, NPWP, KK, Invoice) via `multipart/form-data`, max 5MB, JPEG/PNG/WebP. Diproses **di RAM saja**, tidak ditulis ke disk/blob. Buffer dilepas setelah respons.
 - **Hasil ekstraksi** dikembalikan ke pemanggil dan **tidak disimpan** (yang disimpan hanya metadata non-PII: `record_id, org_id, confidence, latency_ms, doc_type, status`).
+- **Pengecualian: `Idempotency-Key`.** Jika pemanggil mengirim header ini, respons (termasuk field hasil ekstraksi) disimpan agar retry mengembalikan hasil yang sama. Sejak versi ini body tersebut **dienkripsi AES-256-GCM** dengan kunci turunan `SESSION_SECRET` sebelum masuk PostgreSQL, dan **kedaluwarsa 1 jam** (sebelumnya 24 jam, plaintext). Tanpa header ini tidak ada hasil ekstraksi yang menyentuh database. Untuk retensi nol, jangan kirim `Idempotency-Key`.
 - **Log** hanya berisi `request_id, trace_id, org_id, api_key_id, latency, status`. NIK 16-digit selalu menjadi `[REDACTED]`.
 
 ## Transfer lintas negara
@@ -15,13 +16,14 @@ Operator API (Anda) adalah Pengendali Data: wajib memperoleh persetujuan subjek,
 
 ## Retensi
 - Gambar: `0` — tidak disimpan.
+- Cache idempotency (`idempotency_keys.response_body`): **1 jam**, terenkripsi. Hanya terisi bila pemanggil memakai `Idempotency-Key`.
 - Metadata `ocr_requests`: hapus/anonimkan maksimal **90 hari** (atur cron di sisi operator).
 - `usage_records` agregat kuota: **12 bulan**, lalu agregat.
 - `audit_logs` administratif: **12 bulan**.
 - Backup mengikuti retensi yang sama.
 
 ## Hak subjek
-Karena Lensio tidak menyimpan PII, permintaan akses/hapus diajukan ke operator aplikasi pemanggil. Kontak DPO operator wajib dicantumkan di aplikasi Anda, bukan di repo ini.
+Karena Lensio tidak menyimpan PII di luar cache idempotency berdurasi 1 jam di atas, permintaan akses/hapus diajukan ke operator aplikasi pemanggil. Kontak DPO operator wajib dicantumkan di aplikasi Anda, bukan di repo ini.
 
 ## Validasi ≠ verifikasi kependudukan
 `ValidateNIK` hanya cek struktur (16 digit, kode provinsi, tanggal+offset 40). **Bukan** verifikasi ke Dukcapil. Jangan mengklaim keaslian orang berdasarkan skor confidence.

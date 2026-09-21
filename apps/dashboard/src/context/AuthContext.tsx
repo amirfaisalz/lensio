@@ -565,10 +565,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
 		api.logout().catch(() => {});
 		setOidcUser(null);
 		setApiKeyState(null);
+		setOrganizations([]);
 		updateActiveOrg(null);
 		if (typeof window !== "undefined") {
 			localStorage.removeItem(STORAGE_KEY_AUTH_MODE);
 			localStorage.removeItem(STORAGE_KEY_CURRENT_ORG_ID);
+			// The cached organization list belongs to the account that just
+			// signed out. Leaving it behind carried the previous user's
+			// organization into the next session on a shared browser.
+			localStorage.removeItem(STORAGE_KEY_ORGANIZATIONS);
 		}
 		api.setApiKey(null);
 	}, [updateActiveOrg]);
