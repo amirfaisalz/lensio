@@ -364,6 +364,21 @@ export interface CreateOrganizationResponse {
 	};
 }
 
+/** One organization the signed-in user belongs to, with their role in it. */
+export interface OrganizationMembership {
+	id: string;
+	name: string;
+	slug: string;
+	plan_code: string;
+	plan_name?: string;
+	role: "owner" | "admin" | "member";
+	created_at?: string;
+}
+
+export interface ListOrganizationsResponse {
+	data: OrganizationMembership[];
+}
+
 export interface CurrentUserResponse {
 	user?: {
 		id: string;

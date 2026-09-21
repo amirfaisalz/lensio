@@ -466,3 +466,42 @@ func sessionUserID(r *http.Request) string {
 	}
 	return claims.Sub
 }
+
+// OrgMembershipLister returns every organization a user belongs to.
+type OrgMembershipLister interface {
+	ListUserOrganizations(ctx context.Context, userID string) ([]store.OrganizationMembership, error)
+}
+
+// ListOrganizationsHandler handles GET /api/v1/account/organizations.
+//
+// The dashboard used to keep its organization list in localStorage, which the
+// user controls and which survived a logout into the next account's session.
+// This makes the server the source of truth.
+func ListOrganizationsHandler(lister OrgMembershipLister) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		empty := func() {
+			response.JSON(w, http.StatusOK, map[string]any{"data": []store.OrganizationMembership{}})
+		}
+
+		if lister == nil {
+			empty()
+			return
+		}
+
+		user := middleware.GetOIDCUser(r.Context())
+		if user == nil || strings.TrimSpace(user.Subject) == "" {
+			// API keys are bound to a single organization and have no membership set.
+			empty()
+			return
+		}
+
+		memberships, err := lister.ListUserOrganizations(r.Context(), user.Subject)
+		if err != nil {
+			slog.ErrorContext(r.Context(), "failed listing user organizations", slog.String("error", err.Error()))
+			response.ErrorWithRequest(w, r, http.StatusInternalServerError, response.CodeInternalError, "Gagal memuat daftar organisasi")
+			return
+		}
+
+		response.JSON(w, http.StatusOK, map[string]any{"data": memberships})
+	}
+}

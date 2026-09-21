@@ -215,6 +215,12 @@ func NewRouterWithDeps(deps RouterDeps) http.Handler {
 			mux.Handle("PUT /api/v1/account/plan", authMiddleware(handlers.UpdatePlanHandler(deps.AccountStore, deps.AuditStore, handlers.DefaultOrgID)))
 			mux.Handle("GET /api/v1/account/members", authMiddleware(handlers.AccountMembersHandler(deps.AccountStore, handlers.DefaultOrgID)))
 			mux.Handle("POST /api/v1/account/organizations", authMiddleware(handlers.CreateOrganizationHandler(deps.AccountStore)))
+
+			// The server owns the organization list; the dashboard used to keep it
+			// in localStorage, where it outlived the session that produced it.
+			if lister, ok := deps.AccountStore.(handlers.OrgMembershipLister); ok {
+				mux.Handle("GET /api/v1/account/organizations", authMiddleware(handlers.ListOrganizationsHandler(lister)))
+			}
 		}
 	}
 

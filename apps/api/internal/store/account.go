@@ -456,6 +456,18 @@ func (db *DB) AssignUserToOrg(ctx context.Context, userID, orgID, role string) e
 		role = "owner"
 	}
 
+	// Record the membership first: this is what authorizes the user to act on the
+	// organization. users.org_id is only their default selection, and overwriting
+	// it used to be the whole of "membership", which is why a user could belong to
+	// exactly one organization.
+	if _, err := db.ExecContext(ctx,
+		`INSERT INTO organization_members (org_id, user_id, role)
+		 VALUES ($1, $2, $3)
+		 ON CONFLICT (org_id, user_id) DO UPDATE SET role = EXCLUDED.role;`,
+		orgID, userID, role); err != nil {
+		return fmt.Errorf("recording organization membership: %w", err)
+	}
+
 	query := `
 		UPDATE users
 		SET org_id = $1, role = $2
@@ -620,4 +632,72 @@ func (db *DB) ConsumePasswordResetToken(ctx context.Context, email, tokenHash, n
 		return ErrNotFound
 	}
 	return nil
+}
+
+// OrganizationMembership is a user's role within one organization.
+type OrganizationMembership struct {
+	Organization
+	Role string `json:"role"`
+}
+
+// ListUserOrganizations returns every organization the user belongs to, with the
+// role they hold in each.
+//
+// This replaces reading users.org_id, which could only ever name one
+// organization and therefore could not answer "may this user act on org X".
+func (db *DB) ListUserOrganizations(ctx context.Context, userID string) ([]OrganizationMembership, error) {
+	userID = strings.TrimSpace(userID)
+	if userID == "" {
+		return nil, errors.New("userID is required")
+	}
+
+	rows, err := db.QueryContext(ctx, `
+		SELECT o.id, o.name, o.slug, COALESCE(p.code, ''), COALESCE(p.name, ''), m.role, o.created_at
+		FROM organization_members m
+		JOIN organizations o ON o.id = m.org_id
+		LEFT JOIN plans p ON p.id = o.plan_id
+		WHERE m.user_id = $1
+		ORDER BY m.created_at ASC;`, userID)
+	if err != nil {
+		return nil, fmt.Errorf("listing user organizations: %w", err)
+	}
+	defer rows.Close()
+
+	memberships := make([]OrganizationMembership, 0, 4)
+	for rows.Next() {
+		var m OrganizationMembership
+		if err := rows.Scan(&m.ID, &m.Name, &m.Slug, &m.PlanCode, &m.PlanName, &m.Role, &m.CreatedAt); err != nil {
+			return nil, fmt.Errorf("scanning user organization: %w", err)
+		}
+		memberships = append(memberships, m)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating user organizations: %w", err)
+	}
+
+	return memberships, nil
+}
+
+// IsOrgMember reports whether the user belongs to the organization, and the role
+// they hold there. It is the authorization primitive behind cross-organization
+// access: a user may act on an organization only if this returns true.
+func (db *DB) IsOrgMember(ctx context.Context, userID, orgID string) (bool, string, error) {
+	userID = strings.TrimSpace(userID)
+	orgID = strings.TrimSpace(orgID)
+	if userID == "" || orgID == "" {
+		return false, "", nil
+	}
+
+	var role string
+	err := db.QueryRowContext(ctx,
+		`SELECT role FROM organization_members WHERE user_id = $1 AND org_id = $2;`,
+		userID, orgID).Scan(&role)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return false, "", nil
+		}
+		return false, "", fmt.Errorf("checking organization membership: %w", err)
+	}
+
+	return true, role, nil
 }

@@ -6,6 +6,7 @@ import (
 	"io/fs"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -144,8 +145,11 @@ func TestRunMigrations_LiveDB(t *testing.T) {
 	if dirty {
 		t.Fatalf("database schema is in dirty state")
 	}
-	if version != 16 {
-		t.Fatalf("expected migration version 16, got %d", version)
+	// Derive the expected version from the embedded migrations rather than
+	// hardcoding it: every new migration otherwise fails this test for no reason
+	// other than the number having moved.
+	if want := latestMigrationVersion(t); version != want {
+		t.Fatalf("expected migration version %d (highest embedded migration), got %d", want, version)
 	}
 
 	// 5. Test RunMigrationsDown (rollback)
@@ -194,4 +198,39 @@ func TestRunMigrations_ErrorBranches(t *testing.T) {
 		_ = store.RunMigrationsUp(realDB.DB)
 		_ = store.RunMigrationsDown(realDB.DB)
 	}
+}
+
+// latestMigrationVersion returns the highest numeric prefix among the embedded
+// .up.sql migrations.
+func latestMigrationVersion(t *testing.T) uint {
+	t.Helper()
+
+	entries, err := migrations.FS.ReadDir(".")
+	if err != nil {
+		t.Fatalf("reading embedded migrations: %v", err)
+	}
+
+	var highest uint
+	for _, entry := range entries {
+		name := entry.Name()
+		if !strings.HasSuffix(name, ".up.sql") {
+			continue
+		}
+		idx := strings.Index(name, "_")
+		if idx <= 0 {
+			continue
+		}
+		n, err := strconv.ParseUint(name[:idx], 10, 32)
+		if err != nil {
+			continue
+		}
+		if uint(n) > highest {
+			highest = uint(n)
+		}
+	}
+
+	if highest == 0 {
+		t.Fatal("no embedded migrations found")
+	}
+	return highest
 }

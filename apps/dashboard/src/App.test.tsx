@@ -88,6 +88,25 @@ describe("App & Dashboard Navigation with Routes", () => {
 			if (url.includes("/api/v1/account/members")) {
 				return { ok: true, json: async () => ({ data: [] }) } as Response;
 			}
+			// Must precede the generic /api/v1/account branch: the organization
+			// list is now served by the API rather than read from localStorage.
+			if (url.includes("/api/v1/account/organizations")) {
+				return {
+					ok: true,
+					json: async () => ({
+						data: [
+							{
+								id: "00000000-0000-0000-0000-000000000001",
+								name: "Default Organization",
+								slug: "default",
+								plan_code: "free",
+								plan_name: "Free Tier",
+								role: "owner",
+							},
+						],
+					}),
+				} as Response;
+			}
 			if (url.includes("/api/v1/account")) {
 				return {
 					ok: true,

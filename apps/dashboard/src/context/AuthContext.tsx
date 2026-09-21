@@ -135,28 +135,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
 	});
 	const [oidcUser, setOidcUser] = useState<OIDCUserSession | null>(initialUser);
 	const [organizations, setOrganizations] = useState<OrganizationContext[]>(
-		() => {
-			const list: OrganizationContext[] = [];
-			if (initialOrg) {
-				list.push(initialOrg);
-			}
-			if (typeof window !== "undefined") {
-				try {
-					const saved = localStorage.getItem(STORAGE_KEY_ORGANIZATIONS);
-					if (saved) {
-						const parsed = JSON.parse(saved) as OrganizationContext[];
-						for (const o of parsed) {
-							if (!list.some((existing) => existing.id === o.id)) {
-								list.push(o);
-							}
-						}
-					}
-				} catch {
-					// Ignore invalid JSON in localStorage
-				}
-			}
-			return list;
-		},
+		() => (initialOrg ? [initialOrg] : []),
 	);
 
 	const [currentOrg, setCurrentOrg] = useState<OrganizationContext | null>(
@@ -197,6 +176,36 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
 			setEnvironment("live");
 		}
 	}, [apiKey]);
+
+	// The organization list comes from the server, which is the only thing that
+	// knows the real membership set. It used to be read from localStorage, where
+	// the user could edit it and where it outlived the session that produced it.
+	useEffect(() => {
+		if (!oidcUser) return;
+		let cancelled = false;
+
+		api
+			.listOrganizations()
+			.then((memberships) => {
+				if (cancelled) return;
+				setOrganizations(
+					memberships.map((m) => ({
+						id: m.id,
+						name: m.name,
+						slug: m.slug,
+						planCode: m.plan_code,
+					})),
+				);
+			})
+			.catch(() => {
+				// Leave whatever /auth/me already provided; the switcher simply
+				// shows the default organization.
+			});
+
+		return () => {
+			cancelled = true;
+		};
+	}, [oidcUser]);
 
 	const [isInitializing, setIsInitializing] = useState<boolean>(() => {
 		if (initialOrg || initialUser || initialApiKey) {
@@ -254,12 +263,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
 								const next = prev.some((o) => o.id === orgContext.id)
 									? prev.map((o) => (o.id === orgContext.id ? orgContext : o))
 									: [...prev, orgContext];
-								if (typeof window !== "undefined") {
-									localStorage.setItem(
-										STORAGE_KEY_ORGANIZATIONS,
-										JSON.stringify(next),
-									);
-								}
 								return next;
 							});
 							updateActiveOrg(orgContext);
@@ -327,12 +330,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
 					const next = prev.some((o) => o.id === org.id)
 						? prev.map((o) => (o.id === org.id ? org : o))
 						: [...prev, org];
-					if (typeof window !== "undefined") {
-						localStorage.setItem(
-							STORAGE_KEY_ORGANIZATIONS,
-							JSON.stringify(next),
-						);
-					}
 					return next;
 				});
 			}
@@ -415,12 +412,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
 			const trackOrg = (newOrg: OrganizationContext) => {
 				setOrganizations((prev) => {
 					const next = [...prev.filter((o) => o.id !== newOrg.id), newOrg];
-					if (typeof window !== "undefined") {
-						localStorage.setItem(
-							STORAGE_KEY_ORGANIZATIONS,
-							JSON.stringify(next),
-						);
-					}
 					return next;
 				});
 				updateActiveOrg(newOrg);
@@ -514,12 +505,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
 				setOrganizations((prev) => {
 					if (!prev.some((o) => o.id === org.id)) {
 						const next = [...prev, org];
-						if (typeof window !== "undefined") {
-							localStorage.setItem(
-								STORAGE_KEY_ORGANIZATIONS,
-								JSON.stringify(next),
-							);
-						}
 						return next;
 					}
 					return prev;

@@ -1060,6 +1060,57 @@ paths:
         '403':
           $ref: '#/components/responses/Forbidden'
 
+  /api/v1/account/organizations:
+    get:
+      summary: List My Organizations
+      description: |
+        Lists every organization the signed-in user belongs to, with the role
+        they hold in each.
+
+        Membership, not the user's default organization, is what authorizes
+        access: a user may target any organization in this list via the `org_id`
+        parameter. API key callers receive an empty list, because a key is issued
+        for exactly one organization and is bound to it.
+      operationId: listMyOrganizations
+      tags:
+        - Account
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Organizations the caller belongs to
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                        name:
+                          type: string
+                        slug:
+                          type: string
+                        plan_code:
+                          type: string
+                        plan_name:
+                          type: string
+                        role:
+                          type: string
+                          enum: [owner, admin, member]
+                        created_at:
+                          type: string
+                          format: date-time
+        '401':
+          $ref: '#/components/responses/InvalidAPIKey'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
   /api/v1/account/members:
     get:
       summary: Get Organization Members

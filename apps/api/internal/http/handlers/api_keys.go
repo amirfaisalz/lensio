@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -379,6 +380,10 @@ func resolveOrgID(w http.ResponseWriter, r *http.Request, explicit string, accou
 		return DefaultOrgID, true
 	case explicit == own:
 		return explicit, true
+	case callerIsOrgMember(r, accountStore, explicit):
+		// The caller belongs to the organization they named. Users can be members
+		// of several organizations, so "not my default org" is not "not mine".
+		return explicit, true
 	case hasPlatformWildcard(r):
 		// "*" is never granted by self-service signup; it is a deliberate
 		// platform-operator key, so cross-org access is intentional here.
@@ -398,6 +403,36 @@ func resolveOrgID(w http.ResponseWriter, r *http.Request, explicit string, accou
 		"Cannot access resources belonging to another organization",
 	)
 	return "", false
+}
+
+// OrgMembershipChecker reports whether a user belongs to an organization.
+//
+// It is a narrow interface rather than a method on store.AccountStore so that the
+// test doubles throughout the codebase do not all have to grow a method they
+// never exercise.
+type OrgMembershipChecker interface {
+	IsOrgMember(ctx context.Context, userID, orgID string) (bool, string, error)
+}
+
+// callerIsOrgMember reports whether the authenticated user belongs to orgID.
+//
+// Only session/OIDC callers are considered: an API key is issued for exactly one
+// organization and carries that binding in its own record, so it never gains
+// access to another one this way.
+func callerIsOrgMember(r *http.Request, accountStore store.AccountStore, orgID string) bool {
+	if middleware.GetAPIKey(r.Context()) != nil {
+		return false
+	}
+	user := middleware.GetOIDCUser(r.Context())
+	if user == nil || strings.TrimSpace(user.Subject) == "" {
+		return false
+	}
+	checker, ok := accountStore.(OrgMembershipChecker)
+	if !ok {
+		return false
+	}
+	member, _, err := checker.IsOrgMember(r.Context(), user.Subject, orgID)
+	return err == nil && member
 }
 
 // hasPlatformWildcard reports whether the caller holds the "*" platform scope.

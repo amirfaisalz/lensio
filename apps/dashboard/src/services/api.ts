@@ -11,10 +11,12 @@ import type {
 	InvoiceResponse,
 	KKResponse,
 	KTPResponse,
+	ListOrganizationsResponse,
 	LoginRequest,
 	LoginResponse,
 	NPWPResponse,
 	OrganizationDetails,
+	OrganizationMembership,
 	PassportResponse,
 	PlanDetails,
 	RegisterRequest,
@@ -516,6 +518,21 @@ class ApiClient {
 		const created = await this.handleResponse<CreateOrganizationResponse>(res);
 		this.clearCache();
 		return created;
+	}
+
+	/**
+	 * Lists the organizations the signed-in user belongs to.
+	 *
+	 * The dashboard used to keep this list in localStorage, which the user can
+	 * edit and which survived a logout into the next account's session. The
+	 * server is the only thing that knows the real membership set.
+	 */
+	public async listOrganizations(): Promise<OrganizationMembership[]> {
+		const res = await this.fetchWithAuth(
+			`${API_BASE}/api/v1/account/organizations`,
+		);
+		const body = await this.handleResponse<ListOrganizationsResponse>(res);
+		return body.data ?? [];
 	}
 }
 

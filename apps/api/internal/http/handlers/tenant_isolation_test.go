@@ -215,3 +215,85 @@ func TestEmailVerification_RequiresToken(t *testing.T) {
 		t.Fatalf("expected 400 for an empty verification token, got %d: %s", rec.Code, rec.Body.String())
 	}
 }
+
+// membershipSpy adds organization membership to the tenant spy, so the handler
+// path that authorizes a multi-org user can be exercised.
+type membershipSpy struct {
+	tenantSpy
+	memberOf map[string]string // orgID -> role
+}
+
+func (m *membershipSpy) IsOrgMember(_ context.Context, userID, orgID string) (bool, string, error) {
+	role, ok := m.memberOf[orgID]
+	return ok, role, nil
+}
+
+func (m *membershipSpy) GetUserOrganization(_ context.Context, _ string) (*store.Organization, error) {
+	// The user's default organization is the attacker/home org.
+	return &store.Organization{ID: attackerOrg}, nil
+}
+
+// asSessionUser authenticates as a dashboard (cookie/OIDC) user rather than an API key.
+func asSessionUser(r *http.Request) *http.Request {
+	return r.WithContext(middleware.WithOIDCUser(r.Context(), &middleware.OIDCUser{
+		Subject: "user-multi-org",
+		Email:   "multi@example.com",
+		Roles:   []string{"developer", "usage:read"},
+	}))
+}
+
+// A user who genuinely belongs to a second organization must be able to act on
+// it. Before memberships existed, users.org_id named exactly one organization,
+// so this was indistinguishable from a cross-tenant attack.
+func TestTenantIsolation_MultiOrgMemberMayUseTheirOtherOrg(t *testing.T) {
+	spy := &membershipSpy{memberOf: map[string]string{
+		attackerOrg: "owner",
+		victimOrg:   "member", // legitimately a member of both
+	}}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/usage/records?org_id="+victimOrg, nil)
+	rec := httptest.NewRecorder()
+	handlers.UsageRecordsHandler(spy, spy, handlers.DefaultOrgID).ServeHTTP(rec, asSessionUser(req))
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("a member of the organization must be allowed, got %d: %s", rec.Code, rec.Body.String())
+	}
+	if spy.queriedOrg != victimOrg {
+		t.Errorf("expected the store queried with %q, got %q", victimOrg, spy.queriedOrg)
+	}
+}
+
+// Membership is the authority: a session user who is not a member is still refused.
+func TestTenantIsolation_NonMemberSessionUserIsStillRefused(t *testing.T) {
+	spy := &membershipSpy{memberOf: map[string]string{
+		attackerOrg: "owner", // not a member of victimOrg
+	}}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/usage/records?org_id="+victimOrg, nil)
+	rec := httptest.NewRecorder()
+	handlers.UsageRecordsHandler(spy, spy, handlers.DefaultOrgID).ServeHTTP(rec, asSessionUser(req))
+
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("a non-member must be refused, got %d: %s", rec.Code, rec.Body.String())
+	}
+	if spy.queriedOrg == victimOrg {
+		t.Error("the store was reached with an organization the user does not belong to")
+	}
+}
+
+// An API key is issued for exactly one organization, so membership must not
+// widen it even when the key's owner is a member of other organizations.
+func TestTenantIsolation_APIKeyIsNotWidenedByMembership(t *testing.T) {
+	spy := &membershipSpy{memberOf: map[string]string{
+		attackerOrg: "owner",
+		victimOrg:   "owner",
+	}}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/usage/records?org_id="+victimOrg, nil)
+	rec := httptest.NewRecorder()
+	handlers.UsageRecordsHandler(spy, spy, handlers.DefaultOrgID).ServeHTTP(rec, asAttacker(req))
+
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("an API key must stay bound to its own organization, got %d: %s", rec.Code, rec.Body.String())
+	}
+}
