@@ -263,3 +263,52 @@ func TestRateLimitMiddleware_LoginEnforcedAndOIDCIgnoresOrgQuery(t *testing.T) {
 		t.Fatalf("expected 429 under identity key despite org_id query, got %d", oidcRec.Code)
 	}
 }
+
+// TestRateLimitMiddleware_ReplicaDivision covers the per-replica division that
+// applies only when there is no shared counter. It had no test, which is how a
+// miswired divisor in main.go reached CI: with a shared counter AND a replica
+// count above 1, tenants would have received a fraction of the limit they pay for.
+func TestRateLimitMiddleware_ReplicaDivision(t *testing.T) {
+	newMw := func(replicas int) *middleware.RateLimitMiddleware {
+		mw := middleware.NewRateLimitMiddleware(ratelimit.NewLimiter(), nil, "")
+		mw.SetReplicaCount(replicas)
+		return mw
+	}
+
+	countAllowed := func(mw *middleware.RateLimitMiddleware, attempts int) int {
+		handler := mw.Handler(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(http.StatusOK)
+		}))
+		allowed := 0
+		for i := 0; i < attempts; i++ {
+			req := httptest.NewRequest(http.MethodGet, "/api/v1/ocr/ktp", nil)
+			req.RemoteAddr = "198.51.100.7:5555"
+			rec := httptest.NewRecorder()
+			handler.ServeHTTP(rec, req)
+			if rec.Code != http.StatusTooManyRequests {
+				allowed++
+			}
+		}
+		return allowed
+	}
+
+	// Free tier is 10/min. One replica gets the whole budget.
+	if got := countAllowed(newMw(1), 30); got != 10 {
+		t.Errorf("single replica allowed %d requests, want the full limit of 10", got)
+	}
+
+	// Two replicas each get half, so one replica allows 5.
+	if got := countAllowed(newMw(2), 30); got != 5 {
+		t.Errorf("two replicas allowed %d per replica, want half the limit (5)", got)
+	}
+
+	// The share never rounds down to zero, which would lock a tenant out entirely.
+	if got := countAllowed(newMw(100), 5); got != 1 {
+		t.Errorf("100 replicas allowed %d per replica, want a floor of 1", got)
+	}
+
+	// A nonsensical count is treated as single-instance rather than dividing by zero.
+	if got := countAllowed(newMw(0), 30); got != 10 {
+		t.Errorf("a replica count of 0 allowed %d, want the full limit of 10", got)
+	}
+}

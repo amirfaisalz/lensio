@@ -268,7 +268,7 @@ func main() {
 		OIDCValidator:           oidcValidator,
 		Authorizer:              authorizer,
 		CORSAllowedOrigins:      cfg.CORSAllowedOrigins,
-		RateLimitReplicas:       cfg.RateLimitReplicas,
+		RateLimitReplicas:       replicaDivisor,
 	})
 
 	srv := &http.Server{
