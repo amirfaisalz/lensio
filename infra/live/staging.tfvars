@@ -14,6 +14,11 @@ dashboard_memory               = "0.5Gi"
 api_subdomain                  = "staging-api"
 dashboard_subdomain            = "staging-dashboard"
 
+# Resend (smtp.resend.com:587, STARTTLS; net/smtp cannot do implicit TLS on 465).
+# The domain must be verified in Resend; host/username/password come from
+# GitHub (vars.SMTP_HOST, vars.SMTP_USERNAME, secrets.SMTP_PASSWORD).
+smtp_from = "noreply@lensio.tec.my.id"
+
 # No custom domain yet: the apps are served on their *.azurecontainerapps.io
 # FQDNs, and CORS, APP_BASE_URL and the dashboard's API_URL are derived from
 # them automatically. Once staging.lensio.tec.my.id is bound (infra/live/README.md), set:

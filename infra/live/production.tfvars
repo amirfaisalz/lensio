@@ -19,6 +19,11 @@ dashboard_subdomain            = "dashboard"
 # zone-wide settings and WAF rulesets.
 manage_cloudflare_zone = true
 
+# Resend (smtp.resend.com:587, STARTTLS; net/smtp cannot do implicit TLS on 465).
+# The domain must be verified in Resend; host/username/password come from
+# GitHub (vars.SMTP_HOST, vars.SMTP_USERNAME, secrets.SMTP_PASSWORD).
+smtp_from = "noreply@lensio.tec.my.id"
+
 # No custom domain yet: the apps are served on their *.azurecontainerapps.io
 # FQDNs, and CORS, APP_BASE_URL and the dashboard's API_URL are derived from
 # them automatically. Once lensio.tec.my.id is bound (infra/live/README.md), set:

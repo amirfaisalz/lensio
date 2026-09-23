@@ -167,9 +167,9 @@ variable "smtp_password" {
 }
 
 variable "smtp_from" {
-  description = "From address on transactional email."
+  description = "Bare From address on transactional email; its domain must be verified with the SMTP provider."
   type        = string
-  default     = "noreply@lensio.dev"
+  default     = ""
 }
 
 variable "api_public_url" {

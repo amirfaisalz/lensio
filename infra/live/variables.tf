@@ -160,8 +160,12 @@ variable "smtp_password" {
 
 variable "smtp_from" {
   type        = string
-  description = "From address on transactional email."
-  default     = "noreply@lensio.dev"
+  description = "Bare From address on transactional email; its domain must be verified with the SMTP provider (Resend)."
+
+  validation {
+    condition     = can(regex("^[^@\\s<>]+@[^@\\s<>]+\\.[^@\\s<>]+$", var.smtp_from))
+    error_message = "smtp_from must be a bare address like noreply@example.com (no display name): it is also the SMTP envelope sender."
+  }
 }
 
 variable "api_public_url" {
