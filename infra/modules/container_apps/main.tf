@@ -1,5 +1,5 @@
 terraform {
-  required_version = ">= 1.8.0"
+  required_version = ">= 1.9.0"
   required_providers {
     azurerm = {
       source  = "hashicorp/azurerm"
@@ -81,7 +81,7 @@ resource "azurerm_container_app" "api" {
     content {
       server               = "ghcr.io"
       username             = var.registry_username
-      password_secret_name = "registry-password"
+      password_secret_name = "registry-password" # gitleaks:allow -- names the Container Apps secret, not a password
     }
   }
 
@@ -281,7 +281,7 @@ resource "azurerm_container_app" "dashboard" {
     content {
       server               = "ghcr.io"
       username             = var.registry_username
-      password_secret_name = "registry-password"
+      password_secret_name = "registry-password" # gitleaks:allow -- names the Container Apps secret, not a password
     }
   }
 
