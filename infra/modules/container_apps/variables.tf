@@ -27,13 +27,15 @@ variable "infrastructure_subnet_id" {
 variable "api_image" {
   type        = string
   description = "Docker image for Lensio API"
-  default     = "ghcr.io/amirfaisalz/lensio-api:latest"
+  # Bootstrap only: after creation CD owns the image (lifecycle.ignore_changes).
+  default = "ghcr.io/amirfaisalz/lensio/lensio-api:latest"
 }
 
 variable "dashboard_image" {
   type        = string
   description = "Docker image for Lensio Dashboard"
-  default     = "ghcr.io/amirfaisalz/lensio-dashboard:latest"
+  # Bootstrap only: after creation CD owns the image (lifecycle.ignore_changes).
+  default = "ghcr.io/amirfaisalz/lensio/lensio-dashboard:latest"
 }
 
 variable "database_url" {
@@ -109,10 +111,17 @@ variable "tags" {
   default     = {}
 }
 
-variable "session_secret" {
-  description = "HMAC signing key for session cookies and the idempotency response sealer. The API refuses to start without it in production/staging."
+variable "registry_username" {
+  description = "GHCR user for pulling private images."
+  type        = string
+  default     = ""
+}
+
+variable "registry_password" {
+  description = "GHCR token with read:packages. Empty means the images are public and no registry credentials are configured."
   type        = string
   sensitive   = true
+  default     = ""
 }
 
 variable "ocr_provider" {
@@ -127,7 +136,7 @@ variable "ocr_provider" {
 }
 
 variable "cors_allowed_origins" {
-  description = "Browser origins permitted to call the API with credentials (the dashboard origin). Empty means no CORS headers are emitted."
+  description = "Extra browser origins permitted to call the API with credentials (e.g. a custom dashboard domain). The dashboard's Azure origin is always included."
   type        = list(string)
   default     = []
 }
@@ -163,8 +172,14 @@ variable "smtp_from" {
   default     = "noreply@lensio.dev"
 }
 
+variable "api_public_url" {
+  description = "Public API origin the dashboard calls (e.g. a custom domain). Empty uses the API's Azure origin."
+  type        = string
+  default     = ""
+}
+
 variable "app_base_url" {
-  description = "Dashboard origin used to build the links inside transactional email."
+  description = "Dashboard origin used to build the links inside transactional email. Empty uses the dashboard's Azure origin."
   type        = string
   default     = ""
 }

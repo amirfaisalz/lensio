@@ -11,7 +11,7 @@
 - **Language & Runtime**: Go (Backend API) + React & TypeScript (Developer Dashboard)
 - **Database**: PostgreSQL 16 (Relational state, migrations via `golang-migrate`)
 - **Primary OCR Engine**: Pluggable `OCREngine` interface. Default Vision AI: **Google Gemini Flash** — the default model id lives in `services/ocr/providers/gemini.go` (`defaultGeminiModel`) and is overridable via `GEMINI_MODEL`; config intentionally does not duplicate it. Default Test Engine: **MockOCREngine** (deterministic fixtures).
-- **Platform Infrastructure**: Azure Container Apps, Cloudflare, OpenTofu, Terragrunt, OpenTelemetry, Grafana.
+- **Platform Infrastructure**: Azure Container Apps, Cloudflare, OpenTofu, OpenTelemetry, Grafana.
 
 ### Core Engineering Principle
 > **"Build the smallest real product that forces us to solve real production engineering problems."**

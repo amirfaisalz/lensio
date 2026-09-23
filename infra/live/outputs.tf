@@ -1,21 +1,11 @@
 output "resource_group_name" {
-  description = "Staging resource group name"
+  description = "Resource group name"
   value       = module.networking.resource_group_name
-}
-
-output "vnet_id" {
-  description = "Staging virtual network ID"
-  value       = module.networking.vnet_id
 }
 
 output "postgres_fqdn" {
   description = "PostgreSQL Flexible Server FQDN"
   value       = module.postgres.server_fqdn
-}
-
-output "key_vault_uri" {
-  description = "Azure Key Vault URI"
-  value       = module.key_vault.key_vault_uri
 }
 
 output "api_fqdn" {
@@ -36,4 +26,10 @@ output "cloudflare_api_hostname" {
 output "cloudflare_dashboard_hostname" {
   description = "Cloudflare Dashboard Hostname"
   value       = length(module.cloudflare) > 0 ? module.cloudflare[0].dashboard_hostname : null
+}
+
+output "metrics_token" {
+  description = "Bearer token for scraping /metrics (tofu output -raw metrics_token)"
+  value       = module.container_apps.metrics_token
+  sensitive   = true
 }

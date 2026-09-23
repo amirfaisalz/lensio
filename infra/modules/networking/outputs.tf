@@ -32,8 +32,3 @@ output "postgres_subnet_id" {
   description = "ID of the subnet delegated to PostgreSQL Flexible Server"
   value       = azurerm_subnet.postgres.id
 }
-
-output "private_endpoints_subnet_id" {
-  description = "ID of the subnet for Private Endpoints"
-  value       = azurerm_subnet.private_endpoints.id
-}

@@ -7,7 +7,11 @@ variable "project" {
 variable "environment" {
   type        = string
   description = "Deployment environment"
-  default     = "staging"
+
+  validation {
+    condition     = contains(["staging", "production"], var.environment)
+    error_message = "environment must be staging or production."
+  }
 }
 
 variable "location" {
@@ -16,124 +20,104 @@ variable "location" {
   default     = "southeastasia"
 }
 
-variable "tenant_id" {
-  type        = string
-  description = "Azure AD tenant ID"
-  default     = "00000000-0000-0000-0000-000000000000"
-}
-
 variable "cloudflare_zone_id" {
   type        = string
-  description = "Cloudflare DNS Zone ID"
+  description = "Cloudflare DNS Zone ID. Empty skips DNS, TLS and the custom domain binding."
   default     = ""
+}
+
+variable "manage_cloudflare_zone" {
+  type        = bool
+  description = "Own the zone-wide Cloudflare settings and WAF rulesets. Exactly one environment sharing the zone sets this."
+  default     = false
+}
+
+variable "cloudflare_proxied" {
+  type        = bool
+  description = "Proxy the public hostnames through Cloudflare."
+  default     = true
 }
 
 variable "postgres_sku" {
   type        = string
   description = "PostgreSQL Flexible Server SKU"
-  default     = "B_Standard_B1ms"
 }
 
 variable "postgres_storage_mb" {
   type        = number
   description = "PostgreSQL storage in MB"
-  default     = 32768
 }
 
 variable "postgres_ha_mode" {
   type        = string
   description = "PostgreSQL high availability mode"
-  default     = "Disabled"
 }
 
 variable "postgres_backup_retention_days" {
   type        = number
   description = "Backup retention days"
-  default     = 7
 }
 
-variable "api_image" {
-  type        = string
-  description = "Docker image for Lensio API"
-  default     = "ghcr.io/amirfaisalz/lensio-api:staging"
-}
-
-variable "dashboard_image" {
-  type        = string
-  description = "Docker image for Lensio Dashboard"
-  default     = "ghcr.io/amirfaisalz/lensio-dashboard:staging"
+variable "postgres_geo_redundant_backups" {
+  type        = bool
+  description = "Enable geo-redundant backups"
+  default     = false
 }
 
 variable "api_cpu" {
   type        = number
   description = "CPU allocated to API"
-  default     = 0.5
 }
 
 variable "api_memory" {
   type        = string
   description = "Memory allocated to API"
-  default     = "1.0Gi"
 }
 
 variable "api_min_replicas" {
   type        = number
   description = "Min API replicas"
-  default     = 1
 }
 
 variable "api_max_replicas" {
   type        = number
   description = "Max API replicas"
-  default     = 2
 }
 
 variable "dashboard_cpu" {
   type        = number
   description = "CPU allocated to Dashboard"
-  default     = 0.25
 }
 
 variable "dashboard_memory" {
   type        = string
   description = "Memory allocated to Dashboard"
-  default     = "0.5Gi"
 }
 
 variable "dashboard_min_replicas" {
   type        = number
   description = "Min Dashboard replicas"
-  default     = 1
 }
 
 variable "dashboard_max_replicas" {
   type        = number
   description = "Max Dashboard replicas"
-  default     = 2
 }
 
 variable "api_subdomain" {
   type        = string
   description = "API subdomain name"
-  default     = "staging-api"
 }
 
 variable "dashboard_subdomain" {
   type        = string
   description = "Dashboard subdomain name"
-  default     = "staging-dashboard"
 }
 
 variable "tags" {
   type        = map(string)
   description = "Resource tags"
   default     = {}
-}
-
-variable "session_secret" {
-  type        = string
-  description = "HMAC signing key for session cookies and the idempotency response sealer. Supply via TF_VAR_session_secret or Key Vault; the API refuses to start without it."
-  sensitive   = true
 }
 
 variable "gemini_api_key" {
@@ -151,7 +135,7 @@ variable "ocr_provider" {
 
 variable "cors_allowed_origins" {
   type        = list(string)
-  description = "Browser origins allowed to call the API with credentials, i.e. the dashboard origin. Empty emits no CORS headers and breaks the dashboard."
+  description = "Extra browser origins allowed to call the API with credentials, e.g. a custom dashboard domain. The dashboard's Azure origin is always allowed."
   default     = []
 }
 
@@ -169,7 +153,7 @@ variable "smtp_username" {
 
 variable "smtp_password" {
   type        = string
-  description = "SMTP password. Supply via TF_VAR_smtp_password or Key Vault."
+  description = "SMTP password. Supply via TF_VAR_smtp_password."
   sensitive   = true
   default     = ""
 }
@@ -180,8 +164,27 @@ variable "smtp_from" {
   default     = "noreply@lensio.dev"
 }
 
+variable "api_public_url" {
+  type        = string
+  description = "Public API origin the dashboard calls, e.g. a custom domain. Empty uses the API's Azure origin."
+  default     = ""
+}
+
 variable "app_base_url" {
   type        = string
-  description = "Dashboard origin used to build links inside transactional email."
-  default     = "https://staging-dashboard.lensio.dev"
+  description = "Dashboard origin used to build links inside transactional email. Empty uses the dashboard's Azure origin."
+  default     = ""
+}
+
+variable "registry_username" {
+  type        = string
+  description = "GHCR user for pulling private images."
+  default     = ""
+}
+
+variable "registry_password" {
+  type        = string
+  description = "GHCR token with read:packages. Supply via TF_VAR_registry_password; empty assumes public images."
+  sensitive   = true
+  default     = ""
 }

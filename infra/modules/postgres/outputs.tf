@@ -25,6 +25,6 @@ output "admin_username" {
 
 output "connection_string" {
   description = "Full connection URL for the application"
-  value       = "postgres://${var.admin_username}:${var.admin_password}@${azurerm_postgresql_flexible_server.postgres.fqdn}:5432/${var.database_name}?sslmode=require"
+  value       = "postgres://${var.admin_username}:${random_password.admin.result}@${azurerm_postgresql_flexible_server.postgres.fqdn}:5432/${var.database_name}?sslmode=require"
   sensitive   = true
 }

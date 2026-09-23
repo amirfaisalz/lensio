@@ -27,6 +27,17 @@ resource "random_string" "server_suffix" {
   upper   = false
 }
 
+# Alphanumeric only: the password is interpolated into DATABASE_URL, where
+# characters like # ? % : would cut the URL short. 32 chars of [A-Za-z0-9] is
+# ~190 bits and still meets Azure's three-of-four character class rule.
+resource "random_password" "admin" {
+  length      = 32
+  special     = false
+  min_upper   = 1
+  min_lower   = 1
+  min_numeric = 1
+}
+
 resource "azurerm_private_dns_zone" "postgres" {
   name                = "${local.name_prefix}.postgres.database.azure.com"
   resource_group_name = var.resource_group_name
@@ -49,7 +60,7 @@ resource "azurerm_postgresql_flexible_server" "postgres" {
   delegated_subnet_id    = var.delegated_subnet_id
   private_dns_zone_id    = azurerm_private_dns_zone.postgres.id
   administrator_login    = var.admin_username
-  administrator_password = var.admin_password
+  administrator_password = random_password.admin.result
   sku_name               = var.sku_name
   storage_mb             = var.storage_mb
   backup_retention_days  = var.backup_retention_days
@@ -64,6 +75,12 @@ resource "azurerm_postgresql_flexible_server" "postgres" {
   }
 
   tags = local.common_tags
+
+  # Azure picks the zones and swaps them on HA failover; without this every plan
+  # after a failover would try to move the server back.
+  lifecycle {
+    ignore_changes = [zone, high_availability[0].standby_availability_zone]
+  }
 
   depends_on = [
     azurerm_private_dns_zone_virtual_network_link.postgres
@@ -84,7 +101,8 @@ resource "azurerm_postgresql_flexible_server_configuration" "require_secure_tran
 }
 
 resource "azurerm_postgresql_flexible_server_configuration" "connection_throttling" {
-  name      = "connection_throttling"
+  # Flexible Server name; "connection_throttling" is the retired Single Server one.
+  name      = "connection_throttle.enable"
   server_id = azurerm_postgresql_flexible_server.postgres.id
   value     = "ON"
 }

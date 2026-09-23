@@ -1,5 +1,8 @@
 name: Lensio Release Build & Packaging
 
+# Triggered by the CI workflow, whose master gate includes the security gates
+# (security.yml runs inside CI via workflow_call), so a failing scan blocks the
+# image from ever being built.
 on:
   workflow_run:
     workflows: ["Lensio CI & Quality Gate"]
@@ -29,18 +32,18 @@ jobs:
       (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) ||
       (github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
-    outputs:
-      image_tag: ${{ steps.meta-api.outputs.version }}
-      api_image: ghcr.io/${{ github.repository }}/lensio-api:${{ steps.meta-api.outputs.version }}
-      dashboard_image: ghcr.io/${{ github.repository }}/lensio-dashboard:${{ steps.meta-dash.outputs.version }}
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.workflow_run.head_sha || github.ref }}
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+      # Tag from the commit actually checked out. On workflow_run, github.sha is
+      # the current main head, which may already be a newer commit than the one
+      # being built; deploy.yml derives the same tag the same way.
+      - name: Resolve Commit Tag
+        id: commit
+        run: echo "tag=sha-$(git rev-parse --short=7 HEAD)" >> "$GITHUB_OUTPUT"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -58,8 +61,7 @@ jobs:
         with:
           images: ghcr.io/${{ github.repository }}/lensio-api
           tags: |
-            type=sha,prefix=sha-,format=short
-            type=ref,event=branch
+            type=raw,value=${{ steps.commit.outputs.tag }}
             type=semver,pattern={{version}}
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' || github.event.workflow_run.head_branch == 'main' }}
             type=raw,value=${{ inputs.version_tag }},enable=${{ inputs.version_tag != '' }}
@@ -70,8 +72,7 @@ jobs:
         with:
           images: ghcr.io/${{ github.repository }}/lensio-dashboard
           tags: |
-            type=sha,prefix=sha-,format=short
-            type=ref,event=branch
+            type=raw,value=${{ steps.commit.outputs.tag }}
             type=semver,pattern={{version}}
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' || github.event.workflow_run.head_branch == 'main' }}
             type=raw,value=${{ inputs.version_tag }},enable=${{ inputs.version_tag != '' }}
@@ -80,13 +81,14 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: apps/api/Dockerfile
+          file: Dockerfile
           platforms: linux/amd64
           push: true
           tags: ${{ steps.meta-api.outputs.tags }}
           labels: ${{ steps.meta-api.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          # Separate scopes: a shared one makes each build overwrite the other's cache.
+          cache-from: type=gha,scope=api
+          cache-to: type=gha,mode=max,scope=api
 
       - name: Build & Push Lensio Dashboard Image
         uses: docker/build-push-action@v5
@@ -97,18 +99,16 @@ jobs:
           push: true
           tags: ${{ steps.meta-dash.outputs.tags }}
           labels: ${{ steps.meta-dash.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=dashboard
+          cache-to: type=gha,mode=max,scope=dashboard
 
       - name: Summarize Build Artifacts
-        id: meta
+        env:
+          TAGS: ${{ steps.meta-api.outputs.tags }}
         run: |
-          SHORT_SHA=$(git rev-parse --short HEAD)
-          TAG="${{ inputs.version_tag }}"
-          if [ -z "$TAG" ]; then
-            TAG="sha-${SHORT_SHA}"
-          fi
-          echo "version=$TAG" >> $GITHUB_OUTPUT
-          echo "### 📦 Packaged Container Images" >> $GITHUB_STEP_SUMMARY
-          echo "- **API Image**: \`ghcr.io/${{ github.repository }}/lensio-api:${TAG}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- **Dashboard Image**: \`ghcr.io/${{ github.repository }}/lensio-dashboard:${TAG}\`" >> $GITHUB_STEP_SUMMARY
+          {
+            echo "### 📦 Packaged Container Images"
+            echo '```'
+            echo "${TAGS}"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

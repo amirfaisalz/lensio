@@ -5,11 +5,20 @@ terraform {
       source  = "hashicorp/azurerm"
       version = "~> 3.116"
     }
+    random = {
+      source  = "hashicorp/random"
+      version = "~> 3.6"
+    }
   }
 }
 
 locals {
   name_prefix = "${var.project}-${var.environment}"
+  # An app's Azure FQDN is <app name>.<environment default domain>. Deriving both
+  # origins from the environment avoids a cycle: the API needs the dashboard's
+  # origin (CORS) and the dashboard needs the API's (API_URL).
+  api_origin       = "https://ca-api-${local.name_prefix}.${azurerm_container_app_environment.cae.default_domain}"
+  dashboard_origin = "https://ca-dash-${local.name_prefix}.${azurerm_container_app_environment.cae.default_domain}"
   common_tags = merge(var.tags, {
     Project     = var.project
     Environment = var.environment
@@ -26,11 +35,18 @@ resource "azurerm_log_analytics_workspace" "logs" {
   tags                = local.common_tags
 }
 
-resource "azurerm_user_assigned_identity" "ca_identity" {
-  name                = "id-ca-${local.name_prefix}"
-  location            = var.location
-  resource_group_name = var.resource_group_name
-  tags                = local.common_tags
+# Generated here rather than passed in: nothing outside the API needs the session
+# key, and random_password keeps it stable across applies.
+resource "random_password" "session_secret" {
+  length  = 64
+  special = false
+}
+
+# Bearer token Prometheus presents on /metrics; the API refuses to start in
+# production/staging without one because the endpoint sits on the public ingress.
+resource "random_password" "metrics_token" {
+  length  = 48
+  special = false
 }
 
 resource "azurerm_container_app_environment" "cae" {
@@ -48,12 +64,33 @@ resource "azurerm_container_app" "api" {
   name                         = "ca-api-${local.name_prefix}"
   container_app_environment_id = azurerm_container_app_environment.cae.id
   resource_group_name          = var.resource_group_name
-  revision_mode                = "Single"
-  tags                         = local.common_tags
+  # Multiple keeps the previous revision addressable so a rollback is a traffic
+  # shift, not a rebuild (scripts/rollback.sh).
+  revision_mode = "Multiple"
+  tags          = local.common_tags
 
-  identity {
-    type         = "UserAssigned"
-    identity_ids = [azurerm_user_assigned_identity.ca_identity.id]
+  # CD (scripts/deploy.sh) owns the running image and the traffic split; without
+  # this every apply would revert a deploy or undo a rollback. The custom domain
+  # binding is owned by azurerm_container_app_custom_domain.
+  lifecycle {
+    ignore_changes = [template[0].container[0].image, ingress[0].traffic_weight, ingress[0].custom_domain]
+  }
+
+  dynamic "registry" {
+    for_each = nonsensitive(var.registry_password != "") ? toset(["ghcr"]) : toset([])
+    content {
+      server               = "ghcr.io"
+      username             = var.registry_username
+      password_secret_name = "registry-password"
+    }
+  }
+
+  dynamic "secret" {
+    for_each = nonsensitive(var.registry_password != "") ? toset(["ghcr"]) : toset([])
+    content {
+      name  = "registry-password"
+      value = var.registry_password
+    }
   }
 
   ingress {
@@ -76,7 +113,12 @@ resource "azurerm_container_app" "api" {
   # must be provisioned here rather than set by hand on the running revision.
   secret {
     name  = "session-secret"
-    value = var.session_secret
+    value = random_password.session_secret.result
+  }
+
+  secret {
+    name  = "metrics-token"
+    value = random_password.metrics_token.result
   }
 
   # The API also refuses to start in production/staging without an SMTP host:
@@ -122,12 +164,6 @@ resource "azurerm_container_app" "api" {
         name  = "LOG_LEVEL"
         value = var.log_level
       }
-      # Rate-limit buckets are per-process, so the API divides plan limits by the
-      # replica count to approximate the advertised limit across instances.
-      env {
-        name  = "RATE_LIMIT_REPLICAS"
-        value = tostring(var.api_min_replicas)
-      }
       # Without this the provider silently falls back to the deterministic mock
       # engine, which would serve fixture data to paying callers.
       env {
@@ -138,7 +174,7 @@ resource "azurerm_container_app" "api" {
       # is served from a different origin than the API.
       env {
         name  = "CORS_ALLOWED_ORIGINS"
-        value = join(",", var.cors_allowed_origins)
+        value = join(",", distinct(concat([local.dashboard_origin], var.cors_allowed_origins)))
       }
       env {
         name        = "DATABASE_URL"
@@ -147,6 +183,10 @@ resource "azurerm_container_app" "api" {
       env {
         name        = "SESSION_SECRET"
         secret_name = "session-secret"
+      }
+      env {
+        name        = "METRICS_TOKEN"
+        secret_name = "metrics-token"
       }
 
       env {
@@ -167,7 +207,7 @@ resource "azurerm_container_app" "api" {
       }
       env {
         name  = "APP_BASE_URL"
-        value = var.app_base_url
+        value = var.app_base_url != "" ? var.app_base_url : local.dashboard_origin
       }
 
       dynamic "env" {
@@ -228,8 +268,30 @@ resource "azurerm_container_app" "dashboard" {
   name                         = "ca-dash-${local.name_prefix}"
   container_app_environment_id = azurerm_container_app_environment.cae.id
   resource_group_name          = var.resource_group_name
-  revision_mode                = "Single"
+  revision_mode                = "Multiple"
   tags                         = local.common_tags
+
+  # See the API app: CD owns image and traffic.
+  lifecycle {
+    ignore_changes = [template[0].container[0].image, ingress[0].traffic_weight, ingress[0].custom_domain]
+  }
+
+  dynamic "registry" {
+    for_each = nonsensitive(var.registry_password != "") ? toset(["ghcr"]) : toset([])
+    content {
+      server               = "ghcr.io"
+      username             = var.registry_username
+      password_secret_name = "registry-password"
+    }
+  }
+
+  dynamic "secret" {
+    for_each = nonsensitive(var.registry_password != "") ? toset(["ghcr"]) : toset([])
+    content {
+      name  = "registry-password"
+      value = var.registry_password
+    }
+  }
 
   ingress {
     external_enabled = true
@@ -251,6 +313,13 @@ resource "azurerm_container_app" "dashboard" {
       image  = var.dashboard_image
       cpu    = var.dashboard_cpu
       memory = var.dashboard_memory
+
+      # Written into /config.js at container start (40-lensio-config.sh), so the
+      # same image is promoted from staging to production unchanged.
+      env {
+        name  = "API_URL"
+        value = var.api_public_url != "" ? var.api_public_url : local.api_origin
+      }
 
       liveness_probe {
         transport               = "HTTP"

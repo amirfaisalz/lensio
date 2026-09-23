@@ -131,26 +131,34 @@ jobs:
       - name: Check formatting
         run: tofu fmt -check -recursive infra/
 
-      - name: Validate every module and environment
+      - name: Validate and test every module and the live stack
         run: |
           set -euo pipefail
-          # -backend=false keeps validation offline: no remote state, no credentials.
-          for dir in infra/modules/*/ infra/live/*/; do
-            [ -f "${dir}main.tf" ] || continue
-            echo "::group::validate ${dir}"
+          # -backend=false keeps this offline: no remote state, no credentials.
+          # validate alone let three test suites rot; tofu test runs them.
+          for dir in infra/modules/*/ infra/live/; do
+            echo "::group::${dir}"
             tofu -chdir="${dir}" init -backend=false -input=false >/dev/null
             tofu -chdir="${dir}" validate
+            if [ "${dir}" = "infra/live/" ]; then
+              # Once per environment, so the tfvars files are checked too.
+              tofu -chdir="${dir}" test -var-file=staging.tfvars
+              tofu -chdir="${dir}" test -var-file=production.tfvars
+            else
+              tofu -chdir="${dir}" test
+            fi
             echo "::endgroup::"
           done
 
       - name: Verify the API's required environment variables are provisioned
         run: |
           set -euo pipefail
-          # The API exits on startup without SESSION_SECRET, silently serves mock
-          # fixture data without OCR_PROVIDER, and emits no CORS headers without
-          # CORS_ALLOWED_ORIGINS. Assert the container app module still sets them.
+          # The API exits on startup without SESSION_SECRET or METRICS_TOKEN,
+          # silently serves mock fixture data without OCR_PROVIDER, and emits no
+          # CORS headers without CORS_ALLOWED_ORIGINS. Assert the container app
+          # module still sets them.
           missing=0
-          for var in SESSION_SECRET OCR_PROVIDER CORS_ALLOWED_ORIGINS DATABASE_URL RATE_LIMIT_REPLICAS; do
+          for var in SESSION_SECRET METRICS_TOKEN OCR_PROVIDER CORS_ALLOWED_ORIGINS DATABASE_URL SMTP_HOST; do
             if ! grep -q "\"${var}\"" infra/modules/container_apps/main.tf; then
               echo "::error::${var} is no longer set by infra/modules/container_apps/main.tf"
               missing=1
@@ -295,7 +303,14 @@ jobs:
           retention-days: 7
 
   # ----------------------------------------------------------------------------
-  # 6. Master Quality Gate
+  # 6. Security gates (reusable workflow, so they block the release build)
+  # ----------------------------------------------------------------------------
+  security:
+    name: Security Gates
+    uses: ./.github/workflows/security.yml
+
+  # ----------------------------------------------------------------------------
+  # 7. Master Quality Gate
   # ----------------------------------------------------------------------------
   ci-gate:
     name: CI Master Quality Gate
@@ -306,6 +321,7 @@ jobs:
       - iac-validation
       - integration-test
       - e2e-test
+      - security
     runs-on: ubuntu-latest
     if: always()
     steps:
@@ -316,7 +332,8 @@ jobs:
              [ "${{ needs.openapi-validation.result }}" != "success" ] || \
              [ "${{ needs.iac-validation.result }}" != "success" ] || \
              [ "${{ needs.integration-test.result }}" != "success" ] || \
-             [ "${{ needs.e2e-test.result }}" != "success" ]; then
+             [ "${{ needs.e2e-test.result }}" != "success" ] || \
+             [ "${{ needs.security.result }}" != "success" ]; then
             echo "❌ CI Quality Gate Failed: One or more required checks did not succeed." >&2
             exit 1
           fi

@@ -14,8 +14,8 @@ output "api_app_id" {
 }
 
 output "api_fqdn" {
-  description = "FQDN of the API Container App"
-  value       = azurerm_container_app.api.latest_revision_fqdn
+  description = "Stable app FQDN of the API (not a revision FQDN, which dies on the next deploy)"
+  value       = azurerm_container_app.api.ingress[0].fqdn
 }
 
 output "api_latest_revision_name" {
@@ -30,20 +30,23 @@ output "dashboard_app_id" {
 
 output "dashboard_fqdn" {
   description = "FQDN of the Dashboard Container App"
-  value       = azurerm_container_app.dashboard.latest_revision_fqdn
+  value       = azurerm_container_app.dashboard.ingress[0].fqdn
 }
 
-output "identity_id" {
-  description = "ID of User Assigned Identity"
-  value       = azurerm_user_assigned_identity.ca_identity.id
+output "api_custom_domain_verification_id" {
+  description = "Value for the API's asuid TXT record that proves custom domain ownership"
+  value       = azurerm_container_app.api.custom_domain_verification_id
+  sensitive   = true
 }
 
-output "identity_principal_id" {
-  description = "Principal ID of User Assigned Identity"
-  value       = azurerm_user_assigned_identity.ca_identity.principal_id
+output "dashboard_custom_domain_verification_id" {
+  description = "Value for the dashboard's asuid TXT record that proves custom domain ownership"
+  value       = azurerm_container_app.dashboard.custom_domain_verification_id
+  sensitive   = true
 }
 
-output "identity_client_id" {
-  description = "Client ID of User Assigned Identity"
-  value       = azurerm_user_assigned_identity.ca_identity.client_id
+output "metrics_token" {
+  description = "Bearer token Prometheus must send to scrape /metrics"
+  value       = random_password.metrics_token.result
+  sensitive   = true
 }

@@ -1,19 +1,14 @@
 name: Lensio Automated Security Gates
 
+# Pushes and PRs run these gates through ci.yml (workflow_call), so the CI master
+# gate, and therefore the release build, is blocked by a failing scan. No
+# concurrency block: in a called workflow github.workflow is the caller's name, so
+# the group would collide with CI's own and cancel it.
 on:
-  pull_request:
-    branches:
-      - main
-  push:
-    branches:
-      - main
+  workflow_call:
   schedule:
     - cron: '0 0 * * 1' # Weekly security audit
   workflow_dispatch:
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
 
 jobs:
   # ----------------------------------------------------------------------------
@@ -73,7 +68,8 @@ jobs:
 
       - name: Install & Run gosec
         run: |
-          go install github.com/securego/gosec/v2/cmd/gosec@latest
+          # Pinned: @latest changes the gate between runs, as golangci-lint did.
+          go install github.com/securego/gosec/v2/cmd/gosec@v2.29.0
           gosec -quiet -exclude-dir=tests -severity=high ./...
 
   # ----------------------------------------------------------------------------
@@ -87,7 +83,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Scan IaC Configurations with Trivy
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           scan-type: 'config'
           scan-ref: 'infra/'
@@ -112,12 +108,12 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: apps/api/Dockerfile
+          file: Dockerfile
           load: true
           tags: lensio-api:security-scan
 
       - name: Scan API Image with Trivy
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: 'lensio-api:security-scan'
           format: 'table'
@@ -134,7 +130,7 @@ jobs:
           tags: lensio-dashboard:security-scan
 
       - name: Scan Dashboard Image with Trivy
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: 'lensio-dashboard:security-scan'
           format: 'table'

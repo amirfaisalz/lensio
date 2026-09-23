@@ -13,6 +13,7 @@ Format mengikuti [Keep a Changelog](https://keepachangelog.com/id/1.1.0/). Tangg
 - **Validasi IaC di CI** (`tofu fmt` + `validate` semua modul & environment), yang langsung menemukan `for_each` invalid pada blok Gemini: nilainya berasal dari variabel `sensitive`, dan `for_each` menolak nilai bertanda.
 
 ### Security
+- **Infra: `/metrics` tidak lagi publik**: dilindungi bearer `METRICS_TOKEN` (dibuat OpenTofu); production/staging menolak start tanpanya. Action `trivy-action` dipin ke SHA v0.36.0 dan `gosec` ke v2.29.0; input workflow rollback masuk lewat `env`, bukan interpolasi `${{ }}` di `run:` (script injection). Login Azure pakai OIDC, bukan JSON service principal.
 - **Isolasi tenant (P0)**: `resolveOrgID` kini default-deny — `?org_id`/`org_id` body hanya diterima bila sama dengan org pemanggil (atau scope platform `*`, atau saat cek ReBAC SpiceDB langsung menyusul). Sebelumnya 9 endpoint (`/usage*`, `/account*`, `GET /auth/api-keys`) memakai nilai itu apa adanya, sehingga tenant lain bisa dibaca dan `PUT /account/plan` milik tenant lain bisa diubah. Signature helper diubah agar compiler memaksa semua call site ikut — guard sebelumnya hanya terpasang di 2 dari 9.
 - **Bypass verifikasi email (P0)**: token kosong tidak lagi memverifikasi akun. Handler menolak token kosong dan cabang "dev flow" di `store.VerifyUserEmail` (yang mencocokkan hanya berdasarkan email) dihapus.
 - **Eskalasi privilege (P0)**: role `admin` — diberikan ke setiap owner organisasi saat login — tidak lagi menjadi wildcard scope global di `HasScope`. Hanya `*` yang wildcard.
@@ -20,7 +21,21 @@ Format mengikuti [Keep a Changelog](https://keepachangelog.com/id/1.1.0/). Tangg
 - **PII at rest (P1)**: body respons yang di-cache idempotency dienkripsi AES-256-GCM (kunci turunan `SESSION_SECRET`) dan TTL turun 24 jam → 1 jam. Respons OCR memuat NIK/nama/alamat.
 - **Revokasi sesi (P1)**: logout membatalkan token server-side via `users.sessions_valid_from` (migrasi 000014), bukan sekadar menghapus cookie.
 - Hardening: `X-Forwarded-For` diambil dari hop paling kanan (tidak bisa dipalsukan pemanggil), `ENABLE_DEV_AUTH` wajib eksplisit untuk validator token tanpa tanda tangan, error internal tidak lagi dikembalikan ke klien, body error upstream Gemini tidak lagi masuk log, `/api/v1/account` non-GET ikut di-throttle.
+### Changed
+- **Dashboard membaca origin API saat runtime** (`/config.js`, ditulis container dari env `API_URL` saat start), menggantikan trik hostname `ca-dash-` → `ca-api-` yang rusak di custom domain. Satu image dashboard kini bisa dipromosikan dari staging ke production. Nilai `API_URL` divalidasi ketat (hanya origin); test menemukan bahwa `grep` per-baris meloloskan nilai bernewline, sehingga ditambah cek karakter. Proxy nginx sengaja tidak dipakai: semua pengguna akan berbagi satu bucket rate-limit login per-IP.
+- CORS, `APP_BASE_URL`, dan `API_URL` dashboard diturunkan otomatis dari default domain environment Container Apps; custom domain cukup diisi di tfvars.
+
 ### Fixed
+- **Infra tidak pernah bisa di-apply/di-deploy end-to-end** — diperbaiki:
+  - Terragrunt tidak bisa diparse (tipe kondisional tidak konsisten) dan bentrok `required_providers` ganda → dihapus; kini satu stack `infra/live` + `staging.tfvars`/`production.tfvars`, state per environment.
+  - Password DB acak memuat `# ? % :` yang memotong `DATABASE_URL` → kini alfanumerik 32 karakter (dibuktikan test `apply`).
+  - Key Vault dekoratif (tidak ada yang membacanya) dan pasti 403 saat apply (firewall Deny + RBAC tanpa role deployer) → dihapus beserta identity dan subnet private endpoint.
+  - CNAME Cloudflare menunjuk FQDN *revisi* (mati tiap deploy) dan tidak ada binding custom domain → kini FQDN ingress, sertifikat Origin CA, TXT `asuid`, dan `azurerm_container_app_custom_domain`.
+  - Setting zona & ruleset WAF ditulis kedua stack pada zona yang sama → hanya production (`manage_cloudflare_zone`); rate limit kini menyertakan `cf.colo.id`.
+  - Path image tofu (`ghcr.io/amirfaisalz/lensio-api`) ≠ yang di-push CI (`ghcr.io/amirfaisalz/lensio/lensio-api`); blok `registry` GHCR opsional ditambahkan.
+  - Rollback tidak mungkin jalan: mode revisi `Single`, perintah `az containerapp revision set-traffic` tidak ada, `--target-revision previous` literal, `--app all` satu nama revisi → mode `Multiple`, `ingress traffic set`, `previous` di-resolve per app, `scripts/deploy.sh` menjaga revisi sebelumnya tetap hangat.
+  - `tofu apply` me-revert image hasil deploy → `ignore_changes` untuk image/traffic; CD tidak lagi mengubah jumlah replika.
+  - Produksi kini wajib lewat staging (+smoke test) dengan tag immutable yang sama; workflow keamanan kini memblokir release (dipanggil dari CI via `workflow_call`); `tofu test` berjalan di CI (3 dari 7 suite sebelumnya gagal tanpa ada yang tahu); parameter Postgres `connection_throttle.enable`; URL staging `staging-api.lensio.dev`.
 - Kuota: hitung semua `POST /api/v1/ocr/*` (sebelumnya hanya KTP) di `GetMonthlyOCRCount`/`GetUsageSummary`.
 - Idempotency: respons 429 tidak di-cache; lock di-release agar retry pasca-reset tidak replay 429 basi.
 - Auth: tolak start prod/staging tanpa `SESSION_SECRET`/`DATABASE_URL`; cookie `Secure` paksa di production; guard cross-org `org_id` tanpa SpiceDB; scope sesi cookie di-allowlist.

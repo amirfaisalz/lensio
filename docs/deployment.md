@@ -34,7 +34,7 @@ Lensio maintains three isolated environments:
 | Environment | Purpose | Ingress URL | Database Tier | Scaling |
 |---|---|---|---|---|
 | **Development** | Local Docker Compose | `http://localhost:8080` | Local Postgres 16 container | 1 replica |
-| **Staging** | Pre-production validation | `https://api.staging.lensio.dev` | Flexible Server (Standard B1ms) | 1-2 replicas |
+| **Staging** | Pre-production validation | `https://staging-api.lensio.dev` | Flexible Server (Standard B1ms) | 1-2 replicas |
 | **Production** | Live consumer traffic | `https://api.lensio.dev` | Flexible Server (General Purpose HA) | 2-10 replicas |
 
 ---
@@ -44,7 +44,9 @@ Lensio maintains three isolated environments:
 Every container image pushed to GitHub Container Registry (`ghcr.io`) is tagged immutably:
 1. **Commit SHA**: `lensio-api:sha-a1b2c3d` (exact build provenance).
 2. **Semantic Version**: `lensio-api:1.4.0` (production releases).
-3. **Latest / Branch**: `lensio-api:latest` and `lensio-api:main` (staging preview).
+3. **Latest**: `lensio-api:latest` (bootstrap only; never deployed, since a mutable tag cannot be rolled back to).
+
+Images live at `ghcr.io/amirfaisalz/lensio/lensio-{api,dashboard}`. Production only accepts a tag that `deploy.yml` has just deployed to staging and smoke-tested in the same run.
 
 ---
 
@@ -55,7 +57,7 @@ Before any deployment proceeds, the following automated scans must return **zero
 1. **Secret Scanning**: Gitleaks verifies that no private keys, database passwords, or Google AI Studio tokens are committed.
 2. **Dependency Vulnerabilities**: `govulncheck` audits Go module call graphs, and `npm audit` checks frontend packages.
 3. **Static Application Security Testing (SAST)**: `gosec` scans Go AST for code-level security issues.
-4. **IaC Security**: Trivy inspects OpenTofu/Terragrunt definitions in `infra/` for overly permissive network rules.
+4. **IaC Security**: Trivy inspects OpenTofu definitions in `infra/` for overly permissive network rules.
 5. **Container Vulnerability Scanning**: Built container layers are scanned using Trivy with `--severity HIGH,CRITICAL --exit-code 1`.
 
 ---

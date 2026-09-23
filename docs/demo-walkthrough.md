@@ -193,7 +193,7 @@
   ```
 - **Show Azure CLI Rollback Command**:
   ```bash
-  az containerapp revision set-traffic \
+  az containerapp ingress traffic set \
     --name ca-api-lensio-production \
     --resource-group rg-lensio-production \
     --revision-weight ca-api-lensio-prod--1-4-0=100

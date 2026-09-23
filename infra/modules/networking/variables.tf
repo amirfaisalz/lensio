@@ -33,12 +33,6 @@ variable "postgres_subnet_cidr" {
   default     = "10.0.4.0/24"
 }
 
-variable "private_endpoints_subnet_cidr" {
-  type        = string
-  description = "Subnet CIDR for Private Endpoints (Key Vault, etc.)"
-  default     = "10.0.5.0/24"
-}
-
 variable "tags" {
   type        = map(string)
   description = "Resource tags"

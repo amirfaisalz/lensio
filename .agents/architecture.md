@@ -22,7 +22,7 @@ Lensio/
 ├── tests/
 │   ├── integration/     # Go integration tests
 │   └── e2e/             # Playwright browser end-to-end tests
-├── infra/               # OpenTofu & Terragrunt IaC modules
+├── infra/               # OpenTofu modules + one live stack (infra/live, per-env tfvars)
 ├── docs/                # Architecture docs, ADRs, and incident reports
 └── .agents/             # AI agent operational guidelines
 ```

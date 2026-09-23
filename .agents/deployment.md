@@ -31,7 +31,7 @@ PostgreSQL (Flexible Server)   OpenTelemetry Collector
 
 ## 2. Containerization Standards
 
-- **Go API (`apps/api/Dockerfile`)**:
+- **Go API (root `Dockerfile`, the only API Dockerfile)**:
   - Build stage: `golang:1.22-alpine` or standard official image with cached dependencies.
   - Final runtime stage: Minimal `gcr.io/distroless/static-debian12` or `alpine` running as a non-privileged `nonroot` user (UID 65532).
   - Include CA certificates for TLS requests.

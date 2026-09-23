@@ -62,11 +62,13 @@ If GitHub Actions is unreachable or experiencing delays, an engineer with Azure 
 az containerapp revision list \
   --name ca-api-lensio-production \
   --resource-group rg-lensio-production \
-  --query "[].{Name:name, Created:createdTime, Traffic:trafficWeight, Active:active}" \
+  --all \
+  --query "[].{Name:name, Created:properties.createdTime, Traffic:properties.trafficWeight, Active:properties.active}" \
   --output table
 
-# 2. Shift 100% traffic to stable revision immediately
-az containerapp revision set-traffic \
+# 2. Shift 100% traffic to stable revision immediately (activate it first if inactive:
+#    az containerapp revision activate --revision <name> ...)
+az containerapp ingress traffic set \
   --name ca-api-lensio-production \
   --resource-group rg-lensio-production \
   --revision-weight ca-api-lensio-prod--<stable-revision>=100
@@ -82,9 +84,11 @@ Alternatively, run the automated script directly from the repository root:
 ./scripts/rollback.sh \
   --env production \
   --app api \
-  --target-revision ca-api-lensio-prod--<stable-revision> \
+  --target-revision previous \
   --traffic 100
 ```
+
+`previous` resolves to the newest revision before the latest, per app, so `--app all` works too. `scripts/deploy.sh` keeps that revision warm (at most two active revisions per app), which is what makes the shift take seconds.
 
 ---
 

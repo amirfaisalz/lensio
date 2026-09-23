@@ -30,7 +30,9 @@ Usage: $(basename "$0") [OPTIONS]
 Options:
   -e, --env <staging|production>   Target deployment environment (default: production)
   -a, --app <api|dashboard|all>    Application component to roll back (default: api)
-  -r, --target-revision <name>     Target Azure Container App revision name (required)
+  -r, --target-revision <name>     Revision to shift to, or "previous" for the newest
+                                   revision before the latest (required; --app all
+                                   only accepts "previous", revision names are per app)
   -t, --traffic <percentage>       Traffic percentage to shift (default: 100)
   -g, --resource-group <name>      Azure Resource Group (default: rg-lensio-<env>)
   -u, --api-url <url>              API base URL for post-rollback verification
@@ -80,6 +82,11 @@ if [ -z "${TARGET_REVISION}" ]; then
     usage
 fi
 
+if [ "${APP}" = "all" ] && [ "${TARGET_REVISION}" != "previous" ]; then
+    echo -e "${RED}[ERROR]${NC} --app all needs --target-revision previous: revision names differ per app." >&2
+    exit 1
+fi
+
 START_TIME=$(date +%s)
 
 echo "========================================================"
@@ -96,34 +103,46 @@ echo "========================================================"
 
 rollback_app() {
     local APP_NAME="$1"
-    echo -e "${BLUE}[INFO]${NC} Initiating traffic shift on ${APP_NAME} to revision ${TARGET_REVISION}..."
+    local REVISION="${TARGET_REVISION}"
+    echo -e "${BLUE}[INFO]${NC} Initiating traffic shift on ${APP_NAME} to revision ${REVISION}..."
 
     if [ "${DRY_RUN}" = true ]; then
-        echo -e "${YELLOW}[DRY-RUN]${NC} az containerapp revision set-traffic \\"
+        echo -e "${YELLOW}[DRY-RUN]${NC} az containerapp ingress traffic set \\"
         echo -e "${YELLOW}[DRY-RUN]${NC}   --name ${APP_NAME} \\"
         echo -e "${YELLOW}[DRY-RUN]${NC}   --resource-group ${RESOURCE_GROUP} \\"
-        echo -e "${YELLOW}[DRY-RUN]${NC}   --revision-weight ${TARGET_REVISION}=${TRAFFIC}"
+        echo -e "${YELLOW}[DRY-RUN]${NC}   --revision-weight ${REVISION}=${TRAFFIC}"
         return 0
     fi
 
-    # Check az CLI availability
     if ! command -v az >/dev/null 2>&1; then
         echo -e "${RED}[ERROR]${NC} Azure CLI ('az') not found in PATH." >&2
         return 1
     fi
 
-    # Activate target revision if needed
-    az containerapp revision activate \
-        --name "${APP_NAME}" \
-        --resource-group "${RESOURCE_GROUP}" \
-        --revision "${TARGET_REVISION}" \
-        --output none || true
+    if [ "${REVISION}" = "previous" ]; then
+        local LATEST
+        LATEST=$(az containerapp show --name "${APP_NAME}" --resource-group "${RESOURCE_GROUP}" \
+            --query properties.latestRevisionName -o tsv)
+        REVISION=$(az containerapp revision list --all --name "${APP_NAME}" --resource-group "${RESOURCE_GROUP}" \
+            --query "sort_by([?name!='${LATEST}'], &properties.createdTime)[-1].name" -o tsv)
+        if [ -z "${REVISION}" ]; then
+            echo -e "${RED}[ERROR]${NC} ${APP_NAME} has no revision before ${LATEST} to roll back to." >&2
+            return 1
+        fi
+        echo -e "${BLUE}[INFO]${NC} Resolved previous revision of ${APP_NAME}: ${REVISION}"
+    fi
 
-    # Shift traffic to target revision
-    az containerapp revision set-traffic \
+    # deploy.sh keeps the previous revision warm; an older target needs waking first.
+    if [ "$(az containerapp revision show --name "${APP_NAME}" --resource-group "${RESOURCE_GROUP}" \
+        --revision "${REVISION}" --query properties.active -o tsv)" != "true" ]; then
+        az containerapp revision activate --name "${APP_NAME}" --resource-group "${RESOURCE_GROUP}" \
+            --revision "${REVISION}" --output none
+    fi
+
+    az containerapp ingress traffic set \
         --name "${APP_NAME}" \
         --resource-group "${RESOURCE_GROUP}" \
-        --revision-weight "${TARGET_REVISION}=${TRAFFIC}" \
+        --revision-weight "${REVISION}=${TRAFFIC}" \
         --output none
 }
 
@@ -157,7 +176,7 @@ if [ "${VERIFY}" = true ] && [ "${DRY_RUN}" = false ]; then
         if [ "${ENV}" = "production" ]; then
             API_URL="https://api.lensio.dev"
         else
-            API_URL="https://api.staging.lensio.dev"
+            API_URL="https://staging-api.lensio.dev"
         fi
     fi
     echo -e "${BLUE}[INFO]${NC} Executing post-rollback verification against ${API_URL}..."

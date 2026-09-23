@@ -35,12 +35,6 @@ variable "admin_username" {
   default     = "lensioadmin"
 }
 
-variable "admin_password" {
-  type        = string
-  description = "PostgreSQL administrator password"
-  sensitive   = true
-}
-
 variable "postgres_version" {
   type        = string
   description = "PostgreSQL major version"

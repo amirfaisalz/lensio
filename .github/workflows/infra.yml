@@ -1,0 +1,69 @@
+name: Lensio Infrastructure (OpenTofu)
+
+# Manual only: infrastructure changes are rare, and a plan must be read before an
+# apply. Images and traffic are not managed here; deploy.yml owns those.
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment'
+        type: choice
+        options:
+          - staging
+          - production
+        default: staging
+      action:
+        description: 'plan, or apply after reviewing a plan'
+        type: choice
+        options:
+          - plan
+          - apply
+        default: plan
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  tofu:
+    name: tofu ${{ inputs.action }} (${{ inputs.environment }})
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    concurrency:
+      group: infra-${{ inputs.environment }}
+      cancel-in-progress: false
+    defaults:
+      run:
+        working-directory: infra/live
+    env:
+      TARGET_ENV: ${{ inputs.environment }}
+      ARM_USE_OIDC: 'true'
+      ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      TF_VAR_cloudflare_zone_id: ${{ vars.CLOUDFLARE_ZONE_ID }}
+      TF_VAR_smtp_host: ${{ vars.SMTP_HOST }}
+      TF_VAR_smtp_username: ${{ vars.SMTP_USERNAME }}
+      TF_VAR_smtp_password: ${{ secrets.SMTP_PASSWORD }}
+      TF_VAR_gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
+      TF_VAR_registry_username: ${{ github.repository_owner }}
+      TF_VAR_registry_password: ${{ secrets.GHCR_READ_TOKEN }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up OpenTofu
+        uses: opentofu/setup-opentofu@v1
+        with:
+          tofu_version: 1.8.5
+
+      - name: Init
+        run: tofu init -input=false -backend-config="key=${TARGET_ENV}.tfstate" -backend-config="use_oidc=true"
+
+      - name: Plan
+        run: tofu plan -input=false -var-file="${TARGET_ENV}.tfvars" -out=tfplan
+
+      - name: Apply
+        if: inputs.action == 'apply'
+        run: tofu apply -input=false tfplan

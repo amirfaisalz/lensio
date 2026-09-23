@@ -45,7 +45,7 @@ The interesting part is not OCR, but **everything around the API**: cryptographi
 - **Traffic guardrails** — $O(1)$ in-memory token bucket + monthly quota, standard `X-RateLimit-*` / `Retry-After` headers, `Idempotency-Key` replay protection on OCR writes.
 - **Privacy by design** — images stay in ephemeral RAM buffers, never touch disk; zero PII in logs (UU PDP No. 27/2022).
 - **Observable** — OpenTelemetry traces, Prometheus RED metrics, Grafana dashboards, SLOs + alert rules.
-- **Shippable** — distroless images, GitHub Actions with 5 security gates, Playwright E2E (`tests/e2e`), OpenTofu/Terragrunt IaC, sub-60-second rollback drill, 5 incident post-mortems.
+- **Shippable** — distroless images, GitHub Actions with 5 security gates, Playwright E2E (`tests/e2e`), OpenTofu IaC, sub-60-second rollback drill, 5 incident post-mortems.
 
 ## Quickstart
 
@@ -109,7 +109,7 @@ docker compose up -d
 | `SPICEDB_PRESHARED_KEY` | — | Bearer key for SpiceDB check/write/schema |
 | `SESSION_SECRET` | dev fallback | HS256 secret for HttpOnly `lensio_session` cookies |
 
-Provisioning secrets for staging/production goes through Azure Key Vault (see [`docs/security.md`](docs/security.md)). Dev-only credentials in `docker-compose.yml` must never leave your laptop.
+Staging/production secrets are Container Apps secrets provisioned by OpenTofu (see [`infra/live/README.md`](infra/live/README.md)). Dev-only credentials in `docker-compose.yml` must never leave your laptop.
 
 ## API Reference
 
@@ -253,7 +253,7 @@ graph TD
 | **Vision AI** | Google Gemini 2.0 Flash Vision behind pluggable `OCREngine`; deterministic `MockOCREngine` for offline/CI testing |
 | **Portal** | React 19 + TypeScript SPA (`apps/dashboard`), Vite + Tailwind, Vitest + Testing Library |
 | **Telemetry** | OpenTelemetry Go SDK (W3C traces, `trace_id`/`request_id` correlation), Prometheus RED metrics, Grafana dashboards |
-| **Cloud & Edge** | Cloudflare (DNS, DDoS, TLS 1.3, WAF) → Azure Container Apps (KEDA, Envoy, revision rollback); Key Vault secrets; OpenTofu + Terragrunt IaC |
+| **Cloud & Edge** | Cloudflare (DNS, DDoS, TLS 1.3, WAF) → Azure Container Apps (KEDA, Envoy, revision rollback); Container Apps secrets; OpenTofu IaC |
 | **Security & CI** | Distroless images; Gitleaks, govulncheck, gosec, Trivy; 4-layer pre-commit gate (build → lint → `go test -race` → PII/Big-O audit) |
 
 <details>
@@ -268,7 +268,7 @@ graph TD
 | **Traffic Shaping** | $O(1)$ in-memory token bucket + monthly quota enforcer | [`ADR-003`](docs/decisions/ADR-003-rate-limiting-and-quota-architecture.md), [`ADR-006`](docs/decisions/ADR-006-multi-instance-rate-limiting-tradeoffs.md) |
 | **Telemetry & Observability** | OpenTelemetry Go SDK, Prometheus RED metrics, Grafana dashboards | [`docs/observability.md`](docs/observability.md) |
 | **Data Privacy & Compliance** | Ephemeral memory-only image handling, zero PII logs (UU PDP No. 27/2022) | [`ADR-005`](docs/decisions/ADR-005-data-minimization-and-pii-protection-in-ocr-pipelines.md) |
-| **Infrastructure as Code** | OpenTofu modules & Terragrunt live environments (Staging/Production) | [`infra/`](infra/) |
+| **Infrastructure as Code** | OpenTofu modules & one live stack with per-environment tfvars (Staging/Production) | [`infra/`](infra/) |
 | **Cloud Hosting** | Azure Container Apps with KEDA autoscaling and Envoy ingress | [`ADR-004`](docs/decisions/ADR-004-azure-container-apps-vs-kubernetes.md) |
 | **Continuous Delivery** | GitHub Actions with 5 security scanners (Gitleaks, govulncheck, gosec, Trivy) | [`.github/workflows`](.github/workflows/) |
 | **Automated Rollbacks** | Immutable container revisions, sub-60-second traffic shifting drill | [`docs/rollback.md`](docs/rollback.md) |
@@ -306,7 +306,7 @@ lensio/
 ├── apps/api/            # Go REST API (handlers, middleware, services)
 ├── apps/dashboard/      # React 19 + TypeScript developer portal (Vite, Tailwind)
 ├── services/ocr/        # Pluggable OCREngine (Gemini adapter, mock, circuit breaker)
-├── infra/               # OpenTofu modules, Terragrunt envs, Keycloak realm, SpiceDB schema, observability
+├── infra/               # OpenTofu modules, live stack, Keycloak realm, SpiceDB schema, observability
 ├── openapi/             # OpenAPI 3.0.3 contract (openapi.yaml) + viewers
 ├── tests/               # Unit, integration, E2E (Playwright), load (k6), synthetic fixtures only
 ├── examples/            # VeriForm + RentEase demo consumers

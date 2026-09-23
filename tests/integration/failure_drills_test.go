@@ -70,4 +70,44 @@ func TestIntegration_Drill_ScenarioD_ProductionRollbackExecution(t *testing.T) {
 	if !strings.Contains(outStr, "Initiating traffic shift") || !strings.Contains(outStr, "DRY-RUN") {
 		t.Errorf("unexpected rollback script output: %s", outStr)
 	}
+	// "az containerapp revision set-traffic" does not exist; the shift is an ingress operation.
+	if !strings.Contains(outStr, "az containerapp ingress traffic set") || !strings.Contains(outStr, "--revision-weight ca-api-lensio-staging--stable=100") {
+		t.Errorf("rollback must shift traffic with az containerapp ingress traffic set: %s", outStr)
+	}
+}
+
+// Revision names are per app, so one explicit name can never be right for both
+// the API and the dashboard; only "previous" (resolved per app) is accepted.
+func TestIntegration_Drill_ScenarioD_RollbackAllRequiresPrevious(t *testing.T) {
+	cmd := exec.Command("../../scripts/rollback.sh",
+		"--env", "staging",
+		"--app", "all",
+		"--target-revision", "ca-api-lensio-staging--stable",
+		"--dry-run",
+		"--no-verify",
+	)
+	out, err := cmd.CombinedOutput()
+	if err == nil {
+		t.Fatalf("expected rollback.sh to reject --app all with an explicit revision, got success: %s", out)
+	}
+	if !strings.Contains(string(out), "--app all needs --target-revision previous") {
+		t.Errorf("unexpected rejection output: %s", out)
+	}
+
+	cmd = exec.Command("../../scripts/rollback.sh",
+		"--env", "staging",
+		"--app", "all",
+		"--target-revision", "previous",
+		"--dry-run",
+		"--no-verify",
+	)
+	out, err = cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("expected --app all --target-revision previous to succeed: %v: %s", err, out)
+	}
+	for _, app := range []string{"ca-api-lensio-staging", "ca-dash-lensio-staging"} {
+		if !strings.Contains(string(out), "--name "+app) {
+			t.Errorf("expected a traffic shift for %s: %s", app, out)
+		}
+	}
 }

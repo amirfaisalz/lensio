@@ -53,7 +53,6 @@ resource "azurerm_subnet" "postgres" {
   resource_group_name  = azurerm_resource_group.rg.name
   virtual_network_name = azurerm_virtual_network.vnet.name
   address_prefixes     = [var.postgres_subnet_cidr]
-  service_endpoints    = ["Microsoft.Storage"]
 
   delegation {
     name = "postgres-flexible-delegation"
@@ -62,14 +61,6 @@ resource "azurerm_subnet" "postgres" {
       actions = ["Microsoft.Network/virtualNetworks/subnets/join/action"]
     }
   }
-}
-
-# Subnet dedicated for Private Endpoints (Key Vault, etc.)
-resource "azurerm_subnet" "private_endpoints" {
-  name                 = "snet-pe-${local.name_prefix}"
-  resource_group_name  = azurerm_resource_group.rg.name
-  virtual_network_name = azurerm_virtual_network.vnet.name
-  address_prefixes     = [var.private_endpoints_subnet_cidr]
 }
 
 # Network Security Group for Container Apps
@@ -86,7 +77,7 @@ resource "azurerm_network_security_group" "container_apps" {
     access                     = "Allow"
     protocol                   = "Tcp"
     source_port_range          = "*"
-    destination_port_ranges    = ["80", "443", "8080"]
+    destination_port_ranges    = ["80", "443"]
     source_address_prefix      = "Internet"
     destination_address_prefix = "*"
   }

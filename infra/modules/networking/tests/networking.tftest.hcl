@@ -40,8 +40,9 @@ run "validate_networking_resources" {
     error_message = "PostgreSQL subnet CIDR did not match default"
   }
 
+  # Ingress terminates at 80/443; the container port (8080) is never reached directly.
   assert {
-    condition     = azurerm_subnet.private_endpoints.address_prefixes[0] == "10.0.5.0/24"
-    error_message = "Private Endpoints subnet CIDR did not match default"
+    condition     = toset(one(azurerm_network_security_group.container_apps.security_rule).destination_port_ranges) == toset(["80", "443"])
+    error_message = "Container Apps NSG must only open 80 and 443 to the Internet"
   }
 }

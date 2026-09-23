@@ -44,6 +44,9 @@ service-account*.json
 *.tfstate
 *.tfstate.*
 *.tfvars
+# Non-secret per-environment sizing; secrets arrive as TF_VAR_* (infra/live/README.md).
+!infra/live/staging.tfvars
+!infra/live/production.tfvars
 *.tfvars.json
 .terragrunt-cache/
 crash.log

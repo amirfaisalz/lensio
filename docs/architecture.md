@@ -199,4 +199,4 @@ Lensio enforces strict decoupling between **Process Liveness** and **Dependency 
 | **Telemetry & Metrics** | OpenTelemetry Go SDK + Prometheus | Distributed tracing, RED metrics                         |
 | **Cloud Hosting**       | Azure Container Apps (ACA)        | Serverless container execution with KEDA autoscaling     |
 | **Edge & Security**     | Cloudflare                        | Edge CDN, WAF, DDoS protection, TLS 1.3 termination      |
-| **IaC Orchestration**   | OpenTofu + Terragrunt             | Declarative multi-environment infrastructure as code     |
+| **IaC Orchestration**   | OpenTofu (per-env tfvars)         | Declarative multi-environment infrastructure as code     |

@@ -10,183 +10,132 @@ on:
   workflow_dispatch:
     inputs:
       target_env:
-        description: 'Target environment'
+        description: 'Target environment (production always deploys and smoke-tests staging first)'
         type: choice
         options:
           - staging
           - production
         default: staging
       image_tag:
-        description: 'Image tag to deploy (e.g. 1.4.0 or sha-xxxxxxx)'
+        description: 'Image tag to deploy (e.g. 1.4.0 or sha-a1b2c3d)'
         required: true
-        default: 'latest'
 
 permissions:
   contents: read
   id-token: write
 
+env:
+  REGISTRY: ghcr.io/${{ github.repository }}
+
 jobs:
   # ----------------------------------------------------------------------------
-  # 1. Automated Deployment to Staging
+  # 1. Staging: every build from main, and the mandatory first leg of a promotion
   # ----------------------------------------------------------------------------
   deploy-staging:
     name: Deploy to Staging (Azure Container Apps)
     if: |
       (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') ||
-      (github.event_name == 'workflow_dispatch' && inputs.target_env == 'staging')
+      github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     environment: staging
+    concurrency:
+      group: deploy-staging
+      cancel-in-progress: false
+    outputs:
+      tag: ${{ steps.image-meta.outputs.tag }}
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.workflow_run.head_sha || github.ref }}
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - name: Determine Deployment Image Tag
         id: image-meta
-        run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            TAG="${{ inputs.image_tag }}"
-          else
-            TAG="sha-$(git rev-parse --short HEAD)"
-          fi
-          echo "tag=$TAG" >> $GITHUB_OUTPUT
-          echo "Deploying Staging with tag: $TAG"
-
-      - name: Azure CLI Login
-        uses: azure/login@v2
-        if: ${{ env.AZURE_CREDENTIALS != '' }}
-        with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
         env:
-          AZURE_CREDENTIALS: ${{ secrets.AZURE_CREDENTIALS }}
+          INPUT_TAG: ${{ inputs.image_tag }}
+        run: |
+          set -euo pipefail
+          if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ]; then
+            TAG="${INPUT_TAG}"
+          else
+            # Same fixed length release-build.yml tags with.
+            TAG="sha-$(git rev-parse --short=7 HEAD)"
+          fi
+          # Immutable tags only: a mutable one (latest, main) cannot be rolled back to.
+          if ! [[ "${TAG}" =~ ^(sha-[0-9a-f]{7}|[0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
+            echo "::error::image_tag must be sha-<7 hex> or <semver>, got '${TAG}'"
+            exit 1
+          fi
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+
+      - name: Azure Login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Deploy Staging Container Apps
-        id: deploy-ca
-        run: |
-          set -euo pipefail
-          IMAGE_TAG="${{ steps.image-meta.outputs.tag }}"
-          echo "Updating Azure Container Apps (Staging) with tag ${IMAGE_TAG}..."
-          if ! command -v az >/dev/null 2>&1 || [ -z "${{ secrets.AZURE_CREDENTIALS }}" ]; then
-            echo "❌ Deploy failed: az CLI or AZURE_CREDENTIALS not configured. Refusing silent no-op." >&2
-            exit 1
-          fi
-          az containerapp update \
-            --name ca-api-lensio-staging \
-            --resource-group rg-lensio-staging \
-            --image "ghcr.io/${{ github.repository }}/lensio-api:${IMAGE_TAG}" \
-            --min-replicas 0 \
-            --max-replicas 2
-          az containerapp update \
-            --name ca-dash-lensio-staging \
-            --resource-group rg-lensio-staging \
-            --image "ghcr.io/${{ github.repository }}/lensio-dashboard:${IMAGE_TAG}" \
-            --min-replicas 0 \
-            --max-replicas 2
-
-          API_FQDN=$(az containerapp show --name ca-api-lensio-staging --resource-group rg-lensio-staging --query properties.configuration.ingress.fqdn -o tsv)
-          DASH_FQDN=$(az containerapp show --name ca-dash-lensio-staging --resource-group rg-lensio-staging --query properties.configuration.ingress.fqdn -o tsv)
-          if [ -z "${API_FQDN}" ]; then
-            echo "❌ Deploy failed: could not discover staging API FQDN." >&2
-            exit 1
-          fi
-          echo "api_url=https://${API_FQDN}" >> $GITHUB_OUTPUT
-          if [ -n "${DASH_FQDN}" ]; then
-            echo "dash_url=https://${DASH_FQDN}" >> $GITHUB_OUTPUT
-          fi
+        run: ./scripts/deploy.sh staging "${{ steps.image-meta.outputs.tag }}"
 
       - name: Run Staging Automated Smoke Tests
+        id: smoke-test
+        env:
+          STAGING_API_URL: ${{ vars.STAGING_API_URL }}
+          STAGING_DASH_URL: ${{ vars.STAGING_DASH_URL }}
         run: |
           set -euo pipefail
-          chmod +x scripts/smoke-test.sh
-          # Run smoke tests against staging endpoint (or fallback to dynamically discovered FQDN)
-          STAGING_API_URL="${{ vars.STAGING_API_URL || steps.deploy-ca.outputs.api_url }}"
-          STAGING_DASH_URL="${{ vars.STAGING_DASH_URL || steps.deploy-ca.outputs.dash_url }}"
-          if [ -z "${STAGING_API_URL}" ]; then
-            echo "❌ Smoke tests failed: no staging API URL (vars.STAGING_API_URL nor deploy FQDN). Refusing to skip." >&2
-            exit 1
-          fi
-          ./scripts/smoke-test.sh "${STAGING_API_URL}" "${STAGING_DASH_URL}"
+          # Until a custom domain is live, fall back to the apps' own ingress FQDNs.
+          API_URL="${STAGING_API_URL:-https://$(az containerapp show -n ca-api-lensio-staging -g rg-lensio-staging --query properties.configuration.ingress.fqdn -o tsv)}"
+          DASH_URL="${STAGING_DASH_URL:-https://$(az containerapp show -n ca-dash-lensio-staging -g rg-lensio-staging --query properties.configuration.ingress.fqdn -o tsv)}"
+          ./scripts/smoke-test.sh "${API_URL}" "${DASH_URL}"
+
+      - name: Automated Rollback on Smoke Test Failure
+        if: failure() && steps.smoke-test.outcome == 'failure'
+        run: ./scripts/rollback.sh --env staging --app all --target-revision previous --traffic 100 --no-verify
 
   # ----------------------------------------------------------------------------
-  # 2. Production Promotion (Gated with Manual Approval & Rollback Safety)
+  # 2. Production: manual dispatch only, and only a tag that just passed staging
   # ----------------------------------------------------------------------------
   deploy-production:
     name: Deploy to Production (Azure Container Apps)
-    # Manual dispatch only: all automatic deployments go to staging until
-    # production credentials and approvals are ready.
-    if: |
-      (github.event_name == 'workflow_dispatch' && inputs.target_env == 'production')
+    needs: deploy-staging
+    if: github.event_name == 'workflow_dispatch' && inputs.target_env == 'production'
     runs-on: ubuntu-latest
     environment: production
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Determine Production Image Tag
-        id: image-meta
-        run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            TAG="${{ inputs.image_tag }}"
-          elif [[ "${{ github.ref }}" =~ refs/tags/v(.*) ]]; then
-            TAG="${BASH_REMATCH[1]}"
-          else
-            TAG="latest"
-          fi
-          echo "tag=$TAG" >> $GITHUB_OUTPUT
-          echo "Deploying Production with tag: $TAG"
-
-      - name: Azure CLI Login
+      - name: Azure Login (OIDC)
         uses: azure/login@v2
-        if: ${{ env.AZURE_CREDENTIALS != '' }}
         with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
-        env:
-          AZURE_CREDENTIALS: ${{ secrets.AZURE_CREDENTIALS }}
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Deploy Production Container Apps
-        run: |
-          set -euo pipefail
-          IMAGE_TAG="${{ steps.image-meta.outputs.tag }}"
-          echo "Updating Azure Container Apps (Production) with tag ${IMAGE_TAG}..."
-          if ! command -v az >/dev/null 2>&1 || [ -z "${{ secrets.AZURE_CREDENTIALS }}" ]; then
-            echo "❌ Deploy failed: az CLI or AZURE_CREDENTIALS not configured. Refusing silent no-op." >&2
-            exit 1
-          fi
-          az containerapp update \
-            --name ca-api-lensio-production \
-            --resource-group rg-lensio-production \
-            --image "ghcr.io/${{ github.repository }}/lensio-api:${IMAGE_TAG}" \
-            --min-replicas 2 \
-            --max-replicas 10
-          az containerapp update \
-            --name ca-dash-lensio-production \
-            --resource-group rg-lensio-production \
-            --image "ghcr.io/${{ github.repository }}/lensio-dashboard:${IMAGE_TAG}" \
-            --min-replicas 2 \
-            --max-replicas 5
+        run: ./scripts/deploy.sh production "${{ needs.deploy-staging.outputs.tag }}"
 
       - name: Run Production Automated Smoke Tests
         id: smoke-test
+        env:
+          PROD_API_URL: ${{ vars.PROD_API_URL }}
+          PROD_DASH_URL: ${{ vars.PROD_DASH_URL }}
         run: |
           set -euo pipefail
-          chmod +x scripts/smoke-test.sh
-          PROD_API_URL="${{ vars.PROD_API_URL || 'https://api.lensio.dev' }}"
-          PROD_DASH_URL="${{ vars.PROD_DASH_URL || 'https://lensio.dev' }}"
-          if [ -z "${PROD_API_URL}" ]; then
-            echo "❌ Smoke tests failed: no production API URL. Refusing to skip." >&2
-            exit 1
-          fi
-          ./scripts/smoke-test.sh "${PROD_API_URL}" "${PROD_DASH_URL}"
+          API_URL="${PROD_API_URL:-https://$(az containerapp show -n ca-api-lensio-production -g rg-lensio-production --query properties.configuration.ingress.fqdn -o tsv)}"
+          DASH_URL="${PROD_DASH_URL:-https://$(az containerapp show -n ca-dash-lensio-production -g rg-lensio-production --query properties.configuration.ingress.fqdn -o tsv)}"
+          echo "api_url=${API_URL}" >> "$GITHUB_OUTPUT"
+          ./scripts/smoke-test.sh "${API_URL}" "${DASH_URL}"
 
       - name: Automated Rollback on Smoke Test Failure
         if: failure() && steps.smoke-test.outcome == 'failure'
+        env:
+          API_URL: ${{ steps.smoke-test.outputs.api_url }}
         run: |
-          set -euo pipefail
           echo "🚨 Production Smoke Tests failed! Initiating emergency rollback..."
-          chmod +x scripts/rollback.sh
-          ./scripts/rollback.sh \
-            --env production \
-            --app all \
-            --target-revision previous \
-            --traffic 100
+          ./scripts/rollback.sh --env production --app all --target-revision previous --traffic 100 --api-url "${API_URL}"

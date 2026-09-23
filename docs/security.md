@@ -2,7 +2,7 @@
 
 > Comprehensive security specification, threat model, compliance posture, and automated security controls.
 > Governed by `AGENTS.md` (Mandatory Rules 4 & 5) and `PRD Section 15`.
-> Prod secrets: NEVER commit real keys. `docker-compose.yml` / `.env.example` contain dev-only values (`lensio_dev_password`, `admin/admin`, `lensio_spicedb_key`); production must inject via environment / Azure Key Vault. See `PRIVACY.md`, `SECURITY.md`, `USE_POLICY.md`.
+> Prod secrets: NEVER commit real keys. `docker-compose.yml` / `.env.example` contain dev-only values (`lensio_dev_password`, `admin/admin`, `lensio_spicedb_key`); production gets them as Container Apps secrets provisioned by OpenTofu (`infra/live`). See `PRIVACY.md`, `SECURITY.md`, `USE_POLICY.md`.
 > Report vulnerabilities per root `SECURITY.md` (do not open public issues for suspected leaks).
 
 ---
@@ -101,7 +101,7 @@ Commit / Pull Request
          │       - Scans Go AST for SQL injection, insecure file reads, and weak crypto.
          │
          ├──► 4. IaC Security Scanning (Trivy)
-         │       - Scans OpenTofu/Terragrunt configurations for insecure network rules.
+         │       - Scans OpenTofu configurations for insecure network rules.
          │
          └──► 5. Container Image Vulnerability Scanning (Trivy)
                  - Scans Docker layers for CVEs with severity HIGH,CRITICAL (exit code 1 on violation).
