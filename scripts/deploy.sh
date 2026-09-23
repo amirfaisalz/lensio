@@ -36,8 +36,10 @@ deploy_app() {
     # pass against the previous build. Fail the deploy until the new one is ready.
     local latest ready i
     for i in $(seq 1 "${READY_TIMEOUT_SEC:-180}"); do
-        read -r latest ready < <(az containerapp show --name "${app}" --resource-group "${RESOURCE_GROUP}" \
-            --query "[properties.latestRevisionName, properties.latestReadyRevisionName]" -o tsv | tr '\n' ' ')
+        # Here-string, not "< <(... | tr)": read returns 1 on input without a
+        # trailing newline, which set -e turned into a silent exit.
+        read -r latest ready <<<"$(az containerapp show --name "${app}" --resource-group "${RESOURCE_GROUP}" \
+            --query "[properties.latestRevisionName, properties.latestReadyRevisionName]" -o tsv | paste -sd' ')"
         [ "${latest}" = "${ready}" ] && break
         if [ "${i}" = "${READY_TIMEOUT_SEC:-180}" ]; then
             echo "[ERROR] ${app}: revision ${latest} never became ready (last ready: ${ready}); traffic left untouched" >&2
