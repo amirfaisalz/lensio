@@ -754,3 +754,31 @@ func TestRouter_APIKeyEndpoints_UnauthenticatedRejection(t *testing.T) {
 		}
 	})
 }
+
+func TestRouter_MetricsToken(t *testing.T) {
+	get := func(h http.Handler, auth string) int {
+		req := httptest.NewRequest(http.MethodGet, "/metrics", nil)
+		if auth != "" {
+			req.Header.Set("Authorization", auth)
+		}
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, req)
+		return rec.Code
+	}
+
+	open := internalhttp.NewRouterWithDeps(internalhttp.RouterDeps{Pinger: &dummyPinger{}})
+	if code := get(open, ""); code != http.StatusOK {
+		t.Fatalf("no token configured: expected 200, got %d", code)
+	}
+
+	guarded := internalhttp.NewRouterWithDeps(internalhttp.RouterDeps{Pinger: &dummyPinger{}, MetricsToken: "scrape"})
+	if code := get(guarded, ""); code != http.StatusUnauthorized {
+		t.Fatalf("token configured, none sent: expected 401, got %d", code)
+	}
+	if code := get(guarded, "Bearer wrong"); code != http.StatusUnauthorized {
+		t.Fatalf("token configured, wrong sent: expected 401, got %d", code)
+	}
+	if code := get(guarded, "Bearer scrape"); code != http.StatusOK {
+		t.Fatalf("token configured, correct sent: expected 200, got %d", code)
+	}
+}

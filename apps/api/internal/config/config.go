@@ -38,6 +38,8 @@ type Config struct {
 	SMTPFrom     string
 	// AppBaseURL is the dashboard origin used to build links inside those emails.
 	AppBaseURL string
+	// MetricsToken is the bearer token Prometheus must present on /metrics.
+	MetricsToken string
 }
 
 // Load reads configuration from environment variables with sensible defaults.
@@ -124,6 +126,8 @@ func Load() *Config {
 		sessionSecret = "lensio-session-secret-key-development-32b"
 	}
 
+	metricsToken := strings.TrimSpace(os.Getenv("METRICS_TOKEN"))
+
 	return &Config{
 		Port:                port,
 		Env:                 env,
@@ -147,5 +151,6 @@ func Load() *Config {
 		SMTPPassword:        smtpPassword,
 		SMTPFrom:            smtpFrom,
 		AppBaseURL:          appBaseURL,
+		MetricsToken:        metricsToken,
 	}
 }

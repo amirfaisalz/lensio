@@ -58,6 +58,12 @@ func main() {
 			logger.Error("DATABASE_URL must be set in production/staging; refusing to start in ephemeral mode")
 			os.Exit(1)
 		}
+		// /metrics sits on the public ingress; unauthenticated it leaks traffic
+		// shape and internals to anyone.
+		if cfg.MetricsToken == "" {
+			logger.Error("METRICS_TOKEN must be set in production/staging; refusing to expose /metrics publicly")
+			os.Exit(1)
+		}
 	}
 
 	var (
@@ -269,6 +275,7 @@ func main() {
 		Authorizer:              authorizer,
 		CORSAllowedOrigins:      cfg.CORSAllowedOrigins,
 		RateLimitReplicas:       replicaDivisor,
+		MetricsToken:            cfg.MetricsToken,
 	})
 
 	srv := &http.Server{

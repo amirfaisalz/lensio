@@ -130,3 +130,15 @@ func TestLoad_CORSAndSessionSecret(t *testing.T) {
 		t.Errorf("expected custom session secret, got '%s'", cfg.SessionSecret)
 	}
 }
+
+func TestLoad_MetricsToken(t *testing.T) {
+	t.Setenv("METRICS_TOKEN", "  scrape-token  ")
+	if got := config.Load().MetricsToken; got != "scrape-token" {
+		t.Fatalf("expected trimmed MetricsToken 'scrape-token', got '%s'", got)
+	}
+
+	t.Setenv("METRICS_TOKEN", "")
+	if got := config.Load().MetricsToken; got != "" {
+		t.Fatalf("expected empty MetricsToken, got '%s'", got)
+	}
+}

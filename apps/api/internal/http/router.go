@@ -47,6 +47,9 @@ type RouterDeps struct {
 	OIDCValidator      middleware.TokenValidator
 	Authorizer         authz.Authorizer
 	CORSAllowedOrigins []string
+	// MetricsToken, when set, requires "Authorization: Bearer <token>" on /metrics.
+	// Empty leaves it open, which is only acceptable off the public internet.
+	MetricsToken string
 }
 
 // NewRouter constructs the root HTTP handler for backward compatibility.
@@ -67,7 +70,11 @@ func NewRouterWithDeps(deps RouterDeps) http.Handler {
 	// Probes (PRD Section 17 & 16)
 	mux.HandleFunc("GET /health", handlers.HealthHandler())
 	mux.HandleFunc("GET /ready", handlers.ReadyHandler(deps.Pinger))
-	mux.Handle("GET /metrics", telemetry.PrometheusHandler())
+	metrics := telemetry.PrometheusHandler()
+	if deps.MetricsToken != "" {
+		metrics = middleware.RequireBearer(deps.MetricsToken, metrics)
+	}
+	mux.Handle("GET /metrics", metrics)
 
 	// Documentation & Contract (PRD Section 29)
 	mux.HandleFunc("GET /openapi", handlers.OpenAPIHandler())
