@@ -20,11 +20,17 @@ case "${ENV}" in
 esac
 
 deploy_app() {
-    local app="$1" image="$2" rev
+    local app="$1" image="$2" rev current
 
     # Keep only the revision serving traffic warm; it becomes the rollback target.
+    # Never deactivate the latest revision: after a rollback it is the idle one,
+    # and redeploying its image creates no new revision, so "latest=100" below
+    # would send all traffic to a revision this loop had just switched off.
+    current=$(az containerapp show --name "${app}" --resource-group "${RESOURCE_GROUP}" \
+        --query properties.latestRevisionName -o tsv)
     for rev in $(az containerapp revision list --name "${app}" --resource-group "${RESOURCE_GROUP}" \
         --query "[?properties.active && properties.trafficWeight==\`0\`].name" -o tsv); do
+        [ "${rev}" = "${current}" ] && continue
         echo "[INFO] ${app}: deactivating idle revision ${rev}"
         az containerapp revision deactivate --name "${app}" --resource-group "${RESOURCE_GROUP}" --revision "${rev}" --output none
     done

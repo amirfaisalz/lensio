@@ -130,12 +130,14 @@ jobs:
           API_URL="${PROD_API_URL:-https://$(az containerapp show -n ca-api-lensio-production -g rg-lensio-production --query properties.configuration.ingress.fqdn -o tsv)}"
           DASH_URL="${PROD_DASH_URL:-https://$(az containerapp show -n ca-dash-lensio-production -g rg-lensio-production --query properties.configuration.ingress.fqdn -o tsv)}"
           echo "api_url=${API_URL}" >> "$GITHUB_OUTPUT"
+          echo "dash_url=${DASH_URL}" >> "$GITHUB_OUTPUT"
           ./scripts/smoke-test.sh "${API_URL}" "${DASH_URL}"
 
       - name: Automated Rollback on Smoke Test Failure
         if: failure() && steps.smoke-test.outcome == 'failure'
         env:
           API_URL: ${{ steps.smoke-test.outputs.api_url }}
+          DASH_URL: ${{ steps.smoke-test.outputs.dash_url }}
         run: |
           echo "🚨 Production Smoke Tests failed! Initiating emergency rollback..."
-          ./scripts/rollback.sh --env production --app all --target-revision previous --traffic 100 --api-url "${API_URL}"
+          ./scripts/rollback.sh --env production --app all --target-revision previous --traffic 100 --api-url "${API_URL}" --dash-url "${DASH_URL}"

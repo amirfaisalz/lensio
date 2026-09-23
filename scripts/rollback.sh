@@ -16,6 +16,7 @@ RESOURCE_GROUP=""
 DRY_RUN=false
 VERIFY=true
 API_URL=""
+DASH_URL=""
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -36,6 +37,7 @@ Options:
   -t, --traffic <percentage>       Traffic percentage to shift (default: 100)
   -g, --resource-group <name>      Azure Resource Group (default: rg-lensio-<env>)
   -u, --api-url <url>              API base URL for post-rollback verification
+  -d, --dash-url <url>             Dashboard URL for post-rollback verification
   --dry-run                        Simulate rollback without executing Azure commands
   --no-verify                      Skip post-rollback health checks
   -h, --help                       Show this help message
@@ -61,6 +63,8 @@ while [[ $# -gt 0 ]]; do
             RESOURCE_GROUP="$2"; shift 2 ;;
         -u|--api-url)
             API_URL="$2"; shift 2 ;;
+        -d|--dash-url)
+            DASH_URL="$2"; shift 2 ;;
         --dry-run)
             DRY_RUN=true; shift ;;
         --no-verify)
@@ -172,15 +176,16 @@ echo -e "${GREEN}[SUCCESS]${NC} Traffic shift completed in ${ELAPSED_SEC}s (Targ
 # Run post-rollback verification
 if [ "${VERIFY}" = true ] && [ "${DRY_RUN}" = false ]; then
     SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    if [ -z "${API_URL}" ]; then
-        if [ "${ENV}" = "production" ]; then
-            API_URL="https://api.lensio.dev"
-        else
-            API_URL="https://staging-api.lensio.dev"
-        fi
-    fi
-    echo -e "${BLUE}[INFO]${NC} Executing post-rollback verification against ${API_URL}..."
-    "${SCRIPT_DIR}/smoke-test.sh" "${API_URL}" || {
+    # Default to the apps' own ingress FQDNs; pass --api-url / --dash-url for a
+    # custom domain. Without a dashboard URL smoke-test.sh would probe localhost.
+    fqdn() {
+        az containerapp show --name "$1" --resource-group "${RESOURCE_GROUP}" \
+            --query properties.configuration.ingress.fqdn -o tsv
+    }
+    API_URL="${API_URL:-https://$(fqdn "ca-api-lensio-${ENV}")}"
+    DASH_URL="${DASH_URL:-https://$(fqdn "ca-dash-lensio-${ENV}")}"
+    echo -e "${BLUE}[INFO]${NC} Executing post-rollback verification against ${API_URL} and ${DASH_URL}..."
+    "${SCRIPT_DIR}/smoke-test.sh" "${API_URL}" "${DASH_URL}" || {
         echo -e "${RED}[FAIL]${NC} Post-rollback verification failed!" >&2
         exit 1
     }

@@ -14,10 +14,12 @@ import (
 const fakeAz = `#!/bin/sh
 echo "$*" >> "$AZ_LOG"
 case "$*" in
-  "containerapp revision list"*) echo old1 ;;
-  "containerapp show"*)
+  # Idle revisions include the latest (rev2), as after a rollback.
+  "containerapp revision list"*) printf 'old1\nrev2\n' ;;
+  *latestReadyRevisionName*)
     n=$(cat "$AZ_STATE" 2>/dev/null || echo 0); n=$((n+1)); echo "$n" > "$AZ_STATE"
     if [ "$AZ_MODE" = ready ] && [ "$n" -ge 2 ]; then printf 'rev2\nrev2\n'; else printf 'rev2\nrev1\n'; fi ;;
+  "containerapp show"*) echo rev2 ;;
 esac
 exit 0
 `
@@ -49,6 +51,11 @@ func TestDeployScript_ShiftsTrafficOnceRevisionIsReady(t *testing.T) {
 	}
 	if !strings.Contains(out, "[SUCCESS] staging now serving sha-abc1234") {
 		t.Fatalf("missing success line:\n%s", out)
+	}
+	// After a rollback the latest revision is the idle one; switching it off
+	// would leave "latest=100" pointing at an inactive revision.
+	if strings.Contains(azLog, "--revision rev2") {
+		t.Errorf("deploy.sh must never deactivate the latest revision:\n%s", azLog)
 	}
 	for _, want := range []string{
 		"containerapp revision deactivate --name ca-api-lensio-staging --resource-group rg-lensio-staging --revision old1",

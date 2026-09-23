@@ -51,6 +51,7 @@ jobs:
       TRAFFIC: ${{ inputs.traffic_percentage }}
       INCIDENT_REASON: ${{ inputs.incident_reason }}
       API_URL: ${{ inputs.environment == 'production' && vars.PROD_API_URL || vars.STAGING_API_URL }}
+      DASH_URL: ${{ inputs.environment == 'production' && vars.PROD_DASH_URL || vars.STAGING_DASH_URL }}
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -64,15 +65,14 @@ jobs:
 
       - name: Execute Rapid Rollback Script
         run: |
-          set -euo pipefail
-          # Until a custom domain is live, verify against the app's own ingress FQDN.
-          API_URL="${API_URL:-https://$(az containerapp show -n "ca-api-lensio-${TARGET_ENV}" -g "rg-lensio-${TARGET_ENV}" --query properties.configuration.ingress.fqdn -o tsv)}"
+          # Empty URLs make rollback.sh verify against the apps' own ingress FQDNs.
           ./scripts/rollback.sh \
             --env "${TARGET_ENV}" \
             --app "${TARGET_APP}" \
             --target-revision "${TARGET_REVISION}" \
             --traffic "${TRAFFIC}" \
-            --api-url "${API_URL}"
+            --api-url "${API_URL}" \
+            --dash-url "${DASH_URL}"
 
       - name: Post-Rollback Audit Summary
         if: always()
