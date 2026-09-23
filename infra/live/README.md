@@ -16,7 +16,6 @@ CI runs this through `.github/workflows/infra.yml` (manual dispatch, `plan` or `
 | Variable | How to supply |
 |---|---|
 | Azure credentials | `ARM_USE_OIDC=true`, `ARM_CLIENT_ID`, `ARM_TENANT_ID`, `ARM_SUBSCRIPTION_ID` |
-| Cloudflare | `CLOUDFLARE_API_TOKEN` (Zone DNS, Zone Settings, WAF, SSL and Certificates: edit) and `TF_VAR_cloudflare_zone_id` |
 | Secrets | `TF_VAR_smtp_password`, `TF_VAR_gemini_api_key`, `TF_VAR_registry_password` (GHCR token with `read:packages`; leave empty if the packages are public) |
 | SMTP | `TF_VAR_smtp_host`, `TF_VAR_smtp_username` (the API refuses to start in staging/production without a host) |
 
@@ -25,7 +24,6 @@ CI runs this through `.github/workflows/infra.yml` (manual dispatch, `plan` or `
 ## Who owns what
 
 - **Images and traffic belong to CD** (`scripts/deploy.sh`, `scripts/rollback.sh`). The Container Apps ignore `image` and `traffic_weight`, so an apply never reverts a deploy or undoes a rollback. The images in `modules/container_apps` are only used when an app is first created.
-- **Zone-wide Cloudflare settings and WAF rulesets belong to production** (`manage_cloudflare_zone = true`). Both environments share the `lensio.dev` zone, and Cloudflare allows one zone ruleset per phase.
 
 ## One-time bootstrap
 
@@ -33,9 +31,9 @@ CI runs this through `.github/workflows/infra.yml` (manual dispatch, `plan` or `
 2. Entra ID app with GitHub OIDC federated credentials for the `staging` and `production` environments. Grant it Contributor on the subscription and Storage Blob Data Contributor on the state account.
 3. Custom domains: see below. Without one, everything runs on `*.azurecontainerapps.io`, and CORS, `APP_BASE_URL` and the dashboard's `API_URL` are derived automatically.
 
-## Custom domain with DNS outside Cloudflare (e.g. Hostinger for `tec.my.id`)
+## Custom domain (`tec.my.id`, DNS at Hostinger)
 
-Leave `cloudflare_zone_id` empty. Azure issues a free managed certificate. azurerm 3.x can't create one, so bind the hostname with `az` once; the stack ignores `ingress.custom_domain`, so applies won't undo it. Do this after the environment exists, because rebuilding it changes the FQDNs the CNAMEs point to.
+Azure issues a free managed certificate. azurerm 3.x can't create one, so bind the hostname with `az` once; the stack ignores `ingress.custom_domain`, so applies won't undo it. Do this after the environment exists, because rebuilding it changes the FQDNs the CNAMEs point to.
 
 1. Get each app's target and verification ID:
    ```bash
@@ -52,4 +50,4 @@ Leave `cloudflare_zone_id` empty. Azure issues a free managed certificate. azure
    Repeat for the dashboard (`staging.lensio.tec.my.id`).
 4. Set `api_public_url`, `cors_allowed_origins` and `app_base_url` in the tfvars (commented in each file) and apply. Set the GitHub variable `STAGING_API_URL` / `PROD_API_URL` for the smoke tests.
 
-Dashboard and API under one registrable domain (`tec.my.id`) are same-site, so the `SameSite=Lax` session cookie reaches the API. With a Cloudflare zone instead, set `cloudflare_zone_id`; if Container Apps can't validate the domain behind the proxy, apply once with `-var cloudflare_proxied=false`.
+Dashboard and API under one registrable domain (`tec.my.id`) are same-site, so the `SameSite=Lax` session cookie reaches the API. `modules/cloudflare` is not wired in: it is only for a zone hosted on Cloudflare.

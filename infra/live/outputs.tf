@@ -18,16 +18,6 @@ output "dashboard_fqdn" {
   value       = module.container_apps.dashboard_fqdn
 }
 
-output "cloudflare_api_hostname" {
-  description = "Cloudflare API Hostname"
-  value       = length(module.cloudflare) > 0 ? module.cloudflare[0].api_hostname : null
-}
-
-output "cloudflare_dashboard_hostname" {
-  description = "Cloudflare Dashboard Hostname"
-  value       = length(module.cloudflare) > 0 ? module.cloudflare[0].dashboard_hostname : null
-}
-
 output "metrics_token" {
   description = "Bearer token for scraping /metrics (tofu output -raw metrics_token)"
   value       = module.container_apps.metrics_token

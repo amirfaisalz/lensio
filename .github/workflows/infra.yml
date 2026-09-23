@@ -41,8 +41,6 @@ jobs:
       ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
       ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
       ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-      TF_VAR_cloudflare_zone_id: ${{ vars.CLOUDFLARE_ZONE_ID }}
       TF_VAR_smtp_host: ${{ vars.SMTP_HOST }}
       TF_VAR_smtp_username: ${{ vars.SMTP_USERNAME }}
       TF_VAR_smtp_password: ${{ secrets.SMTP_PASSWORD }}

@@ -11,8 +11,6 @@ dashboard_min_replicas         = 1
 dashboard_max_replicas         = 2
 dashboard_cpu                  = 0.25
 dashboard_memory               = "0.5Gi"
-api_subdomain                  = "staging-api"
-dashboard_subdomain            = "staging-dashboard"
 
 # Resend (smtp.resend.com:587, STARTTLS; net/smtp cannot do implicit TLS on 465).
 # The domain must be verified in Resend; host/username/password come from

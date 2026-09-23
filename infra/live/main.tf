@@ -9,14 +9,6 @@ terraform {
       source  = "hashicorp/random"
       version = "~> 3.6"
     }
-    cloudflare = {
-      source  = "cloudflare/cloudflare"
-      version = "~> 4.30"
-    }
-    tls = {
-      source  = "hashicorp/tls"
-      version = "~> 4.0"
-    }
   }
 
   # One stack, one state per environment: pass the key at init, e.g.
@@ -33,9 +25,6 @@ terraform {
 provider "azurerm" {
   features {}
 }
-
-# Reads CLOUDFLARE_API_TOKEN (Zone DNS/Settings/WAF edit + SSL and Certificates edit).
-provider "cloudflare" {}
 
 locals {
   common_tags = merge(var.tags, {
@@ -99,20 +88,3 @@ module "container_apps" {
   tags                     = local.common_tags
 }
 
-module "cloudflare" {
-  count                        = var.cloudflare_zone_id != "" ? 1 : 0
-  source                       = "../modules/cloudflare"
-  zone_id                      = var.cloudflare_zone_id
-  environment                  = var.environment
-  manage_zone                  = var.manage_cloudflare_zone
-  proxied                      = var.cloudflare_proxied
-  api_subdomain                = var.api_subdomain
-  dashboard_subdomain          = var.dashboard_subdomain
-  api_target_fqdn              = module.container_apps.api_fqdn
-  dashboard_target_fqdn        = module.container_apps.dashboard_fqdn
-  container_app_environment_id = module.container_apps.environment_id
-  api_app_id                   = module.container_apps.api_app_id
-  dashboard_app_id             = module.container_apps.dashboard_app_id
-  api_verification_id          = module.container_apps.api_custom_domain_verification_id
-  dashboard_verification_id    = module.container_apps.dashboard_custom_domain_verification_id
-}

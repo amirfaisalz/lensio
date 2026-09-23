@@ -44,23 +44,6 @@ mock_provider "azurerm" {
       id = "/subscriptions/12345678-1234-9876-4563-123456789012/resourceGroups/rg-lensio/providers/Microsoft.App/containerApps/ca-app"
     }
   }
-  mock_resource "azurerm_container_app_environment_certificate" {
-    defaults = {
-      id = "/subscriptions/12345678-1234-9876-4563-123456789012/resourceGroups/rg-lensio/providers/Microsoft.App/managedEnvironments/cae-lensio/certificates/cf-origin"
-    }
-  }
-}
-
-mock_provider "cloudflare" {
-  mock_data "cloudflare_zone" {
-    defaults = {
-      name = "lensio.dev"
-    }
-  }
-}
-
-variables {
-  cloudflare_zone_id = "023e105f4ecef8ad9ca31a8372d0c353"
 }
 
 run "validate_composition" {
@@ -76,12 +59,6 @@ run "validate_composition" {
     error_message = "Postgres admin username mismatch"
   }
 
-
-  # Production must be the sole owner of the shared zone.
-  assert {
-    condition     = var.manage_cloudflare_zone == (var.environment == "production")
-    error_message = "Exactly production must own the zone-wide Cloudflare settings"
-  }
 
   assert {
     condition     = var.environment != "production" || (var.postgres_ha_mode == "ZoneRedundant" && var.postgres_geo_redundant_backups && var.api_min_replicas >= 2)

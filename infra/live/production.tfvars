@@ -12,12 +12,6 @@ dashboard_min_replicas         = 2
 dashboard_max_replicas         = 5
 dashboard_cpu                  = 0.5
 dashboard_memory               = "1.0Gi"
-api_subdomain                  = "api"
-dashboard_subdomain            = "dashboard"
-
-# Staging and production share the lensio.dev zone; production owns its
-# zone-wide settings and WAF rulesets.
-manage_cloudflare_zone = true
 
 # Resend (smtp.resend.com:587, STARTTLS; net/smtp cannot do implicit TLS on 465).
 # The domain must be verified in Resend; host/username/password come from

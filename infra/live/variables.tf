@@ -20,24 +20,6 @@ variable "location" {
   default     = "southeastasia"
 }
 
-variable "cloudflare_zone_id" {
-  type        = string
-  description = "Cloudflare DNS Zone ID. Empty skips DNS, TLS and the custom domain binding."
-  default     = ""
-}
-
-variable "manage_cloudflare_zone" {
-  type        = bool
-  description = "Own the zone-wide Cloudflare settings and WAF rulesets. Exactly one environment sharing the zone sets this."
-  default     = false
-}
-
-variable "cloudflare_proxied" {
-  type        = bool
-  description = "Proxy the public hostnames through Cloudflare."
-  default     = true
-}
-
 variable "postgres_sku" {
   type        = string
   description = "PostgreSQL Flexible Server SKU"
@@ -102,16 +84,6 @@ variable "dashboard_min_replicas" {
 variable "dashboard_max_replicas" {
   type        = number
   description = "Max Dashboard replicas"
-}
-
-variable "api_subdomain" {
-  type        = string
-  description = "API subdomain name"
-}
-
-variable "dashboard_subdomain" {
-  type        = string
-  description = "Dashboard subdomain name"
 }
 
 variable "tags" {
