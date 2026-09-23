@@ -46,6 +46,11 @@ run "validate_postgres_configuration" {
   }
 
   assert {
+    condition     = azurerm_postgresql_flexible_server.postgres.public_network_access_enabled == false
+    error_message = "PostgreSQL must not be publicly reachable; it lives on the delegated subnet"
+  }
+
+  assert {
     condition     = azurerm_postgresql_flexible_server_configuration.connection_throttling.name == "connection_throttle.enable"
     error_message = "Connection throttling must use the Flexible Server parameter name"
   }

@@ -53,17 +53,20 @@ resource "azurerm_private_dns_zone_virtual_network_link" "postgres" {
 }
 
 resource "azurerm_postgresql_flexible_server" "postgres" {
-  name                   = "psql-${local.name_prefix}-${random_string.server_suffix.result}"
-  resource_group_name    = var.resource_group_name
-  location               = var.location
-  version                = var.postgres_version
-  delegated_subnet_id    = var.delegated_subnet_id
-  private_dns_zone_id    = azurerm_private_dns_zone.postgres.id
-  administrator_login    = var.admin_username
-  administrator_password = random_password.admin.result
-  sku_name               = var.sku_name
-  storage_mb             = var.storage_mb
-  backup_retention_days  = var.backup_retention_days
+  name                = "psql-${local.name_prefix}-${random_string.server_suffix.result}"
+  resource_group_name = var.resource_group_name
+  location            = var.location
+  version             = var.postgres_version
+  delegated_subnet_id = var.delegated_subnet_id
+  private_dns_zone_id = azurerm_private_dns_zone.postgres.id
+  # azurerm 3.x defaults this to true, which conflicts with VNet integration;
+  # the server must only be reachable through the delegated subnet.
+  public_network_access_enabled = false
+  administrator_login           = var.admin_username
+  administrator_password        = random_password.admin.result
+  sku_name                      = var.sku_name
+  storage_mb                    = var.storage_mb
+  backup_retention_days         = var.backup_retention_days
 
   geo_redundant_backup_enabled = var.geo_redundant_backups_enabled
 
