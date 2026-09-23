@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { api } from "./api";
+import { api, resolveApiBase } from "./api";
 
 describe("ApiClient", () => {
 	beforeEach(() => {
@@ -607,5 +607,33 @@ describe("ApiClient", () => {
 		expect(before).toHaveLength(1);
 		expect(after).toHaveLength(2);
 		expect(fetchSpy).toHaveBeenCalledTimes(3);
+	});
+});
+
+describe("resolveApiBase", () => {
+	it("prefers the runtime config written by the container", () => {
+		expect(
+			resolveApiBase("https://api.lensio.tec.my.id", "http://localhost:8080"),
+		).toBe("https://api.lensio.tec.my.id");
+	});
+
+	it("falls back to the build-time URL when no runtime config is set", () => {
+		expect(resolveApiBase("", "http://localhost:8080")).toBe(
+			"http://localhost:8080",
+		);
+		expect(resolveApiBase(undefined, "http://localhost:8080")).toBe(
+			"http://localhost:8080",
+		);
+	});
+
+	it("uses same-origin when neither is set", () => {
+		expect(resolveApiBase(undefined, undefined)).toBe("");
+		expect(resolveApiBase("", "")).toBe("");
+	});
+
+	it("strips trailing slashes so paths do not double up", () => {
+		expect(resolveApiBase("https://api.lensio.tec.my.id//", undefined)).toBe(
+			"https://api.lensio.tec.my.id",
+		);
 	});
 });

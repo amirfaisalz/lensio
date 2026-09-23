@@ -19,6 +19,7 @@ FROM nginx:1.27-alpine
 RUN apk upgrade --no-cache
 
 COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY --chmod=755 40-lensio-config.sh /docker-entrypoint.d/40-lensio-config.sh
 COPY --from=builder /app/dist /usr/share/nginx/html
 
 EXPOSE 80

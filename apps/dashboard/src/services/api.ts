@@ -29,12 +29,28 @@ import type {
 	VerifyEmailResponse,
 } from "../types/api";
 
-const API_BASE =
-	import.meta.env.VITE_API_URL ||
-	(typeof window !== "undefined" &&
-	window.location.hostname.includes("ca-dash-")
-		? `${window.location.protocol}//${window.location.hostname.replace("ca-dash-", "ca-api-")}`
-		: "");
+declare global {
+	interface Window {
+		// Written by /config.js, which the dashboard container generates at start
+		// from its API_URL env var, so one image serves every environment.
+		__LENSIO_CONFIG__?: { apiUrl?: string };
+	}
+}
+
+// resolveApiBase picks the API origin: the runtime config from the deployed
+// container, then a build-time VITE_API_URL, then same-origin (the Vite dev
+// server proxies /api to the local API).
+export function resolveApiBase(
+	runtimeApiUrl: string | undefined,
+	buildApiUrl: string | undefined,
+): string {
+	return (runtimeApiUrl || buildApiUrl || "").replace(/\/+$/, "");
+}
+
+const API_BASE = resolveApiBase(
+	typeof window !== "undefined" ? window.__LENSIO_CONFIG__?.apiUrl : undefined,
+	import.meta.env.VITE_API_URL,
+);
 
 // Cache dashboard GETs briefly so fast sidebar navigation reuses data
 // instead of bursting the per-org per-minute rate limit (free: 10 req/min).
